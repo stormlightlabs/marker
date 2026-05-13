@@ -43,8 +43,7 @@ void main() {
     expect(find.text('Library'), findsWidgets);
     expect(find.text('No Saved Pages'), findsOneWidget);
     await tester.tap(find.text('Browser'));
-    await tester.pump();
-    await tester.pump();
+    await _pumpRouteTransition(tester);
 
     expect(find.text('Fake WebView'), findsOneWidget);
     expect(find.text('Browser'), findsWidgets);
@@ -77,8 +76,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     await tester.tap(find.text('Browser'));
-    await tester.pump();
-    await tester.pump();
+    await _pumpRouteTransition(tester);
 
     final renderScript = platform.controller.injectedScripts.last;
     expect(renderScript, contains('renderAnnotations'));
@@ -86,6 +84,81 @@ void main() {
     expect(renderScript, contains('"exact":"selected text"'));
     expect(renderScript, contains('"style":"highlight"'));
     expect(renderScript, contains('"color":"#FFCC00"'));
+  });
+
+  testWidgets('BrowserScreen annotation sidebar filters, jumps, edits, and deletes', (tester) async {
+    await _seedSidebarAnnotations(database);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await _pumpRouteTransition(tester);
+    await tester.pump();
+
+    expect(find.text('3'), findsOneWidget);
+    await tester.tap(find.text('3'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Annotations'), findsOneWidget);
+    expect(find.text('All (3)'), findsOneWidget);
+    expect(find.text('Highlights'), findsOneWidget);
+    expect(find.text('Notes'), findsOneWidget);
+    expect(find.text('Underlines'), findsOneWidget);
+
+    await tester.tap(find.text('Notes'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.textContaining('note quote'), findsOneWidget);
+    expect(find.textContaining('highlight quote'), findsNothing);
+
+    await tester.tap(find.bySemanticsLabel('Jump').first);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(platform.controller.injectedScripts.last, contains('scrollToAnnotation("note-annotation")'));
+
+    await tester.tap(find.bySemanticsLabel('Edit').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Edit Note'), findsOneWidget);
+    await tester.tap(find.byType(CodeForge));
+    await tester.pump();
+    tester.testTextInput.enterText('Updated sidebar note');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Save').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final editedBody = (await database.select(database.annotationBodies).get()).firstWhere(
+      (body) => body.annotationId == 'note-annotation' && body.type == 'TextualBody',
+    );
+    expect(editedBody.value, 'Updated sidebar note');
+
+    await tester.tap(find.bySemanticsLabel('Delete').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final deleted = await (database.select(
+      database.annotations,
+    )..where((annotation) => annotation.id.equals('note-annotation'))).getSingle();
+    expect(deleted.deletedAt, isNotNull);
+    expect(
+      platform.controller.injectedScripts.any(
+        (script) => script.contains('deleteRenderedAnnotation("note-annotation")'),
+      ),
+      isTrue,
+    );
   });
 
   testWidgets('BrowserScreen exposes bookmark and tab controls', (tester) async {
@@ -104,8 +177,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     await tester.tap(find.text('Browser'));
-    await tester.pump();
-    await tester.pump();
+    await _pumpRouteTransition(tester);
 
     expect(find.text('Save'), findsOneWidget);
     expect(find.text('Bookmarks 0'), findsOneWidget);
@@ -145,8 +217,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     await tester.tap(find.text('Browser'));
-    await tester.pump();
-    await tester.pump();
+    await _pumpRouteTransition(tester);
 
     platform.controller.sendSelectionMessage(
       '{"type":"selection-captured","payload":{"exact":"selected text","prefix":"before ","suffix":" after","sourceUrl":"https://news.ycombinator.com","pageTitle":"Hacker News","textPositionStart":7,"textPositionEnd":20,"cssSelector":"p:nth-of-type(1)"}}',
@@ -159,7 +230,7 @@ void main() {
     expect(find.text('Underline'), findsOneWidget);
     expect(find.text('Remove'), findsOneWidget);
 
-    await tester.tap(find.text('Highlight'));
+    await tester.tap(find.widgetWithText(CupertinoButton, 'Highlight'));
     await tester.pumpAndSettle();
 
     expect(find.text('selected text'), findsNothing);
@@ -188,15 +259,14 @@ void main() {
     await tester.pump();
     await tester.pump();
     await tester.tap(find.text('Browser'));
-    await tester.pump();
-    await tester.pump();
+    await _pumpRouteTransition(tester);
 
     platform.controller.sendSelectionMessage(
       '{"type":"selection-captured","payload":{"exact":"note text","prefix":"before ","suffix":" after","sourceUrl":"https://news.ycombinator.com","pageTitle":"Hacker News","textPositionStart":7,"textPositionEnd":16,"cssSelector":"p:nth-of-type(1)"}}',
     );
     await tester.pump();
 
-    await tester.tap(find.text('Note'));
+    await tester.tap(find.widgetWithText(CupertinoButton, 'Note'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Add Note'), findsOneWidget);
@@ -301,6 +371,12 @@ void main() {
     )..where((annotation) => annotation.id.equals('annotation'))).getSingle();
     expect(deleted.deletedAt, isNotNull);
   });
+}
+
+Future<void> _pumpRouteTransition(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 320));
+  await tester.pump();
 }
 
 Future<void> _seedLibrary(AppDatabase database) async {
@@ -408,6 +484,115 @@ Future<void> _seedPageAnnotation(AppDatabase database) async {
           value: '{"style":"highlight","color":"#FFCC00"}',
         ),
       );
+}
+
+Future<void> _seedSidebarAnnotations(AppDatabase database) async {
+  final now = DateTime.utc(2026, 5, 13, 12);
+  await database
+      .into(database.pages)
+      .insert(
+        PagesCompanion.insert(
+          id: 'sidebar-page',
+          url: 'https://news.ycombinator.com',
+          canonicalUrl: const Value('https://news.ycombinator.com/news'),
+          title: const Value('Hacker News'),
+          createdAt: now,
+          lastVisitedAt: now,
+        ),
+      );
+
+  await _insertSeedAnnotation(
+    database,
+    id: 'highlight-annotation',
+    pageId: 'sidebar-page',
+    sourceUrl: 'https://news.ycombinator.com',
+    exact: 'highlight quote',
+    style: 'highlight',
+    color: '#FFCC00',
+    createdAt: now,
+  );
+  await _insertSeedAnnotation(
+    database,
+    id: 'note-annotation',
+    pageId: 'sidebar-page',
+    sourceUrl: 'https://news.ycombinator.com',
+    exact: 'note quote',
+    style: 'highlight',
+    color: '#34C759',
+    note: 'Original sidebar note',
+    createdAt: now.add(const Duration(minutes: 1)),
+    motivation: 'commenting',
+  );
+  await _insertSeedAnnotation(
+    database,
+    id: 'underline-annotation',
+    pageId: 'sidebar-page',
+    sourceUrl: 'https://news.ycombinator.com',
+    exact: 'underline quote',
+    style: 'underline',
+    color: '#64D2FF',
+    createdAt: now.add(const Duration(minutes: 2)),
+  );
+}
+
+Future<void> _insertSeedAnnotation(
+  AppDatabase database, {
+  required String id,
+  required String pageId,
+  required String sourceUrl,
+  required String exact,
+  required String style,
+  required String color,
+  required DateTime createdAt,
+  String motivation = 'highlighting',
+  String? note,
+}) async {
+  await database
+      .into(database.annotations)
+      .insert(
+        AnnotationsCompanion.insert(
+          id: id,
+          pageId: pageId,
+          motivation: motivation,
+          createdAt: createdAt,
+          modifiedAt: createdAt,
+        ),
+      );
+  await database
+      .into(database.annotationTargets)
+      .insert(
+        AnnotationTargetsCompanion.insert(
+          id: '$id-target',
+          annotationId: id,
+          sourceUrl: sourceUrl,
+          selectorJson:
+              '[{"type":"TextQuoteSelector","exact":"$exact","prefix":"","suffix":""},{"type":"TextPositionSelector","start":0,"end":${exact.length}}]',
+        ),
+      );
+  await database
+      .into(database.annotationBodies)
+      .insert(
+        AnnotationBodiesCompanion.insert(
+          id: '$id-style',
+          annotationId: id,
+          type: 'StyleHint',
+          format: const Value('application/json'),
+          value: '{"style":"$style","color":"$color"}',
+        ),
+      );
+  if (note != null) {
+    await database
+        .into(database.annotationBodies)
+        .insert(
+          AnnotationBodiesCompanion.insert(
+            id: '$id-note',
+            annotationId: id,
+            type: 'TextualBody',
+            format: const Value('text/markdown'),
+            value: note,
+          ),
+        );
+  }
 }
 
 class _FakeWebViewPlatform extends WebViewPlatform {

@@ -8,9 +8,10 @@ import 'package:marker/src/features/annotations/data/annotation_repository.dart'
 import 'package:marker/src/features/browser/application/reader_controller.dart';
 import 'package:marker/src/features/browser/application/selection_capture_controller.dart';
 import 'package:marker/src/features/browser/domain/reader_session_state.dart';
+import 'package:marker/src/features/browser/presentation/annotation_sidebar_widget.dart';
+import 'package:marker/src/features/browser/presentation/note_editor_sheet.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
 import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
-import 'package:marker/src/features/browser/presentation/note_editor_sheet.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class BrowserScreen extends ConsumerStatefulWidget {
@@ -210,6 +211,67 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     _dismissSelection();
   }
 
+  Future<void> _editSidebarAnnotation(PageAnnotation annotation) async {
+    final note = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) {
+        return NoteEditorSheet(
+          quote: annotation.exact ?? 'Untitled annotation',
+          initialText: annotation.note ?? '',
+          title: annotation.note == null ? 'Add Note' : 'Edit Note',
+        );
+      },
+    );
+    if (note == null) {
+      return;
+    }
+
+    await ref
+        .read(annotationRepositoryProvider)
+        .updateMarkdownBody(annotationId: annotation.annotation.id, value: note);
+    final sourceUrl = Uri.tryParse(annotation.target.sourceUrl);
+    if (sourceUrl != null) {
+      ref.invalidate(annotationsForPageProvider(sourceUrl));
+      await _renderSavedAnnotations(sourceUrl);
+    }
+  }
+
+  Future<void> _jumpToSidebarAnnotation(PageAnnotation annotation) {
+    return ref.read(readerWebViewBridgeProvider).scrollToAnnotation(_webViewController, annotation.annotation.id);
+  }
+
+  Future<void> _deleteSidebarAnnotation(PageAnnotation annotation) async {
+    final shouldDelete = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return CupertinoAlertDialog(
+          title: const Text('Delete Annotation?'),
+          content: const Text('This removes the saved annotation and its note from this device.'),
+          actions: [
+            CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+            CupertinoDialogAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    await ref.read(annotationRepositoryProvider).deleteAnnotation(annotation.annotation.id);
+    await ref.read(readerWebViewBridgeProvider).deleteRenderedAnnotation(_webViewController, annotation.annotation.id);
+    final sourceUrl = Uri.tryParse(annotation.target.sourceUrl);
+    if (sourceUrl != null) {
+      ref.invalidate(annotationsForPageProvider(sourceUrl));
+      await _renderSavedAnnotations(sourceUrl);
+    }
+  }
+
   void _showTabs(BuildContext context, ReaderSessionState session) {
     showCupertinoModalPopup<void>(
       context: context,
@@ -329,6 +391,14 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                 children: [
                   Positioned.fill(
                     child: ColoredBox(color: CupertinoColors.black, child: webViewBuilder(context, _webViewController)),
+                  ),
+                  Positioned.fill(
+                    child: AnnotationSidebarWidget(
+                      sourceUrl: session.currentUrl,
+                      onEdit: _editSidebarAnnotation,
+                      onJump: _jumpToSidebarAnnotation,
+                      onDelete: _deleteSidebarAnnotation,
+                    ),
                   ),
                   if (selection.capture != null)
                     Positioned(

@@ -72,7 +72,7 @@ Status: implemented.
 - Add quick actions per card: edit, jump, delete.
 - Animate open/close from trailing edge over 300 ms.
 
-Status: not started.
+Status: implemented.
 
 ## Milestone 9: Settings And Browser History
 
