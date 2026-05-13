@@ -333,7 +333,10 @@ CupertinoApp
 │   ├── WebView
 │   ├── Floating annotation toolbar
 │   ├── Bottom sheet note editor
-│   └── AnnotationSidebarWidget (overlay, slides in from trailing edge)
+│   ├── AnnotationSidebarWidget (overlay, slides in from trailing edge)
+│   ├── Link context action sheet
+│   ├── Browser overflow menu
+│   └── Edge swipe navigation wrapper
 │
 ├── SettingsScreen
 │   └── Browser history entry point
@@ -391,6 +394,131 @@ BrowserScreen (Stack)
 │       └── NewAnnotationButton
 └── FloatingAnnotationToolbar  (shown on text selection, above sidebar)
 ```
+
+## 9. Link Long-Press Menus
+
+The app should support native link actions when the user long-presses a link in the WebView. Link detection happens in injected JavaScript because Flutter cannot reliably inspect DOM hit targets from outside the WebView.
+
+### Behavior
+
+- Long-pressing a webpage link opens a Cupertino action sheet.
+- The action sheet shows the link label or URL and offers link-specific actions.
+- Long-pressing non-link text should keep normal text selection behavior.
+- Ordinary taps on links should preserve normal page navigation.
+- Link menus should not appear while an annotation selection toolbar is active.
+
+### Link Payload
+
+The JavaScript bridge sends a message to Flutter when a link long press is recognized:
+
+```json
+{
+  "type": "link-long-pressed",
+  "payload": {
+    "href": "https://example.com/article",
+    "text": "Read the article",
+    "pageUrl": "https://current-page.example",
+    "pageTitle": "Current Page"
+  }
+}
+```
+
+Required fields:
+
+| Field | Meaning |
+| --- | --- |
+| `href` | Fully resolved link URL from the nearest ancestor anchor. |
+| `text` | Trimmed visible link text, nullable or empty when the link has no text. |
+| `pageUrl` | Current WebView URL when the gesture occurred. |
+| `pageTitle` | Current document title, nullable. |
+
+### Actions
+
+Initial actions:
+
+- Open in Current Tab.
+- Open in New Tab.
+- Copy Link.
+- Add Bookmark.
+- Cancel.
+
+The JavaScript layer should only detect and report the link gesture. Flutter owns the action sheet, tab operations, bookmark writes, clipboard interaction, and navigation state changes.
+
+### Implementation Notes
+
+- Extend the injected bridge with a link gesture detector that observes `contextmenu` plus touch/mouse long-press events.
+- Resolve anchors with `event.target.closest('a[href]')`.
+- Use a press duration threshold so ordinary taps do not open the menu.
+- Cancel the pending long press on movement, scroll, selection changes, or touch end before the threshold.
+- Add a dedicated Riverpod controller or state object for active link context if the action sheet needs testable state beyond the immediate bridge event.
+- Use a second JavaScript channel or typed bridge event parsing so link events do not get mixed with selection capture logic.
+
+## 10. Browser Kebab Menu
+
+The browser should have a single overflow menu for page-level and browser-level actions as the browser chrome grows. This keeps the address bar compact and prevents the bottom toolbar from becoming a dumping ground for controls.
+
+### Behavior
+
+- A kebab or overflow button appears in the browser chrome.
+- Tapping it opens a Cupertino action sheet or menu.
+- The menu groups actions by purpose: page, tab, annotations, history/settings.
+- Disabled actions should reflect current state, such as no back history or no annotations.
+- The menu should be reachable with a stable semantic label for tests and accessibility.
+
+### Initial Action Groups
+
+Page actions:
+
+- Reload.
+- Copy URL.
+- Share.
+- Bookmark or Unbookmark.
+
+Tab actions:
+
+- New Tab.
+- Show Tabs.
+- Close Current Tab when more than one tab exists.
+
+Annotation actions:
+
+- Open Annotations when the page has annotations.
+- Hide or Show Rendered Highlights.
+
+History and settings actions:
+
+- Open History once `BrowserHistoryScreen` exists.
+- Open Settings once `SettingsScreen` exists.
+
+### Implementation Notes
+
+- Keep menu construction in a dedicated widget or helper once it grows beyond a few actions.
+- Actions should delegate to `ReaderController`, repositories, or WebView bridge methods rather than directly mutating UI state in the menu widget.
+- Use the same bookmark repository and tab methods as existing browser controls.
+- Keep destructive actions behind confirmation when they delete user data or close meaningful state.
+- Tests should cover menu visibility, state-dependent labels, and one representative action from each group.
+
+## 11. Edge Swipe Navigation
+
+The browser should support edge-swipe back and forward gestures around the WebView reading surface while avoiding conflict with normal webpage scrolling and text selection.
+
+### Behavior
+
+- A left-edge horizontal swipe navigates back when the active tab can go back.
+- A right-edge horizontal swipe navigates forward when the active tab can go forward.
+- Swipes should require a minimum drag distance or velocity before triggering navigation.
+- Vertical scrolls, ordinary horizontal webpage gestures, and text selection should not trigger browser navigation.
+- A subtle chevron or progress affordance should appear while the edge gesture is active.
+- The gesture should be disabled in unavailable directions based on current tab history.
+
+### Implementation Notes
+
+- Implement this as a reusable Flutter widget, e.g. `EdgeSwipeNavigator`, around the WebView/sidebar stack.
+- Restrict gesture start zones to narrow leading/trailing edge bands.
+- Use `ReaderSessionState.canGoBack` and `canGoForward` to decide whether a gesture can begin.
+- Trigger existing `_goBack` and `_goForward` callbacks instead of duplicating history logic.
+- Avoid placing gesture detectors above modal sheets, action sheets, or the annotation sidebar panel.
+- Tests should cover threshold behavior, disabled directions, and successful back/forward callback invocation.
 
 ## v2
 

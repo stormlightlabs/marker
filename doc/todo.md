@@ -84,3 +84,40 @@ Status: implemented.
 - Decide whether browser history should reuse `pages.lastVisitedAt` or move to a dedicated visit-events table.
 
 Status: not started.
+
+## Milestone 10: Link Long-Press Menus
+
+- Detect long-press or context-menu gestures on webpage links in injected JavaScript.
+- Send link metadata to Flutter through the WebView bridge, including `href`, visible text, and current page URL.
+- Show a Cupertino action sheet for link actions.
+- Support opening the link in the current tab.
+- Support opening the link in a new browser tab.
+- Support copying the link URL.
+- Support bookmarking the link URL.
+- Avoid triggering link menus for ordinary text selection or non-link long presses.
+
+Status: not started.
+
+## Milestone 11: Browser Kebab Menu
+
+- Add a browser overflow or kebab menu entry point to the browser chrome.
+- Show a Cupertino action sheet or menu with page and browser actions.
+- Include page actions such as reload, copy URL, share, and bookmark or unbookmark.
+- Include tab actions such as new tab and tab overview.
+- Include annotation actions such as open annotations and hide or show rendered highlights.
+- Include history/settings entry points once those screens exist.
+- Keep the action list grouped and testable as the menu grows.
+
+Status: not started.
+
+## Milestone 12: Edge Swipe Navigation
+
+- Add reusable edge-swipe navigation around the WebView reading surface.
+- Support left-edge swipe back when the active tab can go back.
+- Support right-edge swipe forward when the active tab can go forward.
+- Use distance and velocity thresholds to avoid accidental navigation.
+- Avoid hijacking normal webpage vertical or horizontal scrolling.
+- Show a subtle drag affordance while swiping.
+- Respect current browser history state and disable unavailable directions.
+
+Status: not started.
