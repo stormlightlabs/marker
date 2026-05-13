@@ -1,6 +1,6 @@
 name: marker
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 
 # Read more about Android versioning at https://developer.android.com/studio/publish/versioning
 # In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
@@ -39,6 +39,7 @@ dev_dependencies:
   webview_flutter_platform_interface: ^2.15.1
 
 flutter:
-
   # for material fonts
   uses-material-design: true
+  assets:
+    - assets/js/reader.js

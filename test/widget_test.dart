@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:code_forge/code_forge.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/src/app/marker_app.dart';
@@ -9,6 +13,7 @@ import 'package:marker/src/core/database/app_database.dart';
 import 'package:marker/src/core/database/database_provider.dart';
 import 'package:marker/src/features/browser/application/native_share_controller.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
+import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 void main() {
@@ -30,6 +35,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -66,6 +72,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -94,6 +101,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -170,6 +178,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -217,6 +226,7 @@ void main() {
             sharedTitle = title;
             sharedOrigin = sharePositionOrigin;
           }),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -271,6 +281,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -311,6 +322,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -353,6 +365,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -398,6 +411,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -432,6 +446,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
           browserWebViewBuilderProvider.overrideWithValue(
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
@@ -482,6 +497,31 @@ Future<void> _pumpRouteTransition(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 320));
   await tester.pump();
+  await tester.runAsync(() async {
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  });
+  await tester.pump();
+}
+
+ReaderWebViewBridge _testReaderBridge() {
+  return ReaderWebViewBridge(assetBundle: _StringAssetBundle());
+}
+
+class _StringAssetBundle extends CachingAssetBundle {
+  static const String _readerScript = '''
+(function () {
+  window.__markerReaderInstalled = true;
+})();
+''';
+
+  @override
+  Future<ByteData> load(String key) {
+    if (key != ReaderWebViewBridge.bootstrapScriptAsset) {
+      return Future<ByteData>.error(FlutterError('Missing test asset: $key'));
+    }
+    final bytes = Uint8List.fromList(utf8.encode(_readerScript));
+    return SynchronousFuture<ByteData>(ByteData.view(bytes.buffer));
+  }
 }
 
 Future<void> _seedLibrary(AppDatabase database) async {

@@ -9,6 +9,4 @@ final browserWebViewBuilderProvider = Provider<BrowserWebViewBuilder>((ref) {
   return (context, controller) => WebViewWidget(controller: controller);
 });
 
-final readerWebViewBridgeProvider = Provider<ReaderWebViewBridge>((ref) {
-  return const ReaderWebViewBridge();
-});
+final readerWebViewBridgeProvider = Provider<ReaderWebViewBridge>((ref) => ReaderWebViewBridge());
