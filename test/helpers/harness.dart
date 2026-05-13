@@ -1,0 +1,371 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show Value;
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:marker/src/app/marker_app.dart';
+import 'package:marker/src/core/database/app_database.dart';
+import 'package:marker/src/core/database/database_provider.dart';
+import 'package:marker/src/features/browser/application/native_share_controller.dart';
+import 'package:marker/src/features/browser/webview/browser_webview.dart';
+import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
+
+Widget markerTestApp({required AppDatabase database, NativeUrlShare? nativeUrlShare}) {
+  final overrides = [
+    databaseProvider.overrideWithValue(database),
+    readerWebViewBridgeProvider.overrideWithValue(testReaderBridge()),
+    browserWebViewBuilderProvider.overrideWithValue((context, controller) => const Center(child: Text('Fake WebView'))),
+    if (nativeUrlShare != null) nativeUrlShareProvider.overrideWithValue(nativeUrlShare),
+  ];
+
+  return ProviderScope(overrides: overrides, child: const MarkerApp());
+}
+
+Future<void> pumpRouteTransition(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 320));
+  await tester.pump();
+  await tester.runAsync(() async {
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  });
+  await tester.pump();
+}
+
+ReaderWebViewBridge testReaderBridge() {
+  return ReaderWebViewBridge(assetBundle: _StringAssetBundle());
+}
+
+Future<void> seedLibrary(AppDatabase database) async {
+  final savedAt = DateTime.utc(2026, 5, 13, 10);
+  final recentAt = DateTime.utc(2026, 5, 13, 11);
+  await database
+      .into(database.pages)
+      .insert(
+        PagesCompanion.insert(
+          id: 'saved-page',
+          url: 'https://example.com/saved',
+          title: const Value('Saved Article'),
+          createdAt: savedAt,
+          lastVisitedAt: savedAt,
+        ),
+      );
+  await database
+      .into(database.pages)
+      .insert(
+        PagesCompanion.insert(
+          id: 'recent-page',
+          url: 'https://example.com/recent',
+          title: const Value('Recent Article'),
+          createdAt: recentAt,
+          lastVisitedAt: recentAt,
+        ),
+      );
+  await database
+      .into(database.bookmarks)
+      .insert(
+        BookmarksCompanion.insert(
+          id: 'bookmark',
+          url: 'https://example.com/saved',
+          title: const Value('Saved Article'),
+          createdAt: savedAt,
+        ),
+      );
+  await database
+      .into(database.annotations)
+      .insert(
+        AnnotationsCompanion.insert(
+          id: 'annotation',
+          pageId: 'recent-page',
+          motivation: 'highlighting',
+          createdAt: recentAt,
+          modifiedAt: recentAt,
+        ),
+      );
+  await database
+      .into(database.annotationTargets)
+      .insert(
+        AnnotationTargetsCompanion.insert(
+          id: 'target',
+          annotationId: 'annotation',
+          sourceUrl: 'https://example.com/recent',
+          selectorJson: '{"selector":[{"type":"TextQuoteSelector","exact":"important quote"}]}',
+        ),
+      );
+}
+
+Future<void> seedPageAnnotation(AppDatabase database) async {
+  final now = DateTime.utc(2026, 5, 13, 12);
+  await database
+      .into(database.pages)
+      .insert(
+        PagesCompanion.insert(
+          id: 'news-page',
+          url: 'https://news.ycombinator.com',
+          canonicalUrl: const Value('https://news.ycombinator.com/news'),
+          title: const Value('Hacker News'),
+          createdAt: now,
+          lastVisitedAt: now,
+        ),
+      );
+  await database
+      .into(database.annotations)
+      .insert(
+        AnnotationsCompanion.insert(
+          id: 'saved-annotation',
+          pageId: 'news-page',
+          motivation: 'highlighting',
+          createdAt: now,
+          modifiedAt: now,
+        ),
+      );
+  await database
+      .into(database.annotationTargets)
+      .insert(
+        AnnotationTargetsCompanion.insert(
+          id: 'saved-target',
+          annotationId: 'saved-annotation',
+          sourceUrl: 'https://news.ycombinator.com',
+          selectorJson:
+              '[{"type":"TextQuoteSelector","exact":"selected text","prefix":"before ","suffix":" after"},{"type":"TextPositionSelector","start":7,"end":20}]',
+        ),
+      );
+  await database
+      .into(database.annotationBodies)
+      .insert(
+        AnnotationBodiesCompanion.insert(
+          id: 'saved-body',
+          annotationId: 'saved-annotation',
+          type: 'StyleHint',
+          format: const Value('application/json'),
+          value: '{"style":"highlight","color":"#FFCC00"}',
+        ),
+      );
+}
+
+Future<void> seedSidebarAnnotations(AppDatabase database) async {
+  final now = DateTime.utc(2026, 5, 13, 12);
+  await database
+      .into(database.pages)
+      .insert(
+        PagesCompanion.insert(
+          id: 'sidebar-page',
+          url: 'https://news.ycombinator.com',
+          canonicalUrl: const Value('https://news.ycombinator.com/news'),
+          title: const Value('Hacker News'),
+          createdAt: now,
+          lastVisitedAt: now,
+        ),
+      );
+
+  await insertSeedAnnotation(
+    database,
+    id: 'highlight-annotation',
+    pageId: 'sidebar-page',
+    sourceUrl: 'https://news.ycombinator.com',
+    exact: 'highlight quote',
+    style: 'highlight',
+    color: '#FFCC00',
+    createdAt: now,
+  );
+  await insertSeedAnnotation(
+    database,
+    id: 'note-annotation',
+    pageId: 'sidebar-page',
+    sourceUrl: 'https://news.ycombinator.com',
+    exact: 'note quote',
+    style: 'highlight',
+    color: '#34C759',
+    note: 'Original sidebar note',
+    createdAt: now.add(const Duration(minutes: 1)),
+    motivation: 'commenting',
+  );
+  await insertSeedAnnotation(
+    database,
+    id: 'underline-annotation',
+    pageId: 'sidebar-page',
+    sourceUrl: 'https://news.ycombinator.com',
+    exact: 'underline quote',
+    style: 'underline',
+    color: '#64D2FF',
+    createdAt: now.add(const Duration(minutes: 2)),
+  );
+}
+
+Future<void> insertSeedAnnotation(
+  AppDatabase database, {
+  required String id,
+  required String pageId,
+  required String sourceUrl,
+  required String exact,
+  required String style,
+  required String color,
+  required DateTime createdAt,
+  String motivation = 'highlighting',
+  String? note,
+}) async {
+  await database
+      .into(database.annotations)
+      .insert(
+        AnnotationsCompanion.insert(
+          id: id,
+          pageId: pageId,
+          motivation: motivation,
+          createdAt: createdAt,
+          modifiedAt: createdAt,
+        ),
+      );
+  await database
+      .into(database.annotationTargets)
+      .insert(
+        AnnotationTargetsCompanion.insert(
+          id: '$id-target',
+          annotationId: id,
+          sourceUrl: sourceUrl,
+          selectorJson:
+              '[{"type":"TextQuoteSelector","exact":"$exact","prefix":"","suffix":""},{"type":"TextPositionSelector","start":0,"end":${exact.length}}]',
+        ),
+      );
+  await database
+      .into(database.annotationBodies)
+      .insert(
+        AnnotationBodiesCompanion.insert(
+          id: '$id-style',
+          annotationId: id,
+          type: 'StyleHint',
+          format: const Value('application/json'),
+          value: '{"style":"$style","color":"$color"}',
+        ),
+      );
+  if (note != null) {
+    await database
+        .into(database.annotationBodies)
+        .insert(
+          AnnotationBodiesCompanion.insert(
+            id: '$id-note',
+            annotationId: id,
+            type: 'TextualBody',
+            format: const Value('text/markdown'),
+            value: note,
+          ),
+        );
+  }
+}
+
+class FakeWebViewPlatform extends WebViewPlatform {
+  late final FakePlatformWebViewController controller;
+
+  @override
+  PlatformWebViewController createPlatformWebViewController(PlatformWebViewControllerCreationParams params) {
+    controller = FakePlatformWebViewController(params);
+    return controller;
+  }
+
+  @override
+  PlatformNavigationDelegate createPlatformNavigationDelegate(PlatformNavigationDelegateCreationParams params) {
+    return FakePlatformNavigationDelegate(params);
+  }
+}
+
+class FakePlatformWebViewController extends PlatformWebViewController {
+  FakePlatformWebViewController(super.params) : super.implementation();
+
+  Uri? loadedUri;
+  final loadedUris = <Uri>[];
+  final injectedScripts = <String>[];
+  FakePlatformNavigationDelegate? navigationDelegate;
+  final javaScriptChannels = <String, JavaScriptChannelParams>{};
+
+  @override
+  Future<void> setJavaScriptMode(JavaScriptMode javaScriptMode) async {}
+
+  @override
+  Future<void> setPlatformNavigationDelegate(PlatformNavigationDelegate handler) async {
+    navigationDelegate = handler as FakePlatformNavigationDelegate;
+  }
+
+  @override
+  Future<void> addJavaScriptChannel(JavaScriptChannelParams javaScriptChannelParams) async {
+    javaScriptChannels[javaScriptChannelParams.name] = javaScriptChannelParams;
+  }
+
+  @override
+  Future<void> loadRequest(LoadRequestParams params) async {
+    loadedUri = params.uri;
+    loadedUris.add(params.uri);
+    navigationDelegate?.onProgress?.call(40);
+    navigationDelegate?.onProgress?.call(100);
+    navigationDelegate?.onPageFinished?.call(params.uri.toString());
+  }
+
+  @override
+  Future<void> runJavaScript(String javaScript) async {
+    injectedScripts.add(javaScript);
+  }
+
+  @override
+  Future<Object> runJavaScriptReturningResult(String javaScript) async {
+    injectedScripts.add(javaScript);
+    if (javaScript.contains('renderAnnotations(')) {
+      return 1;
+    }
+    return '"https://news.ycombinator.com/news"';
+  }
+
+  @override
+  Future<String?> getTitle() async => 'Example Domain';
+
+  @override
+  Future<String?> currentUrl() async => loadedUri?.toString();
+
+  void sendSelectionMessage(String message) {
+    javaScriptChannels['MarkerSelection']?.onMessageReceived(JavaScriptMessage(message: message));
+  }
+
+  void sendLinkContextMessage(String message) {
+    javaScriptChannels['MarkerLinkContext']?.onMessageReceived(JavaScriptMessage(message: message));
+  }
+}
+
+class FakePlatformNavigationDelegate extends PlatformNavigationDelegate {
+  FakePlatformNavigationDelegate(super.params) : super.implementation();
+
+  ProgressCallback? onProgress;
+  PageEventCallback? onPageFinished;
+  WebResourceErrorCallback? onWebResourceError;
+
+  @override
+  Future<void> setOnProgress(ProgressCallback onProgress) async {
+    this.onProgress = onProgress;
+  }
+
+  @override
+  Future<void> setOnPageFinished(PageEventCallback onPageFinished) async {
+    this.onPageFinished = onPageFinished;
+  }
+
+  @override
+  Future<void> setOnWebResourceError(WebResourceErrorCallback onWebResourceError) async {
+    this.onWebResourceError = onWebResourceError;
+  }
+}
+
+class _StringAssetBundle extends CachingAssetBundle {
+  static const String _readerScript = '''
+(function () {
+  window.__markerReaderInstalled = true;
+})();
+''';
+
+  @override
+  Future<ByteData> load(String key) {
+    if (key != ReaderWebViewBridge.bootstrapScriptAsset) {
+      return Future<ByteData>.error(FlutterError('Missing test asset: $key'));
+    }
+    final bytes = Uint8List.fromList(utf8.encode(_readerScript));
+    return SynchronousFuture<ByteData>(ByteData.view(bytes.buffer));
+  }
+}
