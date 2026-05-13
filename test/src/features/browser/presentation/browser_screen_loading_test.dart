@@ -1,7 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/src/core/database/app_database.dart';
-import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
+import 'package:marker/src/features/browser/ad_block/ad_block_rules.dart';
+import 'package:marker/src/features/settings/data/settings_repository.dart';
 
 import '../../../../helpers/harness.dart';
 
@@ -11,7 +12,6 @@ void main() {
 
   setUp(() {
     platform = FakeWebViewPlatform();
-    WebViewPlatform.instance = platform;
     database = AppDatabase(NativeDatabase.memory());
   });
 
@@ -33,7 +33,8 @@ void main() {
     expect(find.text('Fake WebView'), findsOneWidget);
     expect(find.text('Browser'), findsWidgets);
     expect(platform.controller.loadedUri, Uri.parse('https://news.ycombinator.com'));
-    expect(platform.controller.injectedScripts.first, contains('__markerReaderInstalled'));
+    expect(platform.controller.injectedScripts.first, contains('installChannel'));
+    expect(platform.controller.injectedScripts[1], contains('__markerReaderInstalled'));
     expect(platform.controller.injectedScripts.last, contains('renderAnnotations([])'));
 
     final pages = await database.select(database.pages).get();
@@ -78,5 +79,37 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  testWidgets('applies compiled ad-block rules when enabled', (tester) async {
+    final rules = EasyListParser().parse('||ads.example.com^\nnews.ycombinator.com##.ad');
+
+    await tester.pumpWidget(markerTestApp(database: database, compiledAdBlockRules: rules));
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await pumpRouteTransition(tester);
+
+    expect(platform.controller.adBlockRules, same(rules));
+    expect(
+      platform.controller.injectedScripts.any((script) => script.contains('MarkerAdBlock') && script.contains('.ad')),
+      isTrue,
+    );
+  });
+
+  testWidgets('does not apply ad-block rules when disabled', (tester) async {
+    final rules = EasyListParser().parse('||ads.example.com^\nnews.ycombinator.com##.ad');
+    await SettingsRepository(database).setAdBlockEnabled(false);
+
+    await tester.pumpWidget(markerTestApp(database: database, compiledAdBlockRules: rules));
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await pumpRouteTransition(tester);
+
+    expect(platform.controller.adBlockRules, isNull);
+    expect(platform.controller.injectedScripts.any((script) => script.contains('MarkerAdBlock')), isFalse);
   });
 }

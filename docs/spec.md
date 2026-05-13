@@ -68,6 +68,8 @@ Flutter App
     ├── Injected selection JS
     ├── DOM range serialization
     ├── Annotation rendering JS
+    ├── EasyList ad blocking
+    ├── Cosmetic filter injection
     └── JS ↔ Flutter message bridge
 ```
 
@@ -498,7 +500,50 @@ History and settings actions:
 - Keep destructive actions behind confirmation when they delete user data or close meaningful state.
 - Tests should cover menu visibility, state-dependent labels, and one representative action from each group.
 
-## 11. Edge Swipe Navigation
+## 11. Toggleable Ad Blocking
+
+Marker includes a local EasyList-based blocker for the embedded browser. The blocker is enabled by default and can be turned off from Settings when a page breaks.
+
+### Behavior
+
+- Settings shows an Ad Blocker switch.
+- New installs and migrated installs default to enabled when no stored setting exists.
+- Toggling the switch persists the setting in Drift and reloads the active WebView with the new rules.
+- The v1 bundled list is `assets/filters/easylist.txt`.
+- EasyPrivacy is a planned follow-up, not part of the v1 bundle.
+
+### Filtering Model
+
+The app parses EasyList syntax into two rule groups:
+
+| Rule type | Runtime behavior |
+| --- | --- |
+| Network filters | Compile to WebView content blockers and Android request interception where available. |
+| Cosmetic filters | Inject a page-local runtime that hides matching CSS selectors and watches later DOM changes. |
+
+Supported v1 syntax:
+
+- Comments and metadata.
+- `@@` exceptions.
+- `||host^`, `|` anchors, `^` separators, `*` wildcards, plain substring rules, and regex rules.
+- `$domain` / `$from`, first-party / third-party, common resource types, and `$important`.
+- `##`, domain-scoped `##`, and `#@#` cosmetic exceptions.
+
+Unsupported uBlock/EasyList features are ignored and counted for diagnostics: scriptlets, HTML filters, response-header filters, redirects, CSP, removeparam, replace, urlskip, and procedural cosmetic selectors that cannot be safely applied inside the mobile WebView.
+
+### Persistence
+
+Settings use a Drift-backed key/value table:
+
+| Field | Type |
+| --- | --- |
+| `key` | text primary key |
+| `value` | text |
+| `updatedAt` | datetime |
+
+The `ad_block_enabled` key stores `true` or `false`.
+
+## 12. Edge Swipe Navigation
 
 The browser should support edge-swipe back and forward gestures around the WebView reading surface while avoiding conflict with normal webpage scrolling and text selection.
 

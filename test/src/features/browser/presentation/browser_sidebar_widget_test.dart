@@ -2,7 +2,6 @@ import 'package:code_forge/code_forge.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/src/core/database/app_database.dart';
-import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 import '../../../../helpers/harness.dart';
 
@@ -12,7 +11,6 @@ void main() {
 
   setUp(() {
     platform = FakeWebViewPlatform();
-    WebViewPlatform.instance = platform;
     database = AppDatabase(NativeDatabase.memory());
   });
 

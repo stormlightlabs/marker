@@ -9,20 +9,47 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/src/app/marker_app.dart';
 import 'package:marker/src/core/database/app_database.dart';
 import 'package:marker/src/core/database/database_provider.dart';
+import 'package:marker/src/features/browser/ad_block/ad_block_providers.dart';
+import 'package:marker/src/features/browser/ad_block/ad_block_rules.dart';
 import 'package:marker/src/features/browser/application/native_share_controller.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
 import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
-import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
-Widget markerTestApp({required AppDatabase database, NativeUrlShare? nativeUrlShare}) {
+FakeWebViewPlatform? _activeFakeWebViewPlatform;
+
+Widget markerTestApp({
+  required AppDatabase database,
+  NativeUrlShare? nativeUrlShare,
+  CompiledAdBlockRules? compiledAdBlockRules,
+  List<dynamic> additionalOverrides = const [],
+}) {
+  final fakeWebViewController = _activeFakeWebViewPlatform?.controller ?? FakeBrowserWebViewController();
+  final effectiveAdBlockRules =
+      compiledAdBlockRules ??
+      const CompiledAdBlockRules(
+        networkRules: [],
+        cosmeticRules: [],
+        stats: AdBlockParseStats(
+          totalLines: 0,
+          commentLines: 0,
+          networkRules: 0,
+          cosmeticRules: 0,
+          exceptionRules: 0,
+          unsupportedRules: 0,
+          invalidRules: 0,
+        ),
+      );
   final overrides = [
     databaseProvider.overrideWithValue(database),
+    compiledAdBlockRulesProvider.overrideWith((ref) => effectiveAdBlockRules),
     readerWebViewBridgeProvider.overrideWithValue(testReaderBridge()),
+    browserWebViewControllerFactoryProvider.overrideWithValue(() => fakeWebViewController),
     browserWebViewBuilderProvider.overrideWithValue((context, controller) => const Center(child: Text('Fake WebView'))),
     if (nativeUrlShare != null) nativeUrlShareProvider.overrideWithValue(nativeUrlShare),
+    ...additionalOverrides,
   ];
 
-  return ProviderScope(overrides: overrides, child: const MarkerApp());
+  return ProviderScope(overrides: overrides.cast(), child: const MarkerApp());
 }
 
 Future<void> pumpRouteTransition(WidgetTester tester) async {
@@ -255,59 +282,52 @@ Future<void> insertSeedAnnotation(
   }
 }
 
-class FakeWebViewPlatform extends WebViewPlatform {
-  late final FakePlatformWebViewController controller;
-  bool throwOnCanonicalUrlRead = false;
-  Object canonicalUrlResult = '"https://news.ycombinator.com/news"';
-  Object renderAnnotationsResult = 1;
-
-  @override
-  PlatformWebViewController createPlatformWebViewController(PlatformWebViewControllerCreationParams params) {
-    controller = FakePlatformWebViewController(params);
-    controller.throwOnCanonicalUrlRead = throwOnCanonicalUrlRead;
-    controller.canonicalUrlResult = canonicalUrlResult;
-    controller.renderAnnotationsResult = renderAnnotationsResult;
-    return controller;
+class FakeWebViewPlatform {
+  FakeWebViewPlatform() {
+    _activeFakeWebViewPlatform = this;
   }
 
-  @override
-  PlatformNavigationDelegate createPlatformNavigationDelegate(PlatformNavigationDelegateCreationParams params) {
-    return FakePlatformNavigationDelegate(params);
-  }
+  late final FakeBrowserWebViewController controller = FakeBrowserWebViewController();
+  bool get throwOnCanonicalUrlRead => controller.throwOnCanonicalUrlRead;
+  set throwOnCanonicalUrlRead(bool value) => controller.throwOnCanonicalUrlRead = value;
+  Object get canonicalUrlResult => controller.canonicalUrlResult;
+  set canonicalUrlResult(Object value) => controller.canonicalUrlResult = value;
+  Object get renderAnnotationsResult => controller.renderAnnotationsResult;
+  set renderAnnotationsResult(Object value) => controller.renderAnnotationsResult = value;
 }
 
-class FakePlatformWebViewController extends PlatformWebViewController {
-  FakePlatformWebViewController(super.params) : super.implementation();
-
+class FakeBrowserWebViewController implements BrowserWebViewController {
   Uri? loadedUri;
   final loadedUris = <Uri>[];
   final injectedScripts = <String>[];
-  FakePlatformNavigationDelegate? navigationDelegate;
-  final javaScriptChannels = <String, JavaScriptChannelParams>{};
+  final javaScriptChannels = <String, BrowserJavaScriptMessageHandler>{};
+  BrowserNavigationDelegate? navigationDelegate;
   bool throwOnCanonicalUrlRead = false;
   Object canonicalUrlResult = '"https://news.ycombinator.com/news"';
   Object renderAnnotationsResult = 1;
+  CompiledAdBlockRules? adBlockRules;
+  int reloadCount = 0;
 
   @override
-  Future<void> setJavaScriptMode(JavaScriptMode javaScriptMode) async {}
+  Future<void> setJavaScriptModeUnrestricted() async {}
 
   @override
-  Future<void> setPlatformNavigationDelegate(PlatformNavigationDelegate handler) async {
-    navigationDelegate = handler as FakePlatformNavigationDelegate;
+  Future<void> setNavigationDelegate(BrowserNavigationDelegate delegate) async {
+    navigationDelegate = delegate;
   }
 
   @override
-  Future<void> addJavaScriptChannel(JavaScriptChannelParams javaScriptChannelParams) async {
-    javaScriptChannels[javaScriptChannelParams.name] = javaScriptChannelParams;
+  Future<void> addJavaScriptChannel(String name, {required BrowserJavaScriptMessageHandler onMessageReceived}) async {
+    javaScriptChannels[name] = onMessageReceived;
   }
 
   @override
-  Future<void> loadRequest(LoadRequestParams params) async {
-    loadedUri = params.uri;
-    loadedUris.add(params.uri);
-    navigationDelegate?.onProgress?.call(40);
-    navigationDelegate?.onProgress?.call(100);
-    navigationDelegate?.onPageFinished?.call(params.uri.toString());
+  Future<void> loadRequest(Uri uri) async {
+    loadedUri = uri;
+    loadedUris.add(uri);
+    navigationDelegate?.onProgress(40);
+    navigationDelegate?.onProgress(100);
+    await navigationDelegate?.onPageFinished(uri.toString());
   }
 
   @override
@@ -316,7 +336,7 @@ class FakePlatformWebViewController extends PlatformWebViewController {
   }
 
   @override
-  Future<Object> runJavaScriptReturningResult(String javaScript) async {
+  Future<Object?> runJavaScriptReturningResult(String javaScript) async {
     injectedScripts.add(javaScript);
     if (javaScript.contains('renderAnnotations(')) {
       return renderAnnotationsResult;
@@ -336,35 +356,26 @@ class FakePlatformWebViewController extends PlatformWebViewController {
   @override
   Future<String?> currentUrl() async => loadedUri?.toString();
 
+  @override
+  Future<void> reload() async {
+    reloadCount += 1;
+    final uri = loadedUri;
+    if (uri != null) {
+      await loadRequest(uri);
+    }
+  }
+
+  @override
+  Future<void> setAdBlockRules(CompiledAdBlockRules? rules) async {
+    adBlockRules = rules;
+  }
+
   void sendSelectionMessage(String message) {
-    javaScriptChannels['MarkerSelection']?.onMessageReceived(JavaScriptMessage(message: message));
+    javaScriptChannels['MarkerSelection']?.call(message);
   }
 
   void sendLinkContextMessage(String message) {
-    javaScriptChannels['MarkerLinkContext']?.onMessageReceived(JavaScriptMessage(message: message));
-  }
-}
-
-class FakePlatformNavigationDelegate extends PlatformNavigationDelegate {
-  FakePlatformNavigationDelegate(super.params) : super.implementation();
-
-  ProgressCallback? onProgress;
-  PageEventCallback? onPageFinished;
-  WebResourceErrorCallback? onWebResourceError;
-
-  @override
-  Future<void> setOnProgress(ProgressCallback onProgress) async {
-    this.onProgress = onProgress;
-  }
-
-  @override
-  Future<void> setOnPageFinished(PageEventCallback onPageFinished) async {
-    this.onPageFinished = onPageFinished;
-  }
-
-  @override
-  Future<void> setOnWebResourceError(WebResourceErrorCallback onWebResourceError) async {
-    this.onWebResourceError = onWebResourceError;
+    javaScriptChannels['MarkerLinkContext']?.call(message);
   }
 }
 

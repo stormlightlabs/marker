@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:marker/src/app/app_tab_bar.dart';
 import 'package:marker/src/app/routes.dart';
 import 'package:marker/src/features/annotations/data/annotation_repository.dart';
+import 'package:marker/src/features/browser/ad_block/ad_block_providers.dart';
 import 'package:marker/src/features/browser/application/link_context_controller.dart';
 import 'package:marker/src/features/browser/application/native_share_controller.dart';
 import 'package:marker/src/features/browser/application/reader_controller.dart';
@@ -17,7 +18,7 @@ import 'package:marker/src/features/browser/presentation/edge_swipe_navigator.da
 import 'package:marker/src/features/browser/presentation/note_editor_sheet.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
 import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:marker/src/features/settings/data/settings_repository.dart';
 
 class BrowserScreen extends ConsumerStatefulWidget {
   const BrowserScreen({super.key});
@@ -28,7 +29,7 @@ class BrowserScreen extends ConsumerStatefulWidget {
 
 class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   late final TextEditingController _urlController;
-  late final WebViewController _webViewController;
+  late final BrowserWebViewController _webViewController;
   final List<Timer> _renderRetryTimers = [];
   bool _areHighlightsVisible = true;
   int _loadGeneration = 0;
@@ -38,10 +39,11 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     super.initState();
     final initialUrl = ref.read(readerControllerProvider).urlText;
     _urlController = TextEditingController(text: initialUrl);
-    _webViewController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(
-        NavigationDelegate(
+    _webViewController = ref.read(browserWebViewControllerFactoryProvider)();
+    unawaited(_webViewController.setJavaScriptModeUnrestricted());
+    unawaited(
+      _webViewController.setNavigationDelegate(
+        BrowserNavigationDelegate(
           onProgress: (progress) {
             ref.read(readerControllerProvider.notifier).updateProgress(progress);
           },
@@ -57,21 +59,23 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               return;
             }
             final generation = _loadGeneration;
+            await _injectAdBlockCosmetics(uri);
             await ref
                 .read(readerControllerProvider.notifier)
                 .finishLoad(url: uri, canonicalUrl: canonicalUrl, title: title);
             await _renderSavedAnnotations(uri, generation: generation, retry: true);
           },
-          onWebResourceError: (error) {
-            ref.read(readerControllerProvider.notifier).failLoad(error.description);
+          onWebResourceError: (description) {
+            ref.read(readerControllerProvider.notifier).failLoad(description);
           },
         ),
-      );
+      ),
+    );
     unawaited(
       _webViewController.addJavaScriptChannel(
         ReaderWebViewBridge.selectionChannelName,
         onMessageReceived: (message) {
-          ref.read(selectionCaptureControllerProvider.notifier).handleBridgeMessage(message.message);
+          ref.read(selectionCaptureControllerProvider.notifier).handleBridgeMessage(message);
         },
       ),
     );
@@ -79,13 +83,13 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
       _webViewController.addJavaScriptChannel(
         ReaderWebViewBridge.linkContextChannelName,
         onMessageReceived: (message) {
-          ref.read(linkContextControllerProvider.notifier).handleBridgeMessage(message.message);
+          ref.read(linkContextControllerProvider.notifier).handleBridgeMessage(message);
         },
       ),
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadFromAddressBar();
+      unawaited(_configureAdBlocking(reload: false).then((_) => _loadFromAddressBar()));
     });
   }
 
@@ -110,6 +114,24 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     _cancelRenderRetries();
     ref.read(selectionCaptureControllerProvider.notifier).clear();
     return _webViewController.loadRequest(target);
+  }
+
+  Future<void> _configureAdBlocking({required bool reload}) async {
+    final enabled = ref.read(adBlockEnabledProvider).value ?? true;
+    final rules = enabled ? ref.read(compiledAdBlockRulesProvider).value : null;
+    await _webViewController.setAdBlockRules(rules);
+    if (reload) {
+      await _webViewController.reload();
+    }
+  }
+
+  Future<void> _injectAdBlockCosmetics(Uri pageUrl) async {
+    final enabled = ref.read(adBlockEnabledProvider).value ?? true;
+    final rules = ref.read(compiledAdBlockRulesProvider).value;
+    if (!enabled || rules == null) {
+      return;
+    }
+    await ref.read(adBlockRuntimeProvider).injectCosmeticFilters(_webViewController, pageUrl: pageUrl, rules: rules);
   }
 
   Future<void> _goBack() async {
@@ -643,6 +665,32 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     final selection = ref.watch(selectionCaptureControllerProvider);
     final webViewBuilder = ref.watch(browserWebViewBuilderProvider);
 
+    ref.listen(adBlockEnabledProvider, (previous, next) {
+      if (next is! AsyncData<bool>) {
+        return;
+      }
+      if (previous is! AsyncData<bool>) {
+        unawaited(_configureAdBlocking(reload: false));
+        return;
+      }
+      if (previous.value != next.value) {
+        unawaited(_configureAdBlocking(reload: true));
+      }
+    });
+    ref.listen(compiledAdBlockRulesProvider, (previous, next) {
+      if (next.value == null) {
+        return;
+      }
+      unawaited(
+        _configureAdBlocking(reload: false).then((_) async {
+          final currentUrl = await _webViewController.currentUrl();
+          final uri = currentUrl == null ? null : Uri.tryParse(currentUrl);
+          if (uri != null) {
+            await _injectAdBlockCosmetics(uri);
+          }
+        }),
+      );
+    });
     ref.listen(readerControllerProvider.select((value) => value.urlText), (previous, next) {
       if (_urlController.text != next) {
         _urlController.text = next;

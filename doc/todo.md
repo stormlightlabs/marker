@@ -7,6 +7,7 @@ updated: 2026-05-13
 
 - Add logging (`logger: ^2.6.2`)
 - Bookmark folders
+- Add EasyPrivacy as a bundled filter list
 - Export to Netscape bookmarks format
 
     ```html
