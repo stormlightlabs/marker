@@ -49,6 +49,44 @@ void main() {
     expect(pages.single.canonicalUrl, 'https://news.ycombinator.com/news');
     expect(pages.single.title, 'Example Domain');
   });
+
+  testWidgets('BrowserScreen exposes bookmark and tab controls', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Bookmarks 0'), findsOneWidget);
+    expect(find.text('Tabs 1'), findsOneWidget);
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saved'), findsOneWidget);
+    expect(find.text('Bookmarks 1'), findsOneWidget);
+
+    await tester.tap(find.text('Tabs 1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Tab'), findsOneWidget);
+
+    await tester.tap(find.text('New Tab'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tabs 2'), findsOneWidget);
+    expect(platform.controller.loadedUris, hasLength(2));
+  });
 }
 
 class _FakeWebViewPlatform extends WebViewPlatform {
@@ -70,6 +108,7 @@ class _FakePlatformWebViewController extends PlatformWebViewController {
   _FakePlatformWebViewController(super.params) : super.implementation();
 
   Uri? loadedUri;
+  final loadedUris = <Uri>[];
   final injectedScripts = <String>[];
   _FakePlatformNavigationDelegate? navigationDelegate;
 
@@ -84,6 +123,7 @@ class _FakePlatformWebViewController extends PlatformWebViewController {
   @override
   Future<void> loadRequest(LoadRequestParams params) async {
     loadedUri = params.uri;
+    loadedUris.add(params.uri);
     navigationDelegate?.onProgress?.call(40);
     navigationDelegate?.onProgress?.call(100);
     navigationDelegate?.onPageFinished?.call(params.uri.toString());
