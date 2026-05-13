@@ -434,10 +434,11 @@ class ReaderWebViewBridge {
     return controller.runJavaScript('window.MarkerReader && window.MarkerReader.clearSelection();');
   }
 
-  Future<void> renderAnnotations(WebViewController controller, List<Map<String, Object?>> annotations) {
-    return controller.runJavaScript(
-      'window.MarkerReader && window.MarkerReader.renderAnnotations(${jsonEncode(annotations)});',
+  Future<int> renderAnnotations(WebViewController controller, List<Map<String, Object?>> annotations) async {
+    final result = await controller.runJavaScriptReturningResult(
+      'window.MarkerReader && window.MarkerReader.renderAnnotations(${jsonEncode(annotations)}) || 0;',
     );
+    return int.tryParse(result.toString().replaceAll('"', '').trim()) ?? 0;
   }
 
   Future<void> deleteRenderedAnnotation(WebViewController controller, String annotationId) {

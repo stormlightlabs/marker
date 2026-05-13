@@ -27,7 +27,9 @@ class BrowserScreen extends ConsumerStatefulWidget {
 class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   late final TextEditingController _urlController;
   late final WebViewController _webViewController;
+  final List<Timer> _renderRetryTimers = [];
   bool _areHighlightsVisible = true;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -52,10 +54,11 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               ref.read(readerControllerProvider.notifier).failLoad('The loaded page did not report a valid URL.');
               return;
             }
+            final generation = _loadGeneration;
             await ref
                 .read(readerControllerProvider.notifier)
                 .finishLoad(url: uri, canonicalUrl: canonicalUrl, title: title);
-            await _renderSavedAnnotations(uri);
+            await _renderSavedAnnotations(uri, generation: generation, retry: true);
           },
           onWebResourceError: (error) {
             ref.read(readerControllerProvider.notifier).failLoad(error.description);
@@ -86,6 +89,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
 
   @override
   void dispose() {
+    _cancelRenderRetries();
     _urlController.dispose();
     super.dispose();
   }
@@ -100,6 +104,8 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   }
 
   Future<void> _loadUri(Uri target) {
+    _loadGeneration += 1;
+    _cancelRenderRetries();
     ref.read(selectionCaptureControllerProvider.notifier).clear();
     return _webViewController.loadRequest(target);
   }
@@ -176,17 +182,45 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     unawaited(ref.read(readerWebViewBridgeProvider).clearSelection(_webViewController));
   }
 
-  Future<void> _renderSavedAnnotations(Uri sourceUrl) async {
+  Future<void> _renderSavedAnnotations(Uri sourceUrl, {int? generation, bool retry = false}) async {
     if (!_areHighlightsVisible) {
-      return ref.read(readerWebViewBridgeProvider).renderAnnotations(_webViewController, const []);
+      await ref.read(readerWebViewBridgeProvider).renderAnnotations(_webViewController, const []);
+      return;
     }
     final annotations = await ref.read(annotationsForPageProvider(sourceUrl).future);
+    if (!mounted || (generation != null && generation != _loadGeneration)) {
+      return;
+    }
     await ref
         .read(readerWebViewBridgeProvider)
         .renderAnnotations(
           _webViewController,
           annotations.map((annotation) => annotation.toRenderPayload()).toList(growable: false),
         );
+    if (retry && annotations.isNotEmpty) {
+      _scheduleRenderRetries(sourceUrl, generation ?? _loadGeneration);
+    }
+  }
+
+  void _scheduleRenderRetries(Uri sourceUrl, int generation) {
+    _cancelRenderRetries();
+    for (final delay in const [Duration(milliseconds: 300), Duration(milliseconds: 1200)]) {
+      _renderRetryTimers.add(
+        Timer(delay, () {
+          if (!mounted || generation != _loadGeneration || !_areHighlightsVisible) {
+            return;
+          }
+          unawaited(_renderSavedAnnotations(sourceUrl, generation: generation));
+        }),
+      );
+    }
+  }
+
+  void _cancelRenderRetries() {
+    for (final timer in _renderRetryTimers) {
+      timer.cancel();
+    }
+    _renderRetryTimers.clear();
   }
 
   Future<void> _toggleRenderedHighlights(Uri? sourceUrl) async {
@@ -634,6 +668,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                       onDelete: _deleteSidebarAnnotation,
                     ),
                   ),
+                  if (session.isLoading) const Positioned(top: 12, right: 12, child: _ReaderLoadingBadge()),
                   if (selection.capture != null)
                     Positioned(
                       left: 14,
@@ -912,7 +947,13 @@ class _BrowserAddressBar extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 10),
                 minimumSize: const Size(34, 34),
                 onPressed: onGoPressed,
-                child: Text(isLoading ? '...' : 'Go', style: const TextStyle(fontSize: 15)),
+                child: const Text('Go', style: TextStyle(fontSize: 15)),
+              ),
+              _BrowserIconButton(
+                icon: CupertinoIcons.ellipsis_circle,
+                label: 'Browser Menu',
+                isEnabled: true,
+                onPressed: onMenuPressed,
               ),
             ],
           ),
@@ -936,8 +977,6 @@ class _BrowserAddressBar extends StatelessWidget {
                 label: 'Tabs $tabCount',
                 onPressed: onTabsPressed,
               ),
-              const SizedBox(width: 8),
-              _BrowserChromeChip(icon: CupertinoIcons.ellipsis_circle, label: 'Menu', onPressed: onMenuPressed),
             ],
           ),
         ],
@@ -1017,6 +1056,32 @@ class _ReaderProgressBar extends StatelessWidget {
         child: FractionallySizedBox(
           widthFactor: progress.clamp(0, 100) / 100,
           child: const ColoredBox(color: CupertinoColors.activeBlue),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReaderLoadingBadge extends StatelessWidget {
+  const _ReaderLoadingBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xE61C1C20),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 14, offset: Offset(0, 6))],
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoActivityIndicator(radius: 7),
+            SizedBox(width: 8),
+            Text('Loading', style: TextStyle(color: CupertinoColors.white, fontSize: 12, letterSpacing: 0)),
+          ],
         ),
       ),
     );

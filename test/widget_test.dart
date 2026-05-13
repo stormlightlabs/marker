@@ -125,7 +125,10 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('Jump').first);
     await tester.pump(const Duration(milliseconds: 200));
-    expect(platform.controller.injectedScripts.last, contains('scrollToAnnotation("note-annotation")'));
+    expect(
+      platform.controller.injectedScripts.any((script) => script.contains('scrollToAnnotation("note-annotation")')),
+      isTrue,
+    );
 
     await tester.tap(find.bySemanticsLabel('Edit').first);
     await tester.pump();
@@ -227,7 +230,10 @@ void main() {
     await tester.tap(find.text('Browser'));
     await _pumpRouteTransition(tester);
 
-    await tester.tap(find.text('Menu'));
+    expect(find.text('Menu'), findsNothing);
+    expect(find.bySemanticsLabel('Browser Menu'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Browser Menu'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -247,14 +253,14 @@ void main() {
     expect(sharedTitle, 'Example Domain');
     expect(sharedOrigin, isNotNull);
 
-    await tester.tap(find.text('Menu'));
+    await tester.tap(find.bySemanticsLabel('Browser Menu'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Hide Highlights'));
     await tester.pumpAndSettle();
     expect(platform.controller.injectedScripts.last, contains('renderAnnotations([])'));
 
-    await tester.tap(find.text('Menu'));
+    await tester.tap(find.bySemanticsLabel('Browser Menu'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Show Highlights'), findsOneWidget);
@@ -747,6 +753,10 @@ class _FakePlatformWebViewController extends PlatformWebViewController {
 
   @override
   Future<Object> runJavaScriptReturningResult(String javaScript) async {
+    injectedScripts.add(javaScript);
+    if (javaScript.contains('renderAnnotations(')) {
+      return 1;
+    }
     return '"https://news.ycombinator.com/news"';
   }
 
