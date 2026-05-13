@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:code_forge/code_forge.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -165,13 +166,17 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('Note'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Add Note'), findsOneWidget);
 
-    await tester.enterText(find.byType(CupertinoTextField).last, '**Markdown** note');
+    await tester.tap(find.byType(CodeForge));
     await tester.pump();
+    tester.testTextInput.enterText('**Markdown** note');
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.text('Save').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     final annotations = await database.select(database.annotations).get();
     final bodies = await database.select(database.annotationBodies).get();

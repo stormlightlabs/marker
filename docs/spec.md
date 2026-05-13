@@ -214,7 +214,15 @@ The `annotation_targets.selectorJson` field stores the selector list for the sel
 ]
 ```
 
-Notes should be authored as Markdown. For the note editor implementation, prefer well-maintained packages that provide Markdown editing/rendering and code syntax highlighting instead of a custom parser. Current candidates to evaluate are `markdown_editor_live` or `qaid_markdown_editor` for editing, `flutter_smooth_markdown` or `flutter_markdown` for rendering, and `syntax_highlight` or `flutter_highlight` for code highlighting. Choose based on maintenance, platform support, dark theme quality, and ability to customize the editor into a Cupertino bottom sheet.
+Notes should be authored and persisted as Markdown (`TextualBody`, `text/markdown`). The chosen note editor stack is:
+
+| Layer | Package | Role |
+| --- | --- | --- |
+| Markdown source editor | `code_forge` | Dark, multiline Markdown/code editing surface. Use `langMarkdown`, line wrapping, no gutter, no suggestions, no LSP. |
+| Markdown preview/rendering | `flutter_markdown_plus` | Render note previews and future annotation detail bodies. |
+| Syntax highlighting | `re_highlight` | Highlight Markdown editor text and code fences in rendered Markdown previews. |
+
+`code_forge` depends on `dart:io`, so this stack targets the app's iOS/Android scope and is not expected to support Flutter web. Keep the persisted body canonical as Markdown even though editor and preview widgets may have their own internal highlighting models.
 
 ## 5. Drift Persistence Model
 
