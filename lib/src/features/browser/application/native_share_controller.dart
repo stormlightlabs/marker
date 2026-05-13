@@ -6,9 +6,7 @@ import 'package:share_plus/share_plus.dart';
 typedef NativeUrlShare = Future<void> Function({required Uri url, required String title, Rect? sharePositionOrigin});
 
 final nativeUrlShareProvider = Provider<NativeUrlShare>((ref) {
-  return ({required url, required title, sharePositionOrigin}) {
-    return SharePlus.instance.share(
-      ShareParams(uri: url, title: title, subject: title, sharePositionOrigin: sharePositionOrigin),
-    );
-  };
+  return ({required url, required title, sharePositionOrigin}) => SharePlus.instance.share(
+    ShareParams(uri: url, title: title, subject: title, sharePositionOrigin: sharePositionOrigin),
+  );
 });

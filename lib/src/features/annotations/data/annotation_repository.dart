@@ -29,41 +29,62 @@ class AnnotationRepository {
   final DateTime Function() _now;
 
   Future<Page> recordPageVisit({required Uri url, Uri? canonicalUrl, String? title}) async {
+    return _recordPage(url: url, canonicalUrl: canonicalUrl, title: title, recordHistory: true);
+  }
+
+  Future<Page> _recordPage({required Uri url, Uri? canonicalUrl, String? title, required bool recordHistory}) async {
     final now = _now();
     final normalizedUrl = url.toString();
+    final normalizedTitle = title?.trim();
+    Page pageRow;
 
     final existing = await (_database.select(
       _database.pages,
     )..where((page) => page.url.equals(normalizedUrl))).getSingleOrNull();
 
     if (existing != null) {
-      final updatedTitle = title?.trim();
       await (_database.update(_database.pages)..where((page) => page.id.equals(existing.id))).write(
         PagesCompanion(
           canonicalUrl: Value(canonicalUrl?.toString()),
-          title: updatedTitle == null || updatedTitle.isEmpty ? const Value.absent() : Value(updatedTitle),
+          title: normalizedTitle == null || normalizedTitle.isEmpty ? const Value.absent() : Value(normalizedTitle),
           lastVisitedAt: Value(now),
         ),
       );
 
-      return (_database.select(_database.pages)..where((page) => page.id.equals(existing.id))).getSingle();
+      pageRow = await (_database.select(_database.pages)..where((page) => page.id.equals(existing.id))).getSingle();
+    } else {
+      final pageId = _uuid.v4();
+      await _database
+          .into(_database.pages)
+          .insert(
+            PagesCompanion.insert(
+              id: pageId,
+              url: normalizedUrl,
+              canonicalUrl: Value(canonicalUrl?.toString()),
+              title: Value(normalizedTitle == null || normalizedTitle.isEmpty ? null : normalizedTitle),
+              createdAt: now,
+              lastVisitedAt: now,
+            ),
+          );
+
+      pageRow = await (_database.select(_database.pages)..where((page) => page.id.equals(pageId))).getSingle();
     }
 
-    final pageId = _uuid.v4();
-    await _database
-        .into(_database.pages)
-        .insert(
-          PagesCompanion.insert(
-            id: pageId,
-            url: normalizedUrl,
-            canonicalUrl: Value(canonicalUrl?.toString()),
-            title: Value(title?.trim().isEmpty ?? true ? null : title!.trim()),
-            createdAt: now,
-            lastVisitedAt: now,
-          ),
-        );
+    if (recordHistory) {
+      await _database
+          .into(_database.browserHistoryEntries)
+          .insert(
+            BrowserHistoryEntriesCompanion.insert(
+              id: _uuid.v4(),
+              url: normalizedUrl,
+              canonicalUrl: Value(canonicalUrl?.toString()),
+              title: Value(normalizedTitle == null || normalizedTitle.isEmpty ? null : normalizedTitle),
+              visitedAt: now,
+            ),
+          );
+    }
 
-    return (_database.select(_database.pages)..where((page) => page.id.equals(pageId))).getSingle();
+    return pageRow;
   }
 
   Future<Annotation> createAnnotation({
@@ -78,7 +99,7 @@ class AnnotationRepository {
     String? cssSelector,
     List<AnnotationBodyInput> bodies = const [],
   }) async {
-    final page = await recordPageVisit(url: sourceUrl, title: pageTitle);
+    final page = await _recordPage(url: sourceUrl, title: pageTitle, recordHistory: false);
     final now = _now();
     final annotationId = _uuid.v4();
 

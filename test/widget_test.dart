@@ -254,6 +254,8 @@ void main() {
     expect(find.text('Bookmark'), findsOneWidget);
     expect(find.text('New Tab'), findsOneWidget);
     expect(find.text('Show Tabs'), findsOneWidget);
+    expect(find.text('History'), findsOneWidget);
+    expect(find.text('Settings'), findsWidgets);
     expect(find.text('Open Annotations'), findsOneWidget);
     expect(find.text('Hide Highlights'), findsOneWidget);
 
@@ -266,6 +268,8 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Browser Menu'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.drag(find.byType(CupertinoActionSheet), const Offset(0, -180));
+    await tester.pump();
     await tester.tap(find.text('Hide Highlights'));
     await tester.pumpAndSettle();
     expect(platform.controller.injectedScripts.last, contains('renderAnnotations([])'));
@@ -274,6 +278,51 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Show Highlights'), findsOneWidget);
+  });
+
+  testWidgets('Settings opens browser history and clears visits', (tester) async {
+    final now = DateTime.utc(2026, 5, 13, 12);
+    await database
+        .into(database.browserHistoryEntries)
+        .insert(
+          BrowserHistoryEntriesCompanion.insert(
+            id: 'history',
+            url: 'https://example.com/history',
+            title: const Value('History Page'),
+            visitedAt: now,
+          ),
+        );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          readerWebViewBridgeProvider.overrideWithValue(_testReaderBridge()),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Settings'));
+    await _pumpRouteTransition(tester);
+
+    expect(find.text('Browser History'), findsOneWidget);
+    await tester.tap(find.text('Browser History'));
+    await _pumpRouteTransition(tester);
+
+    expect(find.text('History Page'), findsOneWidget);
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('No browser history'), findsOneWidget);
+    expect(await database.select(database.browserHistoryEntries).get(), isEmpty);
   });
 
   testWidgets('BrowserScreen exposes bookmark and tab controls', (tester) async {

@@ -29,6 +29,11 @@ void main() {
     expect(page.canonicalUrl, 'https://example.com/canonical');
     expect(page.title, 'Example Article');
     expect(page.createdAt, page.lastVisitedAt);
+
+    final history = await database.select(database.browserHistoryEntries).get();
+    expect(history.single.url, 'https://example.com/article');
+    expect(history.single.canonicalUrl, 'https://example.com/canonical');
+    expect(history.single.title, 'Example Article');
   });
 
   test('updates title and visit time for an existing URL', () async {
@@ -50,6 +55,10 @@ void main() {
     expect(second.canonicalUrl, 'https://example.com/canonical');
     expect(second.createdAt, first.createdAt);
     expect(second.lastVisitedAt.isAfter(first.lastVisitedAt), isTrue);
+
+    final history = await database.select(database.browserHistoryEntries).get();
+    expect(history, hasLength(2));
+    expect(history.last.title, 'New title');
   });
 
   test('creates an annotation with target selectors and bodies', () async {
@@ -70,11 +79,13 @@ void main() {
     );
 
     final pages = await database.select(database.pages).get();
+    final history = await database.select(database.browserHistoryEntries).get();
     final targets = await database.select(database.annotationTargets).get();
     final bodies = await database.select(database.annotationBodies).get();
 
     expect(annotation.motivation, 'commenting');
     expect(pages.single.url, 'https://example.com/article');
+    expect(history, isEmpty);
     expect(targets.single.sourceUrl, 'https://example.com/article');
     expect(jsonDecode(targets.single.selectorJson), hasLength(3));
     expect(bodies.map((body) => body.type), containsAll(['TextualBody', 'StyleHint']));

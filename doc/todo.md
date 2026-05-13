@@ -44,7 +44,7 @@ See changelog.
 - Add a clear-history action.
 - Decide whether browser history should reuse `pages.lastVisitedAt` or move to a dedicated visit-events table.
 
-Status: not started.
+Status: implemented.
 
 ## Milestone 10: Link Long-Press Menus
 
@@ -64,6 +64,6 @@ See changelog.
 - Show a subtle drag affordance while swiping.
 - Respect current browser history state and disable unavailable directions.
 
-Status: not started.
+Status: implemented.
 
 ## Parking Lot

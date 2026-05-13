@@ -36,6 +36,14 @@ class MarkerTabBar extends StatelessWidget {
                   onPressed: () => context.goNamed(AppRoute.browser.routeName),
                 ),
               ),
+              Expanded(
+                child: _TabBarItem(
+                  icon: CupertinoIcons.settings,
+                  label: 'Settings',
+                  isActive: activeRoute == AppRoute.settings,
+                  onPressed: () => context.goNamed(AppRoute.settings.routeName),
+                ),
+              ),
             ],
           ),
         ),

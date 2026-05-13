@@ -5,6 +5,8 @@ import 'package:marker/src/app/routes.dart';
 import 'package:marker/src/features/annotations/presentation/annotation_detail_screen.dart';
 import 'package:marker/src/features/browser/presentation/browser_screen.dart';
 import 'package:marker/src/features/library/presentation/library_screen.dart';
+import 'package:marker/src/features/settings/presentation/browser_history_screen.dart';
+import 'package:marker/src/features/settings/presentation/settings_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -20,6 +22,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoute.browser.path,
         name: AppRoute.browser.routeName,
         pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const BrowserScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.settings.path,
+        name: AppRoute.settings.routeName,
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const SettingsScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.history.path,
+        name: AppRoute.history.routeName,
+        pageBuilder: (context, state) =>
+            MarkerTransitionPage<void>(key: state.pageKey, child: const BrowserHistoryScreen()),
       ),
       GoRoute(
         path: AppRoute.annotation.path,

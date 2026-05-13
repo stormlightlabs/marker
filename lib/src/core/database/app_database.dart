@@ -57,12 +57,23 @@ class Bookmarks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Pages, Annotations, AnnotationTargets, AnnotationBodies, Bookmarks])
+class BrowserHistoryEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get url => text()();
+  TextColumn get canonicalUrl => text().nullable()();
+  TextColumn get title => text().nullable()();
+  DateTimeColumn get visitedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Pages, Annotations, AnnotationTargets, AnnotationBodies, Bookmarks, BrowserHistoryEntries])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -70,6 +81,9 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (Migrator m, int from, int to) async {
       if (from < 2) {
         await m.createTable(bookmarks);
+      }
+      if (from < 3) {
+        await m.createTable(browserHistoryEntries);
       }
     },
     beforeOpen: (details) async {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:marker/src/app/app_tab_bar.dart';
 import 'package:marker/src/app/routes.dart';
 import 'package:marker/src/features/annotations/data/annotation_repository.dart';
@@ -12,6 +13,7 @@ import 'package:marker/src/features/browser/application/reader_controller.dart';
 import 'package:marker/src/features/browser/application/selection_capture_controller.dart';
 import 'package:marker/src/features/browser/domain/reader_session_state.dart';
 import 'package:marker/src/features/browser/presentation/annotation_sidebar_widget.dart';
+import 'package:marker/src/features/browser/presentation/edge_swipe_navigator.dart';
 import 'package:marker/src/features/browser/presentation/note_editor_sheet.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
 import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
@@ -500,6 +502,28 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                 subtitle: '${session.tabs.length} open',
               ),
             ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                context.pushNamed(AppRoute.history.routeName);
+              },
+              child: const _ActionSheetRow(
+                icon: CupertinoIcons.clock,
+                title: 'History',
+                subtitle: 'View recent page visits',
+              ),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                context.pushNamed(AppRoute.settings.routeName);
+              },
+              child: const _ActionSheetRow(
+                icon: CupertinoIcons.settings,
+                title: 'Settings',
+                subtitle: 'Open app settings',
+              ),
+            ),
             if (hasAnnotations)
               CupertinoActionSheetAction(
                 onPressed: () {
@@ -655,36 +679,45 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
             ),
             if (session.isLoading) _ReaderProgressBar(progress: session.progress) else const SizedBox(height: 2),
             Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: ColoredBox(color: CupertinoColors.black, child: webViewBuilder(context, _webViewController)),
-                  ),
-                  Positioned.fill(
-                    child: AnnotationSidebarWidget(
-                      sourceUrl: session.currentUrl,
-                      onEdit: _editSidebarAnnotation,
-                      onJump: _jumpToSidebarAnnotation,
-                      onDelete: _deleteSidebarAnnotation,
-                    ),
-                  ),
-                  if (session.isLoading) const Positioned(top: 12, right: 12, child: _ReaderLoadingBadge()),
-                  if (selection.capture != null)
-                    Positioned(
-                      left: 14,
-                      right: 14,
-                      bottom: 16,
-                      child: AnnotationToolbar(
-                        capture: selection.capture!,
-                        onHighlightPressed: () => unawaited(_saveHighlight(selection.capture!)),
-                        onNotePressed: () => unawaited(_openNoteEditor(selection.capture!)),
-                        onUnderlinePressed: () => unawaited(_saveUnderline(selection.capture!)),
-                        onRemovePressed: _dismissSelection,
+              child: EdgeSwipeNavigator(
+                canGoBack: session.canGoBack,
+                canGoForward: session.canGoForward,
+                onBack: _goBack,
+                onForward: _goForward,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: CupertinoColors.black,
+                        child: webViewBuilder(context, _webViewController),
                       ),
                     ),
-                  if (session.lastError != null)
-                    Positioned(left: 12, right: 12, top: 12, child: _ReaderErrorBanner(message: session.lastError!)),
-                ],
+                    Positioned.fill(
+                      child: AnnotationSidebarWidget(
+                        sourceUrl: session.currentUrl,
+                        onEdit: _editSidebarAnnotation,
+                        onJump: _jumpToSidebarAnnotation,
+                        onDelete: _deleteSidebarAnnotation,
+                      ),
+                    ),
+                    if (session.isLoading) const Positioned(top: 12, right: 12, child: _ReaderLoadingBadge()),
+                    if (selection.capture != null)
+                      Positioned(
+                        left: 14,
+                        right: 14,
+                        bottom: 16,
+                        child: AnnotationToolbar(
+                          capture: selection.capture!,
+                          onHighlightPressed: () => unawaited(_saveHighlight(selection.capture!)),
+                          onNotePressed: () => unawaited(_openNoteEditor(selection.capture!)),
+                          onUnderlinePressed: () => unawaited(_saveUnderline(selection.capture!)),
+                          onRemovePressed: _dismissSelection,
+                        ),
+                      ),
+                    if (session.lastError != null)
+                      Positioned(left: 12, right: 12, top: 12, child: _ReaderErrorBanner(message: session.lastError!)),
+                  ],
+                ),
               ),
             ),
             const MarkerTabBar(activeRoute: AppRoute.browser),
