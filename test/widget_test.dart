@@ -2,9 +2,9 @@ import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/src/app/marker_app.dart';
 import 'package:marker/src/core/database/app_database.dart';
 import 'package:marker/src/core/database/database_provider.dart';
-import 'package:marker/src/features/browser/presentation/browser_screen.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
@@ -31,7 +31,7 @@ void main() {
             (context, controller) => const Center(child: Text('Fake WebView')),
           ),
         ],
-        child: const CupertinoApp(home: BrowserScreen()),
+        child: const MarkerApp(),
       ),
     );
 

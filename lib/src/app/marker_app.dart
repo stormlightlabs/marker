@@ -1,20 +1,23 @@
 import 'package:flutter/cupertino.dart';
-import 'package:marker/src/features/browser/presentation/browser_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/src/app/router.dart';
 
-class MarkerApp extends StatelessWidget {
+class MarkerApp extends ConsumerWidget {
   const MarkerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const CupertinoApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
+    return CupertinoApp.router(
       title: 'Marker',
       debugShowCheckedModeBanner: false,
-      theme: CupertinoThemeData(
+      routerConfig: router,
+      theme: const CupertinoThemeData(
         brightness: Brightness.light,
         primaryColor: CupertinoColors.activeBlue,
         scaffoldBackgroundColor: CupertinoColors.systemGroupedBackground,
       ),
-      home: BrowserScreen(),
     );
   }
 }
