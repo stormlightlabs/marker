@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,16 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../../../helpers/harness.dart';
 
 void main() {
+  test('reader script uses resilient web-page anchoring', () async {
+    final script = await File(ReaderWebViewBridge.bootstrapScriptAsset).readAsString();
+
+    expect(script, contains('version: 2'));
+    expect(script, contains('normalizedDocumentTextIndex'));
+    expect(script, contains('normalizeForSearch'));
+    expect(script, contains('wrapTextNodePortion'));
+    expect(script, contains("setProperty('background-color'"));
+  });
+
   test('loads and caches the reader script asset', () async {
     final bundle = _CountingAssetBundle();
     final bridge = ReaderWebViewBridge(assetBundle: bundle);

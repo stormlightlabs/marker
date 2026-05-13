@@ -1,5 +1,5 @@
 (function () {
-  if (window.__markerReaderInstalled === true) {
+  if (window.MarkerReader && window.MarkerReader.version >= 2) {
     return;
   }
   window.__markerReaderInstalled = true;
@@ -103,20 +103,14 @@
     if (!root) {
       return nodes;
     }
+
+    if (root.nodeType === Node.TEXT_NODE) {
+      return acceptsTextNode(root) ? [root] : nodes;
+    }
+
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: function (node) {
-        if (!node.nodeValue || !node.nodeValue.length) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        var parent = node.parentElement;
-        if (!parent || parent.closest('[data-marker-annotation-id]')) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        var tag = parent.tagName;
-        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') {
-          return NodeFilter.FILTER_REJECT;
-        }
-        return NodeFilter.FILTER_ACCEPT;
+        return acceptsTextNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       },
     });
     var current;
@@ -124,6 +118,85 @@
       nodes.push(current);
     }
     return nodes;
+  }
+
+  function acceptsTextNode(node) {
+    if (!node.nodeValue || !node.nodeValue.length) {
+      return false;
+    }
+    var parent = node.parentElement;
+    if (!parent || parent.closest('[data-marker-annotation-id]')) {
+      return false;
+    }
+    if (parent.closest('script, style, noscript, template, [hidden], [aria-hidden="true"]')) {
+      return false;
+    }
+    if (!isElementTextVisible(parent)) {
+      return false;
+    }
+    return true;
+  }
+
+  function isElementTextVisible(element) {
+    var current = element;
+    while (current && current.nodeType === Node.ELEMENT_NODE && current !== document.documentElement) {
+      if (window.getComputedStyle) {
+        var style = window.getComputedStyle(current);
+        if (style && (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse')) {
+          return false;
+        }
+      }
+      current = current.parentElement;
+    }
+    return true;
+  }
+
+  function normalizeForSearch(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function normalizedDocumentTextIndex() {
+    var nodes = textNodesUnder(document.body || document.documentElement);
+    var text = '';
+    var map = [];
+    var lastWasWhitespace = false;
+
+    nodes.forEach(function (node) {
+      var value = node.nodeValue || '';
+      for (var i = 0; i < value.length; i += 1) {
+        var character = value.charAt(i);
+        if (/\s/.test(character)) {
+          if (!lastWasWhitespace) {
+            text += ' ';
+            map.push({ node: node, offset: i });
+            lastWasWhitespace = true;
+          }
+        } else {
+          text += character;
+          map.push({ node: node, offset: i });
+          lastWasWhitespace = false;
+        }
+      }
+    });
+
+    return { text: text, map: map };
+  }
+
+  function rangeFromTextIndex(index, start, end) {
+    if (!index || !index.map.length || start < 0 || end <= start || end > index.map.length) {
+      return null;
+    }
+
+    var startPoint = index.map[start];
+    var endPoint = index.map[end - 1];
+    if (!startPoint || !endPoint) {
+      return null;
+    }
+
+    var range = document.createRange();
+    range.setStart(startPoint.node, startPoint.offset);
+    range.setEnd(endPoint.node, endPoint.offset + 1);
+    return range.collapsed ? null : range;
   }
 
   function rangeFromOffsets(start, end) {
@@ -175,30 +248,33 @@
       return null;
     }
 
-    var text = documentText();
-    var exact = String(quote.exact);
-    var prefix = quote.prefix ? String(quote.prefix) : '';
-    var suffix = quote.suffix ? String(quote.suffix) : '';
+    var index = normalizedDocumentTextIndex();
+    var text = index.text;
+    var exact = normalizeForSearch(quote.exact);
+    var prefix = normalizeForSearch(quote.prefix);
+    var suffix = normalizeForSearch(quote.suffix);
     var bestIndex = -1;
     var bestScore = -1;
-    var index = text.indexOf(exact);
+    var matchIndex = exact ? text.indexOf(exact) : -1;
 
-    while (index !== -1) {
+    while (matchIndex !== -1) {
       var score = 0;
-      if (!prefix || text.slice(Math.max(0, index - prefix.length), index) === prefix) {
+      var before = normalizeForSearch(text.slice(Math.max(0, matchIndex - prefix.length - 8), matchIndex));
+      var after = normalizeForSearch(text.slice(matchIndex + exact.length, matchIndex + exact.length + suffix.length + 8));
+      if (!prefix || before.endsWith(prefix)) {
         score += 2;
       }
-      if (!suffix || text.slice(index + exact.length, index + exact.length + suffix.length) === suffix) {
+      if (!suffix || after.startsWith(suffix)) {
         score += 2;
       }
       if (score > bestScore) {
         bestScore = score;
-        bestIndex = index;
+        bestIndex = matchIndex;
       }
-      index = text.indexOf(exact, index + Math.max(1, exact.length));
+      matchIndex = text.indexOf(exact, matchIndex + Math.max(1, exact.length));
     }
 
-    return bestIndex === -1 ? null : rangeFromOffsets(bestIndex, bestIndex + exact.length);
+    return bestIndex === -1 ? null : rangeFromTextIndex(index, bestIndex, bestIndex + exact.length);
   }
 
   function rangeFromPositionSelector(annotation) {
@@ -260,33 +336,88 @@
     });
   }
 
+  function annotationElement(annotation) {
+    var span = document.createElement('mark');
+    span.setAttribute('data-marker-annotation-id', annotation.id);
+    span.setAttribute('data-marker-annotation-style', annotation.style || 'highlight');
+    span.style.setProperty('border-radius', '2px', 'important');
+    span.style.setProperty('box-decoration-break', 'clone', 'important');
+    span.style.setProperty('-webkit-box-decoration-break', 'clone', 'important');
+    span.style.setProperty('color', 'inherit', 'important');
+    span.style.setProperty('padding', '0 1px', 'important');
+    if (annotation.style === 'underline') {
+      span.style.setProperty('background-color', 'transparent', 'important');
+      span.style.setProperty('text-decoration-line', 'underline', 'important');
+      span.style.setProperty('text-decoration-thickness', '0.16em', 'important');
+      span.style.setProperty('text-decoration-color', annotation.color || '#64D2FF', 'important');
+      span.style.setProperty('text-underline-offset', '0.18em', 'important');
+    } else {
+      span.style.setProperty('background-color', annotation.color || '#FFCC00', 'important');
+    }
+    return span;
+  }
+
+  function rangeIntersectsTextNode(range, node) {
+    if (typeof range.intersectsNode === 'function') {
+      return range.intersectsNode(node);
+    }
+    var nodeRange = document.createRange();
+    try {
+      nodeRange.selectNodeContents(node);
+      return (
+        range.compareBoundaryPoints(Range.END_TO_START, nodeRange) > 0 &&
+        range.compareBoundaryPoints(Range.START_TO_END, nodeRange) < 0
+      );
+    } finally {
+      nodeRange.detach && nodeRange.detach();
+    }
+  }
+
+  function wrapTextNodePortion(node, start, end, annotation) {
+    if (!node.parentNode || start < 0 || end <= start || end > node.nodeValue.length) {
+      return false;
+    }
+
+    var target = node;
+    if (end < target.nodeValue.length) {
+      target.splitText(end);
+    }
+    if (start > 0) {
+      target = target.splitText(start);
+    }
+
+    var wrapper = annotationElement(annotation);
+    target.parentNode.insertBefore(wrapper, target);
+    wrapper.appendChild(target);
+    return true;
+  }
+
+  function wrapRangeTextNodes(range, annotation) {
+    var root = range.commonAncestorContainer;
+    var nodes = textNodesUnder(root).filter(function (node) {
+      return rangeIntersectsTextNode(range, node);
+    });
+    var rendered = false;
+
+    nodes.forEach(function (node) {
+      var start = node === range.startContainer ? range.startOffset : 0;
+      var end = node === range.endContainer ? range.endOffset : node.nodeValue.length;
+      if (wrapTextNodePortion(node, start, end, annotation)) {
+        rendered = true;
+      }
+    });
+
+    return rendered;
+  }
+
   function renderAnnotation(annotation) {
     var range = rangeForAnnotation(annotation);
     if (!range) {
       return false;
     }
 
-    var span = document.createElement('mark');
-    span.setAttribute('data-marker-annotation-id', annotation.id);
-    span.setAttribute('data-marker-annotation-style', annotation.style || 'highlight');
-    span.style.borderRadius = '2px';
-    span.style.padding = '0 1px';
-    span.style.color = 'inherit';
-    if (annotation.style === 'underline') {
-      span.style.background = 'transparent';
-      span.style.textDecorationLine = 'underline';
-      span.style.textDecorationThickness = '0.16em';
-      span.style.textDecorationColor = annotation.color || '#64D2FF';
-      span.style.textUnderlineOffset = '0.18em';
-    } else {
-      span.style.background = annotation.color || '#FFCC00';
-    }
-
     try {
-      var contents = range.extractContents();
-      span.appendChild(contents);
-      range.insertNode(span);
-      return true;
+      return wrapRangeTextNodes(range, annotation);
     } catch (error) {
       console.debug('Marker failed to render annotation', annotation.id, error);
       return false;
@@ -382,7 +513,7 @@
   }
 
   window.MarkerReader = {
-    version: 1,
+    version: 2,
     installedAt: new Date().toISOString(),
     clearSelection: function () {
       var selection = window.getSelection && window.getSelection();
