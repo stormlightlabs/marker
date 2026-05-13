@@ -257,10 +257,16 @@ Future<void> insertSeedAnnotation(
 
 class FakeWebViewPlatform extends WebViewPlatform {
   late final FakePlatformWebViewController controller;
+  bool throwOnCanonicalUrlRead = false;
+  Object canonicalUrlResult = '"https://news.ycombinator.com/news"';
+  Object renderAnnotationsResult = 1;
 
   @override
   PlatformWebViewController createPlatformWebViewController(PlatformWebViewControllerCreationParams params) {
     controller = FakePlatformWebViewController(params);
+    controller.throwOnCanonicalUrlRead = throwOnCanonicalUrlRead;
+    controller.canonicalUrlResult = canonicalUrlResult;
+    controller.renderAnnotationsResult = renderAnnotationsResult;
     return controller;
   }
 
@@ -278,6 +284,9 @@ class FakePlatformWebViewController extends PlatformWebViewController {
   final injectedScripts = <String>[];
   FakePlatformNavigationDelegate? navigationDelegate;
   final javaScriptChannels = <String, JavaScriptChannelParams>{};
+  bool throwOnCanonicalUrlRead = false;
+  Object canonicalUrlResult = '"https://news.ycombinator.com/news"';
+  Object renderAnnotationsResult = 1;
 
   @override
   Future<void> setJavaScriptMode(JavaScriptMode javaScriptMode) async {}
@@ -310,9 +319,15 @@ class FakePlatformWebViewController extends PlatformWebViewController {
   Future<Object> runJavaScriptReturningResult(String javaScript) async {
     injectedScripts.add(javaScript);
     if (javaScript.contains('renderAnnotations(')) {
-      return 1;
+      return renderAnnotationsResult;
     }
-    return '"https://news.ycombinator.com/news"';
+    if (javaScript.contains('link[rel="canonical"')) {
+      if (throwOnCanonicalUrlRead) {
+        throw PlatformException(code: 'javaScript-error', message: 'canonical lookup failed');
+      }
+      return canonicalUrlResult;
+    }
+    return canonicalUrlResult;
   }
 
   @override

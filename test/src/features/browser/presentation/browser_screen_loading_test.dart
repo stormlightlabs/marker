@@ -60,4 +60,23 @@ void main() {
     expect(renderScript, contains('"style":"highlight"'));
     expect(renderScript, contains('"color":"#FFCC00"'));
   });
+
+  testWidgets('rehydrates saved annotations when canonical URL lookup fails', (tester) async {
+    platform.throwOnCanonicalUrlRead = true;
+    await seedPageAnnotation(database);
+
+    await tester.pumpWidget(markerTestApp(database: database));
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await pumpRouteTransition(tester);
+
+    expect(
+      platform.controller.injectedScripts.any(
+        (script) => script.contains('renderAnnotations') && script.contains('"id":"saved-annotation"'),
+      ),
+      isTrue,
+    );
+  });
 }

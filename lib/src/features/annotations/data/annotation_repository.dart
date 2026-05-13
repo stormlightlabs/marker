@@ -32,7 +32,13 @@ class AnnotationRepository {
     return _recordPage(url: url, canonicalUrl: canonicalUrl, title: title, recordHistory: true);
   }
 
-  Future<Page> _recordPage({required Uri url, Uri? canonicalUrl, String? title, required bool recordHistory}) async {
+  Future<Page> _recordPage({
+    required Uri url,
+    Uri? canonicalUrl,
+    String? title,
+    required bool recordHistory,
+    bool preserveExistingCanonicalUrl = false,
+  }) async {
     final now = _now();
     final normalizedUrl = url.toString();
     final normalizedTitle = title?.trim();
@@ -45,7 +51,9 @@ class AnnotationRepository {
     if (existing != null) {
       await (_database.update(_database.pages)..where((page) => page.id.equals(existing.id))).write(
         PagesCompanion(
-          canonicalUrl: Value(canonicalUrl?.toString()),
+          canonicalUrl: canonicalUrl == null && preserveExistingCanonicalUrl
+              ? const Value.absent()
+              : Value(canonicalUrl?.toString()),
           title: normalizedTitle == null || normalizedTitle.isEmpty ? const Value.absent() : Value(normalizedTitle),
           lastVisitedAt: Value(now),
         ),
@@ -99,7 +107,12 @@ class AnnotationRepository {
     String? cssSelector,
     List<AnnotationBodyInput> bodies = const [],
   }) async {
-    final page = await _recordPage(url: sourceUrl, title: pageTitle, recordHistory: false);
+    final page = await _recordPage(
+      url: sourceUrl,
+      title: pageTitle,
+      recordHistory: false,
+      preserveExistingCanonicalUrl: true,
+    );
     final now = _now();
     final annotationId = _uuid.v4();
 

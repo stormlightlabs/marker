@@ -125,6 +125,30 @@ void main() {
     });
   });
 
+  test('keeps canonical page mapping when creating an annotation', () async {
+    await repository.recordPageVisit(
+      url: Uri.parse('https://example.com/article?utm=reader'),
+      canonicalUrl: Uri.parse('https://example.com/article'),
+      title: 'Example Article',
+    );
+
+    await repository.createAnnotation(
+      sourceUrl: Uri.parse('https://example.com/article?utm=reader'),
+      exact: 'selected text',
+      motivation: 'highlighting',
+      textPositionStart: 0,
+      textPositionEnd: 13,
+      bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00')],
+    );
+
+    final page = await database.select(database.pages).getSingle();
+    final annotations = await repository.listAnnotationsForPage(sourceUrl: Uri.parse('https://example.com/article'));
+
+    expect(page.canonicalUrl, 'https://example.com/article');
+    expect(annotations, hasLength(1));
+    expect(annotations.single.exact, 'selected text');
+  });
+
   test('soft deletes annotations and excludes them from page listings', () async {
     final annotation = await repository.createAnnotation(
       sourceUrl: Uri.parse('https://example.com/article'),

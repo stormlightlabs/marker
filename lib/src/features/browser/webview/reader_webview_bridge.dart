@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -26,6 +27,7 @@ class ReaderWebViewBridge {
   }
 
   Future<int> renderAnnotations(WebViewController controller, List<Map<String, Object?>> annotations) async {
+    await inject(controller);
     final result = await controller.runJavaScriptReturningResult(
       'window.MarkerReader && window.MarkerReader.renderAnnotations(${jsonEncode(annotations)}) || 0;',
     );
@@ -45,12 +47,23 @@ class ReaderWebViewBridge {
   }
 
   Future<Uri?> readCanonicalUrl(WebViewController controller) async {
-    final result = await controller.runJavaScriptReturningResult('''
+    final Object result;
+    try {
+      result = await controller.runJavaScriptReturningResult('''
 (function () {
-  var canonical = document.querySelector('link[rel="canonical" i]');
-  return canonical && canonical.href ? canonical.href : '';
+  try {
+    var canonical = document.querySelector('link[rel="canonical" i]');
+    return canonical && canonical.href ? canonical.href : '';
+  } catch (error) {
+    console.debug('Marker ignored canonical URL lookup failure', error);
+    return '';
+  }
 })();
 ''');
+    } on Object catch (error) {
+      debugPrint('Ignoring failed canonical URL lookup: $error');
+      return null;
+    }
     final raw = result.toString().replaceAll('"', '').trim();
     if (raw.isEmpty || raw == 'null') {
       return null;

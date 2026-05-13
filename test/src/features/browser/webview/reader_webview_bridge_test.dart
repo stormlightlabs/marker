@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+import '../../../../helpers/harness.dart';
 
 void main() {
   test('loads and caches the reader script asset', () async {
@@ -17,6 +20,41 @@ void main() {
     expect(second, same(first));
     expect(bundle.loadCount, 1);
     expect(bundle.loadedKeys, [ReaderWebViewBridge.bootstrapScriptAsset]);
+  });
+
+  test('installs the reader runtime before rendering annotations', () async {
+    final platform = FakeWebViewPlatform();
+    WebViewPlatform.instance = platform;
+    final bridge = testReaderBridge();
+    final controller = WebViewController();
+
+    final rendered = await bridge.renderAnnotations(controller, [
+      {
+        'id': 'annotation',
+        'selector': [
+          {'type': 'TextQuoteSelector', 'exact': 'selected text'},
+        ],
+      },
+    ]);
+
+    expect(rendered, 1);
+    expect(platform.controller.injectedScripts, hasLength(2));
+    expect(platform.controller.injectedScripts.first, contains('window.__markerReaderInstalled'));
+    expect(platform.controller.injectedScripts.last, contains('renderAnnotations'));
+    expect(platform.controller.injectedScripts.last, contains('"id":"annotation"'));
+  });
+
+  test('returns null when the page rejects canonical URL lookup', () async {
+    final platform = FakeWebViewPlatform();
+    WebViewPlatform.instance = platform;
+    final bridge = testReaderBridge();
+    final controller = WebViewController();
+    platform.controller.throwOnCanonicalUrlRead = true;
+
+    final canonicalUrl = await bridge.readCanonicalUrl(controller);
+
+    expect(canonicalUrl, isNull);
+    expect(platform.controller.injectedScripts.single, contains('link[rel="canonical"'));
   });
 }
 

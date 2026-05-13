@@ -3,67 +3,30 @@ title: "TODO List"
 updated: 2026-05-13
 ---
 
-## Milestone 1: WebView Reader
-
-See changelog.
-
-## Milestone 2: Browser Shell
-
-See changelog.
-
-## Milestone 3: Library
-
-See changelog.
-
-## Milestone 4: Selection Capture
-
-See changelog.
-
-## Milestone 5: Local Annotation Persistence
-
-See changelog.
-
-## Milestone 6: Highlight Rendering
-
-See changelog.
-
-## Milestone 7: Notes And Details
-
-See changelog.
-
-## Milestone 8: Annotation Sidebar
-
-See changelog.
-
-## Milestone 9: Settings And Browser History
-
-- Add `SettingsScreen`.
-- Add `BrowserHistoryScreen` accessible from Settings.
-- Persist browser history or page visits in Drift with enough metadata for a history list.
-- Show browser history as a screen separate from Library.
-- Add a clear-history action.
-- Decide whether browser history should reuse `pages.lastVisitedAt` or move to a dedicated visit-events table.
-
-Status: implemented.
-
-## Milestone 10: Link Long-Press Menus
-
-See changelog.
-
-## Milestone 11: Browser Kebab Menu
-
-See changelog.
-
-## Milestone 12: Edge Swipe Navigation
-
-- Add reusable edge-swipe navigation around the WebView reading surface.
-- Support left-edge swipe back when the active tab can go back.
-- Support right-edge swipe forward when the active tab can go forward.
-- Use distance and velocity thresholds to avoid accidental navigation.
-- Avoid hijacking normal webpage vertical or horizontal scrolling.
-- Show a subtle drag affordance while swiping.
-- Respect current browser history state and disable unavailable directions.
-
-Status: implemented.
-
 ## Parking Lot
+
+- Add logging (`logger: ^2.6.2`)
+- Bookmark folders
+- Export to Netscape bookmarks format
+
+    ```html
+    <!DOCTYPE NETSCAPE-Bookmark-file-1>
+    <!-- This is an automatically generated file. -->
+    <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+    <TITLE>Bookmarks</TITLE>
+    <H1>Bookmarks</H1>
+
+    <DL><p>
+    <DT><H3 ADD_DATE="1710000000" LAST_MODIFIED="1710000000">Programming</H3>
+    <DL><p>
+        <DT><A HREF="https://www.rust-lang.org/" ADD_DATE="1710000000">Rust</A>
+        <DT><A HREF="https://developer.mozilla.org/" ADD_DATE="1710000000">MDN Web Docs</A>
+    </DL><p>
+
+    <DT><A HREF="https://example.com/article" ADD_DATE="1710000000">Example Article</A>
+    </DL><p>
+    ```
+
+- Social integration
+  - Integrate with [semble](https://semble.so/) & [margin](https://margin.at)
+  - [Hypothes.is](https://web.hypothes.is/) integration
