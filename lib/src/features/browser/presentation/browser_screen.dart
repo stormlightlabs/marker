@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/src/app/app_tab_bar.dart';
+import 'package:marker/src/app/routes.dart';
 import 'package:marker/src/features/browser/application/reader_controller.dart';
 import 'package:marker/src/features/browser/domain/reader_session_state.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
@@ -210,7 +212,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     });
 
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.white,
+      backgroundColor: CupertinoColors.black,
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -236,14 +238,14 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: ColoredBox(color: CupertinoColors.white, child: webViewBuilder(context, _webViewController)),
+                    child: ColoredBox(color: CupertinoColors.black, child: webViewBuilder(context, _webViewController)),
                   ),
                   if (session.lastError != null)
                     Positioned(left: 12, right: 12, top: 12, child: _ReaderErrorBanner(message: session.lastError!)),
                 ],
               ),
             ),
-            const _BrowserTabBar(),
+            const MarkerTabBar(activeRoute: AppRoute.browser),
           ],
         ),
       ),
@@ -352,10 +354,10 @@ class _BrowserAddressBar extends StatelessWidget {
                     child: Icon(CupertinoIcons.lock_fill, color: CupertinoColors.systemGrey, size: 13),
                   ),
                   decoration: BoxDecoration(
-                    color: CupertinoColors.systemGrey6,
+                    color: const Color(0xFF1C1C20),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: isLoading ? CupertinoColors.activeBlue : CupertinoColors.separator,
+                      color: isLoading ? CupertinoColors.activeBlue : const Color(0xFF33333A),
                       width: isLoading ? 1.5 : 0.5,
                     ),
                   ),
@@ -439,7 +441,7 @@ class _BrowserChromeChip extends StatelessWidget {
       child: CupertinoButton(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         minimumSize: const Size(0, 30),
-        color: CupertinoColors.systemGrey6,
+        color: const Color(0xFF1C1C20),
         borderRadius: BorderRadius.circular(8),
         onPressed: onPressed,
         child: Row(
@@ -447,7 +449,7 @@ class _BrowserChromeChip extends StatelessWidget {
           children: [
             Icon(icon, size: 15, color: CupertinoColors.activeBlue),
             const SizedBox(width: 5),
-            Text(label, style: const TextStyle(fontSize: 12, color: CupertinoColors.label, letterSpacing: 0)),
+            Text(label, style: const TextStyle(fontSize: 12, color: CupertinoColors.white, letterSpacing: 0)),
           ],
         ),
       ),
@@ -491,58 +493,6 @@ class _ReaderErrorBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Text(message, style: const TextStyle(color: CupertinoColors.white, fontSize: 13, letterSpacing: 0)),
       ),
-    );
-  }
-}
-
-class _BrowserTabBar extends StatelessWidget {
-  const _BrowserTabBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemGrey6,
-        border: Border(top: BorderSide(color: CupertinoColors.separator, width: 0.5)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 58,
-          child: Row(
-            children: [
-              Expanded(
-                child: _TabBarItem(icon: CupertinoIcons.collections, label: 'Library', isActive: false),
-              ),
-              Expanded(
-                child: _TabBarItem(icon: CupertinoIcons.globe, label: 'Browser', isActive: true),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TabBarItem extends StatelessWidget {
-  const _TabBarItem({required this.icon, required this.label, required this.isActive});
-
-  final IconData icon;
-  final String label;
-  final bool isActive;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive ? CupertinoColors.activeBlue : CupertinoColors.systemGrey;
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 3),
-        Text(label, style: TextStyle(color: color, fontSize: 11, letterSpacing: 0)),
-      ],
     );
   }
 }

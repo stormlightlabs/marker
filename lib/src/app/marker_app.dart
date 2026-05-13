@@ -14,9 +14,9 @@ class MarkerApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: const CupertinoThemeData(
-        brightness: Brightness.light,
+        brightness: Brightness.dark,
         primaryColor: CupertinoColors.activeBlue,
-        scaffoldBackgroundColor: CupertinoColors.systemGroupedBackground,
+        scaffoldBackgroundColor: CupertinoColors.black,
       ),
     );
   }

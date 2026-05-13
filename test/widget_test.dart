@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,6 +39,12 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    expect(find.text('Library'), findsWidgets);
+    expect(find.text('No Saved Pages'), findsOneWidget);
+    await tester.tap(find.text('Browser'));
+    await tester.pump();
+    await tester.pump();
+
     expect(find.text('Fake WebView'), findsOneWidget);
     expect(find.text('Browser'), findsOneWidget);
     expect(platform.controller.loadedUri, Uri.parse('https://news.ycombinator.com'));
@@ -65,6 +72,9 @@ void main() {
 
     await tester.pump();
     await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await tester.pump();
+    await tester.pump();
 
     expect(find.text('Save'), findsOneWidget);
     expect(find.text('Bookmarks 0'), findsOneWidget);
@@ -87,6 +97,98 @@ void main() {
     expect(find.text('Tabs 2'), findsOneWidget);
     expect(platform.controller.loadedUris, hasLength(2));
   });
+
+  testWidgets('LibraryScreen shows stored library sections', (tester) async {
+    await _seedLibrary(database);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('LIBRARY'), findsNothing);
+    expect(find.text('BOOKMARKS'), findsOneWidget);
+    expect(find.text('RECENT PAGES'), findsOneWidget);
+    expect(find.text('RECENT ANNOTATIONS'), findsOneWidget);
+    expect(find.text('Saved Article'), findsOneWidget);
+    expect(find.text('Recent Article'), findsOneWidget);
+    expect(find.text('highlighting'), findsOneWidget);
+
+    await tester.tap(find.text('Recent Article'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Fake WebView'), findsOneWidget);
+    expect(platform.controller.loadedUri, Uri.parse('https://example.com/recent'));
+  });
+}
+
+Future<void> _seedLibrary(AppDatabase database) async {
+  final savedAt = DateTime.utc(2026, 5, 13, 10);
+  final recentAt = DateTime.utc(2026, 5, 13, 11);
+  await database
+      .into(database.pages)
+      .insert(
+        PagesCompanion.insert(
+          id: 'saved-page',
+          url: 'https://example.com/saved',
+          title: const Value('Saved Article'),
+          createdAt: savedAt,
+          lastVisitedAt: savedAt,
+        ),
+      );
+  await database
+      .into(database.pages)
+      .insert(
+        PagesCompanion.insert(
+          id: 'recent-page',
+          url: 'https://example.com/recent',
+          title: const Value('Recent Article'),
+          createdAt: recentAt,
+          lastVisitedAt: recentAt,
+        ),
+      );
+  await database
+      .into(database.bookmarks)
+      .insert(
+        BookmarksCompanion.insert(
+          id: 'bookmark',
+          url: 'https://example.com/saved',
+          title: const Value('Saved Article'),
+          createdAt: savedAt,
+        ),
+      );
+  await database
+      .into(database.annotations)
+      .insert(
+        AnnotationsCompanion.insert(
+          id: 'annotation',
+          pageId: 'recent-page',
+          motivation: 'highlighting',
+          createdAt: recentAt,
+          modifiedAt: recentAt,
+        ),
+      );
+  await database
+      .into(database.annotationTargets)
+      .insert(
+        AnnotationTargetsCompanion.insert(
+          id: 'target',
+          annotationId: 'annotation',
+          sourceUrl: 'https://example.com/recent',
+          selectorJson: '{"selector":[{"type":"TextQuoteSelector","exact":"important quote"}]}',
+        ),
+      );
 }
 
 class _FakeWebViewPlatform extends WebViewPlatform {
