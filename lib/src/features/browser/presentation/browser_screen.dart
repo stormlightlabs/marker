@@ -50,6 +50,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
             await ref
                 .read(readerControllerProvider.notifier)
                 .finishLoad(url: uri, canonicalUrl: canonicalUrl, title: title);
+            await _renderSavedAnnotations(uri);
           },
           onWebResourceError: (error) {
             ref.read(readerControllerProvider.notifier).failLoad(error.description);
@@ -139,6 +140,16 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     unawaited(ref.read(readerWebViewBridgeProvider).clearSelection(_webViewController));
   }
 
+  Future<void> _renderSavedAnnotations(Uri sourceUrl) async {
+    final annotations = await ref.read(annotationsForPageProvider(sourceUrl).future);
+    await ref
+        .read(readerWebViewBridgeProvider)
+        .renderAnnotations(
+          _webViewController,
+          annotations.map((annotation) => annotation.toRenderPayload()).toList(growable: false),
+        );
+  }
+
   Future<void> _saveHighlight(SelectionCapture capture) async {
     await _saveAnnotation(
       capture,
@@ -194,6 +205,8 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
           cssSelector: capture.cssSelector,
           bodies: bodies,
         );
+    ref.invalidate(annotationsForPageProvider(capture.sourceUrl));
+    await _renderSavedAnnotations(capture.sourceUrl);
     _dismissSelection();
   }
 

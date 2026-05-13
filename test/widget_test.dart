@@ -49,13 +49,43 @@ void main() {
     expect(find.text('Fake WebView'), findsOneWidget);
     expect(find.text('Browser'), findsOneWidget);
     expect(platform.controller.loadedUri, Uri.parse('https://news.ycombinator.com'));
-    expect(platform.controller.injectedScripts.single, contains('__markerReaderInstalled'));
+    expect(platform.controller.injectedScripts.first, contains('__markerReaderInstalled'));
+    expect(platform.controller.injectedScripts.last, contains('renderAnnotations([])'));
 
     final pages = await database.select(database.pages).get();
     expect(pages, hasLength(1));
     expect(pages.single.url, 'https://news.ycombinator.com');
     expect(pages.single.canonicalUrl, 'https://news.ycombinator.com/news');
     expect(pages.single.title, 'Example Domain');
+  });
+
+  testWidgets('BrowserScreen rehydrates saved annotations after page load', (tester) async {
+    await _seedPageAnnotation(database);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await tester.pump();
+    await tester.pump();
+
+    final renderScript = platform.controller.injectedScripts.last;
+    expect(renderScript, contains('renderAnnotations'));
+    expect(renderScript, contains('"id":"saved-annotation"'));
+    expect(renderScript, contains('"exact":"selected text"'));
+    expect(renderScript, contains('"style":"highlight"'));
+    expect(renderScript, contains('"color":"#FFCC00"'));
   });
 
   testWidgets('BrowserScreen exposes bookmark and tab controls', (tester) async {
@@ -134,6 +164,7 @@ void main() {
 
     expect(find.text('selected text'), findsNothing);
     expect(platform.controller.injectedScripts.last, contains('clearSelection'));
+    expect(platform.controller.injectedScripts.any((script) => script.contains('"exact":"selected text"')), isTrue);
 
     final annotations = await database.select(database.annotations).get();
     final bodies = await database.select(database.annotationBodies).get();
@@ -274,6 +305,55 @@ Future<void> _seedLibrary(AppDatabase database) async {
           annotationId: 'annotation',
           sourceUrl: 'https://example.com/recent',
           selectorJson: '{"selector":[{"type":"TextQuoteSelector","exact":"important quote"}]}',
+        ),
+      );
+}
+
+Future<void> _seedPageAnnotation(AppDatabase database) async {
+  final now = DateTime.utc(2026, 5, 13, 12);
+  await database
+      .into(database.pages)
+      .insert(
+        PagesCompanion.insert(
+          id: 'news-page',
+          url: 'https://news.ycombinator.com',
+          canonicalUrl: const Value('https://news.ycombinator.com/news'),
+          title: const Value('Hacker News'),
+          createdAt: now,
+          lastVisitedAt: now,
+        ),
+      );
+  await database
+      .into(database.annotations)
+      .insert(
+        AnnotationsCompanion.insert(
+          id: 'saved-annotation',
+          pageId: 'news-page',
+          motivation: 'highlighting',
+          createdAt: now,
+          modifiedAt: now,
+        ),
+      );
+  await database
+      .into(database.annotationTargets)
+      .insert(
+        AnnotationTargetsCompanion.insert(
+          id: 'saved-target',
+          annotationId: 'saved-annotation',
+          sourceUrl: 'https://news.ycombinator.com',
+          selectorJson:
+              '[{"type":"TextQuoteSelector","exact":"selected text","prefix":"before ","suffix":" after"},{"type":"TextPositionSelector","start":7,"end":20}]',
+        ),
+      );
+  await database
+      .into(database.annotationBodies)
+      .insert(
+        AnnotationBodiesCompanion.insert(
+          id: 'saved-body',
+          annotationId: 'saved-annotation',
+          type: 'StyleHint',
+          format: const Value('application/json'),
+          value: '{"style":"highlight","color":"#FFCC00"}',
         ),
       );
 }

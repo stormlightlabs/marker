@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:webview_flutter/webview_flutter.dart';
 
 class ReaderWebViewBridge {
@@ -100,6 +102,202 @@ class ReaderWebViewBridge {
     });
   }
 
+  function textNodesUnder(root) {
+    var nodes = [];
+    if (!root) {
+      return nodes;
+    }
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        if (!node.nodeValue || !node.nodeValue.length) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        var parent = node.parentElement;
+        if (!parent || parent.closest('[data-marker-annotation-id]')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        var tag = parent.tagName;
+        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT') {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var current;
+    while ((current = walker.nextNode())) {
+      nodes.push(current);
+    }
+    return nodes;
+  }
+
+  function rangeFromOffsets(start, end) {
+    var root = document.body || document.documentElement;
+    var nodes = textNodesUnder(root);
+    var offset = 0;
+    var range = document.createRange();
+    var started = false;
+
+    for (var i = 0; i < nodes.length; i += 1) {
+      var node = nodes[i];
+      var nextOffset = offset + node.nodeValue.length;
+      if (!started && start >= offset && start <= nextOffset) {
+        range.setStart(node, Math.max(0, start - offset));
+        started = true;
+      }
+      if (started && end >= offset && end <= nextOffset) {
+        range.setEnd(node, Math.max(0, end - offset));
+        return range;
+      }
+      offset = nextOffset;
+    }
+
+    return null;
+  }
+
+  function documentText() {
+    var nodes = textNodesUnder(document.body || document.documentElement);
+    return nodes.map(function (node) { return node.nodeValue; }).join('');
+  }
+
+  function selectorOfType(annotation, type) {
+    var selectors = Array.isArray(annotation.selector) ? annotation.selector : [];
+    for (var i = 0; i < selectors.length; i += 1) {
+      if (selectors[i] && selectors[i].type === type) {
+        return selectors[i];
+      }
+    }
+    return null;
+  }
+
+  function rangeFromQuoteSelector(annotation) {
+    var quote = selectorOfType(annotation, 'TextQuoteSelector');
+    if (!quote || !quote.exact) {
+      return null;
+    }
+
+    var text = documentText();
+    var exact = String(quote.exact);
+    var prefix = quote.prefix ? String(quote.prefix) : '';
+    var suffix = quote.suffix ? String(quote.suffix) : '';
+    var bestIndex = -1;
+    var bestScore = -1;
+    var index = text.indexOf(exact);
+
+    while (index !== -1) {
+      var score = 0;
+      if (!prefix || text.slice(Math.max(0, index - prefix.length), index) === prefix) {
+        score += 2;
+      }
+      if (!suffix || text.slice(index + exact.length, index + exact.length + suffix.length) === suffix) {
+        score += 2;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+      index = text.indexOf(exact, index + Math.max(1, exact.length));
+    }
+
+    return bestIndex === -1 ? null : rangeFromOffsets(bestIndex, bestIndex + exact.length);
+  }
+
+  function rangeFromPositionSelector(annotation) {
+    var position = selectorOfType(annotation, 'TextPositionSelector');
+    if (!position || typeof position.start !== 'number' || typeof position.end !== 'number') {
+      return null;
+    }
+    if (position.start < 0 || position.end <= position.start) {
+      return null;
+    }
+    return rangeFromOffsets(position.start, position.end);
+  }
+
+  function rangeFromCssSelector(annotation) {
+    var css = selectorOfType(annotation, 'CssSelector');
+    if (!css || !css.value) {
+      return null;
+    }
+    try {
+      var element = document.querySelector(css.value);
+      if (!element) {
+        return null;
+      }
+      var range = document.createRange();
+      range.selectNodeContents(element);
+      return range.collapsed ? null : range;
+    } catch (error) {
+      console.debug('Marker ignored invalid CSS selector', error);
+      return null;
+    }
+  }
+
+  function rangeForAnnotation(annotation) {
+    return rangeFromQuoteSelector(annotation) || rangeFromPositionSelector(annotation) || rangeFromCssSelector(annotation);
+  }
+
+  function removeRenderedAnnotation(annotationId) {
+    var selector = '[data-marker-annotation-id="' + String(annotationId).replace(/"/g, '\\\\"') + '"]';
+    var nodes = Array.prototype.slice.call(document.querySelectorAll(selector));
+    nodes.forEach(function (node) {
+      var parent = node.parentNode;
+      if (!parent) {
+        return;
+      }
+      while (node.firstChild) {
+        parent.insertBefore(node.firstChild, node);
+      }
+      parent.removeChild(node);
+      parent.normalize();
+    });
+  }
+
+  function removeAllRenderedAnnotations() {
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-marker-annotation-id]'));
+    nodes.forEach(function (node) {
+      removeRenderedAnnotation(node.getAttribute('data-marker-annotation-id'));
+    });
+  }
+
+  function renderAnnotation(annotation) {
+    var range = rangeForAnnotation(annotation);
+    if (!range) {
+      return false;
+    }
+
+    var span = document.createElement('mark');
+    span.setAttribute('data-marker-annotation-id', annotation.id);
+    span.setAttribute('data-marker-annotation-style', annotation.style || 'highlight');
+    span.style.borderRadius = '2px';
+    span.style.padding = '0 1px';
+    span.style.color = 'inherit';
+    if (annotation.style === 'underline') {
+      span.style.background = 'transparent';
+      span.style.textDecorationLine = 'underline';
+      span.style.textDecorationThickness = '0.16em';
+      span.style.textDecorationColor = annotation.color || '#64D2FF';
+      span.style.textUnderlineOffset = '0.18em';
+    } else {
+      span.style.background = annotation.color || '#FFCC00';
+    }
+
+    try {
+      var contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+      return true;
+    } catch (error) {
+      console.debug('Marker failed to render annotation', annotation.id, error);
+      return false;
+    }
+  }
+
+  function scrollToAnnotation(annotationId) {
+    var node = document.querySelector('[data-marker-annotation-id="' + String(annotationId).replace(/"/g, '\\\\"') + '"]');
+    if (node) {
+      node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    }
+  }
+
   var captureTimer = null;
   function scheduleCapture() {
     window.clearTimeout(captureTimer);
@@ -115,7 +313,22 @@ class ReaderWebViewBridge {
         selection.removeAllRanges();
       }
       postSelectionMessage({ type: 'selection-cleared' });
-    }
+    },
+    renderAnnotations: function (annotations) {
+      removeAllRenderedAnnotations();
+      if (!Array.isArray(annotations)) {
+        return 0;
+      }
+      var rendered = 0;
+      annotations.forEach(function (annotation) {
+        if (annotation && annotation.id && renderAnnotation(annotation)) {
+          rendered += 1;
+        }
+      });
+      return rendered;
+    },
+    deleteRenderedAnnotation: removeRenderedAnnotation,
+    scrollToAnnotation: scrollToAnnotation
   };
   document.addEventListener('selectionchange', scheduleCapture);
   document.addEventListener('mouseup', scheduleCapture);
@@ -131,6 +344,24 @@ class ReaderWebViewBridge {
 
   Future<void> clearSelection(WebViewController controller) {
     return controller.runJavaScript('window.MarkerReader && window.MarkerReader.clearSelection();');
+  }
+
+  Future<void> renderAnnotations(WebViewController controller, List<Map<String, Object?>> annotations) {
+    return controller.runJavaScript(
+      'window.MarkerReader && window.MarkerReader.renderAnnotations(${jsonEncode(annotations)});',
+    );
+  }
+
+  Future<void> deleteRenderedAnnotation(WebViewController controller, String annotationId) {
+    return controller.runJavaScript(
+      'window.MarkerReader && window.MarkerReader.deleteRenderedAnnotation(${jsonEncode(annotationId)});',
+    );
+  }
+
+  Future<void> scrollToAnnotation(WebViewController controller, String annotationId) {
+    return controller.runJavaScript(
+      'window.MarkerReader && window.MarkerReader.scrollToAnnotation(${jsonEncode(annotationId)});',
+    );
   }
 
   Future<Uri?> readCanonicalUrl(WebViewController controller) async {

@@ -27,7 +27,7 @@ Status: implemented.
 - Let users open a bookmark or saved page in the browser.
 - Back the Library sections with Drift queries.
 
-Status: not started.
+Status: implemented.
 
 ## Milestone 4: Selection Capture
 
@@ -35,7 +35,7 @@ Status: not started.
 - Send selected text and basic context to Flutter.
 - Show Cupertino annotation toolbar.
 
-Status: not started.
+Status: implemented.
 
 ## Milestone 5: Local Annotation Persistence
 
@@ -44,7 +44,7 @@ Status: not started.
 - Save annotation bodies.
 - List annotations for a page.
 
-Status: partially scaffolded. Drift tables exist, but annotation creation is not implemented.
+Status: implemented.
 
 ## Milestone 6: Highlight Rendering
 
@@ -52,13 +52,14 @@ Status: partially scaffolded. Drift tables exist, but annotation creation is not
 - Render highlights from stored selectors.
 - Support deletion and rerendering.
 
-Status: not started.
+Status: implemented.
 
 ## Milestone 7: Notes And Details
 
 - Attach textual notes to highlights.
 - Add annotation detail screen.
 - Support editing annotation bodies.
+- Support deleting annotations from annotation detail actions.
 
 Status: not started.
 
