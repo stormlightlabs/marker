@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/src/core/database/app_database.dart';
@@ -48,5 +50,34 @@ void main() {
     expect(second.canonicalUrl, 'https://example.com/canonical');
     expect(second.createdAt, first.createdAt);
     expect(second.lastVisitedAt.isAfter(first.lastVisitedAt), isTrue);
+  });
+
+  test('creates an annotation with target selectors and bodies', () async {
+    final annotation = await repository.createAnnotation(
+      sourceUrl: Uri.parse('https://example.com/article'),
+      exact: 'selected text',
+      prefix: 'before ',
+      suffix: ' after',
+      motivation: 'commenting',
+      textPositionStart: 7,
+      textPositionEnd: 20,
+      pageTitle: 'Example Article',
+      cssSelector: 'article > p:nth-of-type(1)',
+      bodies: [
+        AnnotationBodyInput.markdownNote('**Important** note'),
+        AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00'),
+      ],
+    );
+
+    final pages = await database.select(database.pages).get();
+    final targets = await database.select(database.annotationTargets).get();
+    final bodies = await database.select(database.annotationBodies).get();
+
+    expect(annotation.motivation, 'commenting');
+    expect(pages.single.url, 'https://example.com/article');
+    expect(targets.single.sourceUrl, 'https://example.com/article');
+    expect(jsonDecode(targets.single.selectorJson), hasLength(3));
+    expect(bodies.map((body) => body.type), containsAll(['TextualBody', 'StyleHint']));
+    expect(bodies.firstWhere((body) => body.type == 'TextualBody').format, 'text/markdown');
   });
 }

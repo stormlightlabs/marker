@@ -94,12 +94,19 @@ class LibraryRepository {
         continue;
       }
 
-      final body = await (_database.select(
+      final bodies = await (_database.select(
         _database.annotationBodies,
-      )..where((body) => body.annotationId.equals(annotation.id))).getSingleOrNull();
+      )..where((body) => body.annotationId.equals(annotation.id))).get();
       final target = await (_database.select(
         _database.annotationTargets,
       )..where((target) => target.annotationId.equals(annotation.id))).getSingleOrNull();
+      AnnotationBody? textualBody;
+      for (final body in bodies) {
+        if (body.type == 'TextualBody') {
+          textualBody = body;
+          break;
+        }
+      }
 
       items.add(
         LibraryAnnotationItem(
@@ -107,7 +114,7 @@ class LibraryRepository {
           url: Uri.parse(target?.sourceUrl ?? page.url),
           pageTitle: _fallbackTitle(page.title, page.url),
           motivation: annotation.motivation,
-          excerpt: _annotationExcerpt(body?.value, target?.selectorJson),
+          excerpt: _annotationExcerpt(textualBody?.value, target?.selectorJson),
           modifiedAt: annotation.modifiedAt,
         ),
       );

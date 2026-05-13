@@ -4,9 +4,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/src/app/app_tab_bar.dart';
 import 'package:marker/src/app/routes.dart';
+import 'package:marker/src/features/annotations/data/annotation_repository.dart';
 import 'package:marker/src/features/browser/application/reader_controller.dart';
+import 'package:marker/src/features/browser/application/selection_capture_controller.dart';
 import 'package:marker/src/features/browser/domain/reader_session_state.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
+import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class BrowserScreen extends ConsumerStatefulWidget {
@@ -52,6 +55,14 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
           },
         ),
       );
+    unawaited(
+      _webViewController.addJavaScriptChannel(
+        ReaderWebViewBridge.selectionChannelName,
+        onMessageReceived: (message) {
+          ref.read(selectionCaptureControllerProvider.notifier).handleBridgeMessage(message.message);
+        },
+      ),
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadFromAddressBar();
@@ -74,6 +85,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   }
 
   Future<void> _loadUri(Uri target) {
+    ref.read(selectionCaptureControllerProvider.notifier).clear();
     return _webViewController.loadRequest(target);
   }
 
@@ -119,6 +131,69 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
 
   void _toggleBookmark() {
     unawaited(ref.read(readerControllerProvider.notifier).toggleBookmark());
+  }
+
+  void _dismissSelection() {
+    ref.read(selectionCaptureControllerProvider.notifier).clear();
+    unawaited(ref.read(readerWebViewBridgeProvider).clearSelection(_webViewController));
+  }
+
+  Future<void> _saveHighlight(SelectionCapture capture) async {
+    await _saveAnnotation(
+      capture,
+      motivation: 'highlighting',
+      bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00')],
+    );
+  }
+
+  Future<void> _saveUnderline(SelectionCapture capture) async {
+    await _saveAnnotation(
+      capture,
+      motivation: 'highlighting',
+      bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.underline, colorHex: '#64D2FF')],
+    );
+  }
+
+  Future<void> _openNoteEditor(SelectionCapture capture) async {
+    final note = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => NoteEditorSheet(capture: capture),
+    );
+    final trimmed = note?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return;
+    }
+
+    await _saveAnnotation(
+      capture,
+      motivation: 'commenting',
+      bodies: [
+        AnnotationBodyInput.markdownNote(trimmed),
+        AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00'),
+      ],
+    );
+  }
+
+  Future<void> _saveAnnotation(
+    SelectionCapture capture, {
+    required String motivation,
+    required List<AnnotationBodyInput> bodies,
+  }) async {
+    await ref
+        .read(annotationRepositoryProvider)
+        .createAnnotation(
+          sourceUrl: capture.sourceUrl,
+          exact: capture.exact,
+          prefix: capture.prefix,
+          suffix: capture.suffix,
+          motivation: motivation,
+          textPositionStart: capture.textPositionStart,
+          textPositionEnd: capture.textPositionEnd,
+          pageTitle: capture.pageTitle,
+          cssSelector: capture.cssSelector,
+          bodies: bodies,
+        );
+    _dismissSelection();
   }
 
   void _showTabs(BuildContext context, ReaderSessionState session) {
@@ -203,6 +278,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(readerControllerProvider);
+    final selection = ref.watch(selectionCaptureControllerProvider);
     final webViewBuilder = ref.watch(browserWebViewBuilderProvider);
 
     ref.listen(readerControllerProvider.select((value) => value.urlText), (previous, next) {
@@ -240,6 +316,19 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                   Positioned.fill(
                     child: ColoredBox(color: CupertinoColors.black, child: webViewBuilder(context, _webViewController)),
                   ),
+                  if (selection.capture != null)
+                    Positioned(
+                      left: 14,
+                      right: 14,
+                      bottom: 16,
+                      child: AnnotationToolbar(
+                        capture: selection.capture!,
+                        onHighlightPressed: () => unawaited(_saveHighlight(selection.capture!)),
+                        onNotePressed: () => unawaited(_openNoteEditor(selection.capture!)),
+                        onUnderlinePressed: () => unawaited(_saveUnderline(selection.capture!)),
+                        onRemovePressed: _dismissSelection,
+                      ),
+                    ),
                   if (session.lastError != null)
                     Positioned(left: 12, right: 12, top: 12, child: _ReaderErrorBanner(message: session.lastError!)),
                 ],
@@ -247,6 +336,293 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
             ),
             const MarkerTabBar(activeRoute: AppRoute.browser),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class NoteEditorSheet extends StatefulWidget {
+  const NoteEditorSheet({required this.capture, super.key});
+
+  final SelectionCapture capture;
+
+  @override
+  State<NoteEditorSheet> createState() => _NoteEditorSheetState();
+}
+
+class _NoteEditorSheetState extends State<NoteEditorSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController()..addListener(_handleTextChanged);
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ..removeListener(_handleTextChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleTextChanged() {
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canSave = _controller.text.trim().isNotEmpty;
+
+    return CupertinoPopupSurface(
+      isSurfacePainted: false,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: Color(0xFF111114),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+            child: SizedBox(
+              height: 380,
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(color: const Color(0xFF3A3A42), borderRadius: BorderRadius.circular(3)),
+                  ),
+                  SizedBox(
+                    height: 48,
+                    child: Row(
+                      children: [
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel', style: TextStyle(color: CupertinoColors.systemGrey)),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Add Note',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: CupertinoColors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          onPressed: canSave ? () => Navigator.of(context).pop(_controller.text) : null,
+                          child: Text(
+                            'Save',
+                            style: TextStyle(
+                              color: canSave ? CupertinoColors.activeBlue : CupertinoColors.systemGrey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C20),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF33333A), width: 0.5),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          '"${widget.capture.exact}"',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: CupertinoColors.systemGrey2,
+                            fontSize: 14,
+                            height: 1.25,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: CupertinoTextField(
+                        controller: _controller,
+                        autofocus: true,
+                        expands: true,
+                        maxLines: null,
+                        minLines: null,
+                        textAlignVertical: TextAlignVertical.top,
+                        placeholder: 'Add a markdown note...',
+                        placeholderStyle: const TextStyle(color: CupertinoColors.systemGrey, letterSpacing: 0),
+                        padding: const EdgeInsets.all(12),
+                        keyboardType: TextInputType.multiline,
+                        style: const TextStyle(
+                          color: CupertinoColors.white,
+                          fontSize: 15,
+                          height: 1.3,
+                          letterSpacing: 0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1C1C20),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF33333A), width: 0.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AnnotationToolbar extends StatelessWidget {
+  const AnnotationToolbar({
+    required this.capture,
+    required this.onHighlightPressed,
+    required this.onNotePressed,
+    required this.onUnderlinePressed,
+    required this.onRemovePressed,
+    super.key,
+  });
+
+  final SelectionCapture capture;
+  final VoidCallback onHighlightPressed;
+  final VoidCallback onNotePressed;
+  final VoidCallback onUnderlinePressed;
+  final VoidCallback onRemovePressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xF21A1A1F),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF33333A), width: 0.5),
+          boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 24, offset: Offset(0, 12))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                child: Text(
+                  capture.exact,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12, letterSpacing: 0),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 3, 4, 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _AnnotationToolbarButton(
+                      icon: CupertinoIcons.pencil,
+                      label: 'Highlight',
+                      color: CupertinoColors.systemYellow,
+                      onPressed: onHighlightPressed,
+                    ),
+                    const _ToolbarDivider(),
+                    _AnnotationToolbarButton(
+                      icon: CupertinoIcons.chat_bubble_text,
+                      label: 'Note',
+                      color: CupertinoColors.white,
+                      onPressed: onNotePressed,
+                    ),
+                    const _ToolbarDivider(),
+                    _AnnotationToolbarButton(
+                      icon: CupertinoIcons.underline,
+                      label: 'Underline',
+                      color: CupertinoColors.systemTeal,
+                      onPressed: onUnderlinePressed,
+                    ),
+                    const _ToolbarDivider(),
+                    _AnnotationToolbarButton(
+                      icon: CupertinoIcons.trash,
+                      label: 'Remove',
+                      color: CupertinoColors.systemRed,
+                      onPressed: onRemovePressed,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnnotationToolbarButton extends StatelessWidget {
+  const _AnnotationToolbarButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        minimumSize: const Size(62, 54),
+        onPressed: onPressed,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(color: CupertinoColors.white, fontSize: 11, letterSpacing: 0)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolbarDivider extends StatelessWidget {
+  const _ToolbarDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      height: 42,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: Color(0xFF33333A))),
         ),
       ),
     );

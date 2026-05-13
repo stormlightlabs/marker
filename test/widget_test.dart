@@ -80,7 +80,7 @@ void main() {
     expect(find.text('Bookmarks 0'), findsOneWidget);
     expect(find.text('Tabs 1'), findsOneWidget);
 
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Saved'), findsOneWidget);
@@ -96,6 +96,88 @@ void main() {
 
     expect(find.text('Tabs 2'), findsOneWidget);
     expect(platform.controller.loadedUris, hasLength(2));
+  });
+
+  testWidgets('BrowserScreen shows annotation toolbar for captured selections', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await tester.pump();
+    await tester.pump();
+
+    platform.controller.sendSelectionMessage(
+      '{"type":"selection-captured","payload":{"exact":"selected text","prefix":"before ","suffix":" after","sourceUrl":"https://news.ycombinator.com","pageTitle":"Hacker News","textPositionStart":7,"textPositionEnd":20,"cssSelector":"p:nth-of-type(1)"}}',
+    );
+    await tester.pump();
+
+    expect(find.text('selected text'), findsOneWidget);
+    expect(find.text('Highlight'), findsOneWidget);
+    expect(find.text('Note'), findsOneWidget);
+    expect(find.text('Underline'), findsOneWidget);
+    expect(find.text('Remove'), findsOneWidget);
+
+    await tester.tap(find.text('Highlight'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('selected text'), findsNothing);
+    expect(platform.controller.injectedScripts.last, contains('clearSelection'));
+
+    final annotations = await database.select(database.annotations).get();
+    final bodies = await database.select(database.annotationBodies).get();
+    expect(annotations.single.motivation, 'highlighting');
+    expect(bodies.single.type, 'StyleHint');
+  });
+
+  testWidgets('BrowserScreen opens note editor and saves markdown note annotations', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await tester.pump();
+    await tester.pump();
+
+    platform.controller.sendSelectionMessage(
+      '{"type":"selection-captured","payload":{"exact":"note text","prefix":"before ","suffix":" after","sourceUrl":"https://news.ycombinator.com","pageTitle":"Hacker News","textPositionStart":7,"textPositionEnd":16,"cssSelector":"p:nth-of-type(1)"}}',
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Note'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add Note'), findsOneWidget);
+
+    await tester.enterText(find.byType(CupertinoTextField).last, '**Markdown** note');
+    await tester.pump();
+    await tester.tap(find.text('Save').last);
+    await tester.pumpAndSettle();
+
+    final annotations = await database.select(database.annotations).get();
+    final bodies = await database.select(database.annotationBodies).get();
+    expect(annotations.single.motivation, 'commenting');
+    expect(bodies.firstWhere((body) => body.type == 'TextualBody').format, 'text/markdown');
+    expect(bodies.firstWhere((body) => body.type == 'TextualBody').value, '**Markdown** note');
   });
 
   testWidgets('LibraryScreen shows stored library sections', (tester) async {
@@ -213,6 +295,7 @@ class _FakePlatformWebViewController extends PlatformWebViewController {
   final loadedUris = <Uri>[];
   final injectedScripts = <String>[];
   _FakePlatformNavigationDelegate? navigationDelegate;
+  final javaScriptChannels = <String, JavaScriptChannelParams>{};
 
   @override
   Future<void> setJavaScriptMode(JavaScriptMode javaScriptMode) async {}
@@ -220,6 +303,11 @@ class _FakePlatformWebViewController extends PlatformWebViewController {
   @override
   Future<void> setPlatformNavigationDelegate(PlatformNavigationDelegate handler) async {
     navigationDelegate = handler as _FakePlatformNavigationDelegate;
+  }
+
+  @override
+  Future<void> addJavaScriptChannel(JavaScriptChannelParams javaScriptChannelParams) async {
+    javaScriptChannels[javaScriptChannelParams.name] = javaScriptChannelParams;
   }
 
   @override
@@ -246,6 +334,10 @@ class _FakePlatformWebViewController extends PlatformWebViewController {
 
   @override
   Future<String?> currentUrl() async => loadedUri?.toString();
+
+  void sendSelectionMessage(String message) {
+    javaScriptChannels['MarkerSelection']?.onMessageReceived(JavaScriptMessage(message: message));
+  }
 }
 
 class _FakePlatformNavigationDelegate extends PlatformNavigationDelegate {

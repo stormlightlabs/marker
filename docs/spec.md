@@ -181,6 +181,41 @@ Supported motivations:
 | `tagging` | User-applied label |
 | `linking` | Reference to another resource |
 
+### Annotation Creation Decisions
+
+Toolbar actions map to persisted annotations as follows:
+
+| Action | Motivation | Bodies |
+| --- | --- | --- |
+| Highlight | `highlighting` | `StyleHint`, `application/json`, e.g. `{"style":"highlight","color":"#FFCC00"}` |
+| Note | `commenting` | `TextualBody`, `text/markdown`, plus a `StyleHint` for the attached highlight color |
+| Underline | `highlighting` | `StyleHint`, `application/json`, e.g. `{"style":"underline","color":"#64D2FF"}` |
+| Remove | none at selection-capture time | Clears the active selection; deletion is only valid after an existing annotation is identified |
+
+The `annotation_targets.selectorJson` field stores the selector list for the selected range:
+
+```json
+[
+  {
+    "type": "TextQuoteSelector",
+    "exact": "selected text",
+    "prefix": "text before ",
+    "suffix": " text after"
+  },
+  {
+    "type": "TextPositionSelector",
+    "start": 1024,
+    "end": 1037
+  },
+  {
+    "type": "CssSelector",
+    "value": "article > p:nth-of-type(3)"
+  }
+]
+```
+
+Notes should be authored as Markdown. For the note editor implementation, prefer well-maintained packages that provide Markdown editing/rendering and code syntax highlighting instead of a custom parser. Current candidates to evaluate are `markdown_editor_live` or `qaid_markdown_editor` for editing, `flutter_smooth_markdown` or `flutter_markdown` for rendering, and `syntax_highlight` or `flutter_highlight` for code highlighting. Choose based on maintenance, platform support, dark theme quality, and ability to customize the editor into a Cupertino bottom sheet.
+
 ## 5. Drift Persistence Model
 
 ### `pages`
