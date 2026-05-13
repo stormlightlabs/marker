@@ -1,30 +1,130 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:marker/main.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/src/core/database/app_database.dart';
+import 'package:marker/src/core/database/database_provider.dart';
+import 'package:marker/src/features/browser/presentation/browser_screen.dart';
+import 'package:marker/src/features/browser/webview/browser_webview.dart';
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  late _FakeWebViewPlatform platform;
+  late AppDatabase database;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  setUp(() {
+    platform = _FakeWebViewPlatform();
+    WebViewPlatform.instance = platform;
+    database = AppDatabase(NativeDatabase.memory());
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  tearDown(() async {
+    await database.close();
+  });
+
+  testWidgets('BrowserScreen loads the default URL and records the page', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const CupertinoApp(home: BrowserScreen()),
+      ),
+    );
+
+    await tester.pump();
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Fake WebView'), findsOneWidget);
+    expect(find.text('Browser'), findsOneWidget);
+    expect(platform.controller.loadedUri, Uri.parse('https://news.ycombinator.com'));
+    expect(platform.controller.injectedScripts.single, contains('__markerReaderInstalled'));
+
+    final pages = await database.select(database.pages).get();
+    expect(pages, hasLength(1));
+    expect(pages.single.url, 'https://news.ycombinator.com');
+    expect(pages.single.canonicalUrl, 'https://news.ycombinator.com/news');
+    expect(pages.single.title, 'Example Domain');
   });
+}
+
+class _FakeWebViewPlatform extends WebViewPlatform {
+  late final _FakePlatformWebViewController controller;
+
+  @override
+  PlatformWebViewController createPlatformWebViewController(PlatformWebViewControllerCreationParams params) {
+    controller = _FakePlatformWebViewController(params);
+    return controller;
+  }
+
+  @override
+  PlatformNavigationDelegate createPlatformNavigationDelegate(PlatformNavigationDelegateCreationParams params) {
+    return _FakePlatformNavigationDelegate(params);
+  }
+}
+
+class _FakePlatformWebViewController extends PlatformWebViewController {
+  _FakePlatformWebViewController(super.params) : super.implementation();
+
+  Uri? loadedUri;
+  final injectedScripts = <String>[];
+  _FakePlatformNavigationDelegate? navigationDelegate;
+
+  @override
+  Future<void> setJavaScriptMode(JavaScriptMode javaScriptMode) async {}
+
+  @override
+  Future<void> setPlatformNavigationDelegate(PlatformNavigationDelegate handler) async {
+    navigationDelegate = handler as _FakePlatformNavigationDelegate;
+  }
+
+  @override
+  Future<void> loadRequest(LoadRequestParams params) async {
+    loadedUri = params.uri;
+    navigationDelegate?.onProgress?.call(40);
+    navigationDelegate?.onProgress?.call(100);
+    navigationDelegate?.onPageFinished?.call(params.uri.toString());
+  }
+
+  @override
+  Future<void> runJavaScript(String javaScript) async {
+    injectedScripts.add(javaScript);
+  }
+
+  @override
+  Future<Object> runJavaScriptReturningResult(String javaScript) async {
+    return '"https://news.ycombinator.com/news"';
+  }
+
+  @override
+  Future<String?> getTitle() async => 'Example Domain';
+
+  @override
+  Future<String?> currentUrl() async => loadedUri?.toString();
+}
+
+class _FakePlatformNavigationDelegate extends PlatformNavigationDelegate {
+  _FakePlatformNavigationDelegate(super.params) : super.implementation();
+
+  ProgressCallback? onProgress;
+  PageEventCallback? onPageFinished;
+  WebResourceErrorCallback? onWebResourceError;
+
+  @override
+  Future<void> setOnProgress(ProgressCallback onProgress) async {
+    this.onProgress = onProgress;
+  }
+
+  @override
+  Future<void> setOnPageFinished(PageEventCallback onPageFinished) async {
+    this.onPageFinished = onPageFinished;
+  }
+
+  @override
+  Future<void> setOnWebResourceError(WebResourceErrorCallback onWebResourceError) async {
+    this.onWebResourceError = onWebResourceError;
+  }
 }
