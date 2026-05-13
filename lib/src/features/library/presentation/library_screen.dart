@@ -21,8 +21,11 @@ class LibraryScreen extends ConsumerWidget {
           children: [
             Expanded(
               child: snapshot.when(
-                data: (library) =>
-                    _LibraryContent(snapshot: library, onOpenUrl: (url) => _openInBrowser(context, ref, url)),
+                data: (library) => _LibraryContent(
+                  snapshot: library,
+                  onOpenUrl: (url) => _openInBrowser(context, ref, url),
+                  onOpenAnnotation: (annotationId) => _openAnnotation(context, annotationId),
+                ),
                 loading: () => const Center(child: CupertinoActivityIndicator()),
                 error: (error, stackTrace) => _LibraryError(message: error.toString()),
               ),
@@ -39,13 +42,18 @@ class LibraryScreen extends ConsumerWidget {
     controller.setUrlText(url.toString());
     context.goNamed(AppRoute.browser.routeName);
   }
+
+  void _openAnnotation(BuildContext context, String annotationId) {
+    context.goNamed(AppRoute.annotation.routeName, pathParameters: {'annotationId': annotationId});
+  }
 }
 
 class _LibraryContent extends StatelessWidget {
-  const _LibraryContent({required this.snapshot, required this.onOpenUrl});
+  const _LibraryContent({required this.snapshot, required this.onOpenUrl, required this.onOpenAnnotation});
 
   final LibrarySnapshot snapshot;
   final ValueChanged<Uri> onOpenUrl;
+  final ValueChanged<String> onOpenAnnotation;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +93,7 @@ class _LibraryContent extends StatelessWidget {
             accentColor: CupertinoColors.systemTeal,
             onOpenUrl: onOpenUrl,
           ),
-          _AnnotationSection(annotations: snapshot.recentAnnotations, onOpenUrl: onOpenUrl),
+          _AnnotationSection(annotations: snapshot.recentAnnotations, onOpenAnnotation: onOpenAnnotation),
           const SliverToBoxAdapter(child: SizedBox(height: 18)),
         ],
       ],
@@ -127,10 +135,10 @@ class _LibraryPageSection extends StatelessWidget {
 }
 
 class _AnnotationSection extends StatelessWidget {
-  const _AnnotationSection({required this.annotations, required this.onOpenUrl});
+  const _AnnotationSection({required this.annotations, required this.onOpenAnnotation});
 
   final List<LibraryAnnotationItem> annotations;
-  final ValueChanged<Uri> onOpenUrl;
+  final ValueChanged<String> onOpenAnnotation;
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +151,7 @@ class _AnnotationSection extends StatelessWidget {
         title: 'Recent Annotations',
         children: [
           for (final annotation in annotations)
-            _AnnotationRow(annotation: annotation, onPressed: () => onOpenUrl(annotation.url)),
+            _AnnotationRow(annotation: annotation, onPressed: () => onOpenAnnotation(annotation.id)),
         ],
       ),
     );

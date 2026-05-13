@@ -134,4 +134,30 @@ void main() {
     expect(annotations, isEmpty);
     expect(deleted.deletedAt, isNotNull);
   });
+
+  test('loads annotation detail and edits markdown body', () async {
+    final annotation = await repository.createAnnotation(
+      sourceUrl: Uri.parse('https://example.com/article'),
+      exact: 'selected text',
+      motivation: 'highlighting',
+      textPositionStart: 0,
+      textPositionEnd: 13,
+      pageTitle: 'Example Article',
+      bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00')],
+    );
+
+    await repository.updateMarkdownBody(annotationId: annotation.id, value: 'Updated **note**');
+    final detail = await repository.getAnnotationDetail(annotation.id);
+
+    expect(detail, isNotNull);
+    expect(detail!.pageTitle, 'Example Article');
+    expect(detail.annotation.note, 'Updated **note**');
+    expect(detail.annotation.annotation.motivation, 'commenting');
+
+    await repository.updateMarkdownBody(annotationId: annotation.id, value: '');
+    final updated = await repository.getAnnotationDetail(annotation.id);
+
+    expect(updated!.annotation.note, isNull);
+    expect(updated.annotation.annotation.motivation, 'highlighting');
+  });
 }

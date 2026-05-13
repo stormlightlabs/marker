@@ -61,7 +61,7 @@ Status: implemented.
 - Support editing annotation bodies.
 - Support deleting annotations from annotation detail actions.
 
-Status: not started.
+Status: implemented.
 
 ## Milestone 8: Annotation Sidebar
 

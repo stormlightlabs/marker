@@ -47,7 +47,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Fake WebView'), findsOneWidget);
-    expect(find.text('Browser'), findsOneWidget);
+    expect(find.text('Browser'), findsWidgets);
     expect(platform.controller.loadedUri, Uri.parse('https://news.ycombinator.com'));
     expect(platform.controller.injectedScripts.first, contains('__markerReaderInstalled'));
     expect(platform.controller.injectedScripts.last, contains('renderAnnotations([])'));
@@ -248,6 +248,58 @@ void main() {
 
     expect(find.text('Fake WebView'), findsOneWidget);
     expect(platform.controller.loadedUri, Uri.parse('https://example.com/recent'));
+  });
+
+  testWidgets('Annotation detail supports editing and deleting notes', (tester) async {
+    await _seedLibrary(database);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('highlighting'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Annotation'), findsOneWidget);
+    expect(find.text('"important quote"'), findsOneWidget);
+    expect(find.text('No note attached. Tap Edit to add one.'), findsOneWidget);
+
+    await tester.tap(find.text('Edit'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Add Note'), findsOneWidget);
+
+    await tester.tap(find.byType(CodeForge));
+    await tester.pump();
+    tester.testTextInput.enterText('Updated note');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Updated note'), findsOneWidget);
+    final editedBodies = await database.select(database.annotationBodies).get();
+    expect(editedBodies.where((body) => body.type == 'TextualBody').single.value, 'Updated note');
+
+    await tester.tap(find.text('Delete annotation'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Library'), findsWidgets);
+    final deleted = await (database.select(
+      database.annotations,
+    )..where((annotation) => annotation.id.equals('annotation'))).getSingle();
+    expect(deleted.deletedAt, isNotNull);
   });
 }
 

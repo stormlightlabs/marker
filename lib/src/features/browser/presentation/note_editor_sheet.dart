@@ -2,16 +2,17 @@ import 'package:code_forge/code_forge.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:marker/src/features/browser/application/selection_capture_controller.dart';
 import 'package:re_highlight/languages/all.dart' as re_languages;
 import 'package:re_highlight/languages/markdown.dart';
 import 'package:re_highlight/re_highlight.dart' as re;
 import 'package:re_highlight/styles/github-dark.dart';
 
 class NoteEditorSheet extends StatefulWidget {
-  const NoteEditorSheet({required this.capture, super.key});
+  const NoteEditorSheet({required this.quote, this.initialText = '', this.title = 'Add Note', super.key});
 
-  final SelectionCapture capture;
+  final String quote;
+  final String initialText;
+  final String title;
 
   @override
   State<NoteEditorSheet> createState() => _NoteEditorSheetState();
@@ -23,7 +24,9 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
   @override
   void initState() {
     super.initState();
-    _controller = CodeForgeController()..addListener(_handleTextChanged);
+    _controller = CodeForgeController()
+      ..text = widget.initialText
+      ..addListener(_handleTextChanged);
   }
 
   @override
@@ -40,7 +43,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final canSave = _controller.text.trim().isNotEmpty;
+    final canSave = widget.initialText.trim().isNotEmpty || _controller.text.trim().isNotEmpty;
     final previewText = canSave ? _controller.text : '_Markdown preview will appear here._';
 
     return CupertinoPopupSurface(
@@ -73,11 +76,11 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                           onPressed: () => Navigator.of(context).pop(),
                           child: const Text('Cancel', style: TextStyle(color: CupertinoColors.systemGrey)),
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Add Note',
+                            widget.title,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: CupertinoColors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -110,7 +113,7 @@ class _NoteEditorSheetState extends State<NoteEditorSheet> {
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Text(
-                          '"${widget.capture.exact}"',
+                          '"${widget.quote}"',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

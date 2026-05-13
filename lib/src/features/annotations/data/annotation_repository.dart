@@ -15,6 +15,10 @@ final annotationsForPageProvider = FutureProvider.autoDispose.family<List<PageAn
   return ref.watch(annotationRepositoryProvider).listAnnotationsForPage(sourceUrl: sourceUrl);
 });
 
+final annotationDetailProvider = FutureProvider.autoDispose.family<AnnotationDetail?, String>((ref, annotationId) {
+  return ref.watch(annotationRepositoryProvider).getAnnotationDetail(annotationId);
+});
+
 class AnnotationRepository {
   AnnotationRepository(this._database, {Uuid? uuid, DateTime Function()? now})
     : _uuid = uuid ?? const Uuid(),
@@ -178,6 +182,79 @@ class AnnotationRepository {
     );
   }
 
+  Future<AnnotationDetail?> getAnnotationDetail(String annotationId) async {
+    final annotation = await (_database.select(
+      _database.annotations,
+    )..where((annotation) => annotation.id.equals(annotationId) & annotation.deletedAt.isNull())).getSingleOrNull();
+    if (annotation == null) {
+      return null;
+    }
+
+    final page = await (_database.select(
+      _database.pages,
+    )..where((page) => page.id.equals(annotation.pageId))).getSingleOrNull();
+    final target = await (_database.select(
+      _database.annotationTargets,
+    )..where((target) => target.annotationId.equals(annotation.id))).getSingleOrNull();
+    if (page == null || target == null) {
+      return null;
+    }
+
+    final bodies = await (_database.select(
+      _database.annotationBodies,
+    )..where((body) => body.annotationId.equals(annotation.id))).get();
+
+    return AnnotationDetail(
+      page: page,
+      annotation: PageAnnotation(annotation: annotation, target: target, bodies: bodies),
+    );
+  }
+
+  Future<void> updateMarkdownBody({required String annotationId, required String value}) async {
+    final now = _now();
+    final trimmed = value.trim();
+
+    await _database.transaction(() async {
+      final existingBodies = await (_database.select(
+        _database.annotationBodies,
+      )..where((body) => body.annotationId.equals(annotationId) & body.type.equals('TextualBody'))).get();
+
+      if (trimmed.isEmpty) {
+        await (_database.delete(
+          _database.annotationBodies,
+        )..where((body) => body.annotationId.equals(annotationId) & body.type.equals('TextualBody'))).go();
+      } else if (existingBodies.isEmpty) {
+        await _database
+            .into(_database.annotationBodies)
+            .insert(
+              AnnotationBodiesCompanion.insert(
+                id: _uuid.v4(),
+                annotationId: annotationId,
+                type: 'TextualBody',
+                format: const Value('text/markdown'),
+                value: trimmed,
+              ),
+            );
+      } else {
+        final firstBody = existingBodies.first;
+        await (_database.update(_database.annotationBodies)..where((body) => body.id.equals(firstBody.id))).write(
+          AnnotationBodiesCompanion(format: const Value('text/markdown'), value: Value(trimmed)),
+        );
+
+        for (final duplicate in existingBodies.skip(1)) {
+          await (_database.delete(_database.annotationBodies)..where((body) => body.id.equals(duplicate.id))).go();
+        }
+      }
+
+      await (_database.update(_database.annotations)..where((annotation) => annotation.id.equals(annotationId))).write(
+        AnnotationsCompanion(
+          motivation: Value(trimmed.isEmpty ? 'highlighting' : 'commenting'),
+          modifiedAt: Value(now),
+        ),
+      );
+    });
+  }
+
   String? _normalize(String? value) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
@@ -196,6 +273,23 @@ class AnnotationRepository {
     return (_database.select(
       _database.annotationTargets,
     )..where((target) => target.annotationId.equals(annotationId))).getSingleOrNull();
+  }
+}
+
+class AnnotationDetail {
+  const AnnotationDetail({required this.page, required this.annotation});
+
+  final Page page;
+  final PageAnnotation annotation;
+
+  Uri get sourceUrl => Uri.parse(annotation.target.sourceUrl);
+
+  String get pageTitle {
+    final trimmed = page.title?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    return Uri.tryParse(page.url)?.host ?? page.url;
   }
 }
 

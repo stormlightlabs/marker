@@ -169,7 +169,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   Future<void> _openNoteEditor(SelectionCapture capture) async {
     final note = await showCupertinoModalPopup<String>(
       context: context,
-      builder: (sheetContext) => NoteEditorSheet(capture: capture),
+      builder: (sheetContext) => NoteEditorSheet(quote: capture.exact),
     );
     final trimmed = note?.trim();
     if (trimmed == null || trimmed.isEmpty) {
