@@ -59,6 +59,19 @@ void main() {
     expect(container.read(readerControllerProvider).tabs, hasLength(1));
   });
 
+  test('opens a URL directly in a new tab', () {
+    final controller = container.read(readerControllerProvider.notifier);
+    final target = Uri.parse('https://example.com/new');
+
+    expect(controller.openInNewTab(target), target);
+
+    final state = container.read(readerControllerProvider);
+    expect(state.tabs, hasLength(2));
+    expect(state.activeTab.currentUrl, target);
+    expect(state.activeTab.urlText, target.toString());
+    expect(state.isLoading, isTrue);
+  });
+
   test('toggles bookmark for current page', () async {
     final controller = container.read(readerControllerProvider.notifier);
     final url = controller.beginLoad();

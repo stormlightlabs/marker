@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/src/app/app_tab_bar.dart';
 import 'package:marker/src/app/routes.dart';
 import 'package:marker/src/features/annotations/data/annotation_repository.dart';
+import 'package:marker/src/features/browser/application/link_context_controller.dart';
+import 'package:marker/src/features/browser/application/native_share_controller.dart';
 import 'package:marker/src/features/browser/application/reader_controller.dart';
 import 'package:marker/src/features/browser/application/selection_capture_controller.dart';
 import 'package:marker/src/features/browser/domain/reader_session_state.dart';
@@ -24,6 +27,7 @@ class BrowserScreen extends ConsumerStatefulWidget {
 class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   late final TextEditingController _urlController;
   late final WebViewController _webViewController;
+  bool _areHighlightsVisible = true;
 
   @override
   void initState() {
@@ -63,6 +67,14 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
         ReaderWebViewBridge.selectionChannelName,
         onMessageReceived: (message) {
           ref.read(selectionCaptureControllerProvider.notifier).handleBridgeMessage(message.message);
+        },
+      ),
+    );
+    unawaited(
+      _webViewController.addJavaScriptChannel(
+        ReaderWebViewBridge.linkContextChannelName,
+        onMessageReceived: (message) {
+          ref.read(linkContextControllerProvider.notifier).handleBridgeMessage(message.message);
         },
       ),
     );
@@ -132,6 +144,29 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     }
   }
 
+  Future<void> _openLinkInCurrentTab(LinkContext link) async {
+    ref.read(readerControllerProvider.notifier).setUrlText(link.href.toString());
+    final target = ref.read(readerControllerProvider.notifier).beginLoad();
+    if (target != null) {
+      await _loadUri(target);
+    }
+  }
+
+  Future<void> _openLinkInNewTab(LinkContext link) async {
+    final target = ref.read(readerControllerProvider.notifier).openInNewTab(link.href);
+    await _loadUri(target);
+  }
+
+  Future<void> _copyText(String value) {
+    return Clipboard.setData(ClipboardData(text: value));
+  }
+
+  Future<void> _shareUrl(BuildContext originContext, Uri url, String title) {
+    final renderObject = originContext.findRenderObject();
+    final origin = renderObject is RenderBox ? renderObject.localToGlobal(Offset.zero) & renderObject.size : null;
+    return ref.read(nativeUrlShareProvider)(url: url, title: title, sharePositionOrigin: origin);
+  }
+
   void _toggleBookmark() {
     unawaited(ref.read(readerControllerProvider.notifier).toggleBookmark());
   }
@@ -142,6 +177,9 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   }
 
   Future<void> _renderSavedAnnotations(Uri sourceUrl) async {
+    if (!_areHighlightsVisible) {
+      return ref.read(readerWebViewBridgeProvider).renderAnnotations(_webViewController, const []);
+    }
     final annotations = await ref.read(annotationsForPageProvider(sourceUrl).future);
     await ref
         .read(readerWebViewBridgeProvider)
@@ -149,6 +187,15 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
           _webViewController,
           annotations.map((annotation) => annotation.toRenderPayload()).toList(growable: false),
         );
+  }
+
+  Future<void> _toggleRenderedHighlights(Uri? sourceUrl) async {
+    setState(() => _areHighlightsVisible = !_areHighlightsVisible);
+    if (_areHighlightsVisible && sourceUrl != null) {
+      await _renderSavedAnnotations(sourceUrl);
+      return;
+    }
+    await ref.read(readerWebViewBridgeProvider).renderAnnotations(_webViewController, const []);
   }
 
   Future<void> _saveHighlight(SelectionCapture capture) async {
@@ -272,6 +319,187 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     }
   }
 
+  Future<void> _showLinkContextMenu(LinkContext link) async {
+    ref.read(linkContextControllerProvider.notifier).clear();
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) {
+        return CupertinoActionSheet(
+          title: Text(link.title),
+          message: Text(link.href.toString()),
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(_openLinkInCurrentTab(link));
+              },
+              child: const _ActionSheetRow(
+                icon: CupertinoIcons.arrow_right_circle,
+                title: 'Open',
+                subtitle: 'Open in the current tab',
+              ),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(_openLinkInNewTab(link));
+              },
+              child: const _ActionSheetRow(
+                icon: CupertinoIcons.plus_square,
+                title: 'Open in New Tab',
+                subtitle: 'Switch to a new browser tab',
+              ),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(_copyText(link.href.toString()));
+              },
+              child: const _ActionSheetRow(
+                icon: CupertinoIcons.doc_on_doc,
+                title: 'Copy Link',
+                subtitle: 'Copy URL to clipboard',
+              ),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(ref.read(readerControllerProvider.notifier).bookmarkUrl(link.href, title: link.text));
+              },
+              child: const _ActionSheetRow(
+                icon: CupertinoIcons.bookmark,
+                title: 'Add Bookmark',
+                subtitle: 'Save link to Library',
+              ),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop(),
+            child: const Text('Cancel'),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showBrowserMenu(BuildContext context, ReaderSessionState session) async {
+    final currentUrl = session.currentUrl ?? session.normalizedUrl;
+    final hasAnnotations = currentUrl == null
+        ? false
+        : (await ref.read(annotationsForPageProvider(currentUrl).future)).isNotEmpty;
+    if (!context.mounted) {
+      return;
+    }
+
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) {
+        return CupertinoActionSheet(
+          title: const Text('Browser Menu'),
+          message: currentUrl == null ? null : Text(currentUrl.toString()),
+          actions: [
+            if (currentUrl != null) ...[
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_loadUri(currentUrl));
+                },
+                child: const _ActionSheetRow(
+                  icon: CupertinoIcons.refresh,
+                  title: 'Reload',
+                  subtitle: 'Reload this page',
+                ),
+              ),
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_copyText(currentUrl.toString()));
+                },
+                child: const _ActionSheetRow(
+                  icon: CupertinoIcons.doc_on_doc,
+                  title: 'Copy URL',
+                  subtitle: 'Copy page URL',
+                ),
+              ),
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_shareUrl(sheetContext, currentUrl, session.title ?? currentUrl.host));
+                },
+                child: const _ActionSheetRow(
+                  icon: CupertinoIcons.share,
+                  title: 'Share',
+                  subtitle: 'Open the native share sheet',
+                ),
+              ),
+            ],
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                _toggleBookmark();
+              },
+              child: _ActionSheetRow(
+                icon: session.isCurrentPageBookmarked ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
+                title: session.isCurrentPageBookmarked ? 'Unbookmark' : 'Bookmark',
+                subtitle: session.isCurrentPageBookmarked ? 'Remove page from Library' : 'Save page to Library',
+              ),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(_newTab());
+              },
+              child: const _ActionSheetRow(
+                icon: CupertinoIcons.plus_square,
+                title: 'New Tab',
+                subtitle: defaultBrowserUrl,
+              ),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                _showTabs(context, session);
+              },
+              child: _ActionSheetRow(
+                icon: CupertinoIcons.square_on_square,
+                title: 'Show Tabs',
+                subtitle: '${session.tabs.length} open',
+              ),
+            ),
+            if (hasAnnotations)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  ref.read(annotationSidebarOpenProvider.notifier).open();
+                },
+                child: const _ActionSheetRow(
+                  icon: CupertinoIcons.text_bubble,
+                  title: 'Open Annotations',
+                  subtitle: 'Show annotations for this page',
+                ),
+              ),
+            if (currentUrl != null)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_toggleRenderedHighlights(currentUrl));
+                },
+                child: _ActionSheetRow(
+                  icon: _areHighlightsVisible ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                  title: _areHighlightsVisible ? 'Hide Highlights' : 'Show Highlights',
+                  subtitle: _areHighlightsVisible ? 'Temporarily hide page highlights' : 'Render saved highlights',
+                ),
+              ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop(),
+            child: const Text('Cancel'),
+          ),
+        );
+      },
+    );
+  }
+
   void _showTabs(BuildContext context, ReaderSessionState session) {
     showCupertinoModalPopup<void>(
       context: context,
@@ -362,6 +590,11 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
         _urlController.text = next;
       }
     });
+    ref.listen(linkContextControllerProvider.select((state) => state.link), (previous, next) {
+      if (next != null && ref.read(selectionCaptureControllerProvider).capture == null) {
+        unawaited(_showLinkContextMenu(next));
+      }
+    });
 
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
@@ -382,6 +615,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               onBookmarkPressed: _toggleBookmark,
               onBookmarksPressed: () => _showBookmarks(context, session),
               onTabsPressed: () => _showTabs(context, session),
+              onMenuPressed: () => unawaited(_showBrowserMenu(context, session)),
               onSubmitted: (_) => _loadFromAddressBar(),
               onGoPressed: _loadFromAddressBar,
             ),
@@ -608,6 +842,7 @@ class _BrowserAddressBar extends StatelessWidget {
     required this.onBookmarkPressed,
     required this.onBookmarksPressed,
     required this.onTabsPressed,
+    required this.onMenuPressed,
     required this.onSubmitted,
     required this.onGoPressed,
   });
@@ -624,6 +859,7 @@ class _BrowserAddressBar extends StatelessWidget {
   final VoidCallback onBookmarkPressed;
   final VoidCallback onBookmarksPressed;
   final VoidCallback onTabsPressed;
+  final VoidCallback onMenuPressed;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onGoPressed;
 
@@ -700,6 +936,8 @@ class _BrowserAddressBar extends StatelessWidget {
                 label: 'Tabs $tabCount',
                 onPressed: onTabsPressed,
               ),
+              const SizedBox(width: 8),
+              _BrowserChromeChip(icon: CupertinoIcons.ellipsis_circle, label: 'Menu', onPressed: onMenuPressed),
             ],
           ),
         ],

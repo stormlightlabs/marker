@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/src/app/marker_app.dart';
 import 'package:marker/src/core/database/app_database.dart';
 import 'package:marker/src/core/database/database_provider.dart';
+import 'package:marker/src/features/browser/application/native_share_controller.dart';
 import 'package:marker/src/features/browser/webview/browser_webview.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
@@ -159,6 +160,104 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  testWidgets('BrowserScreen handles link long-press menus', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await _pumpRouteTransition(tester);
+
+    platform.controller.sendLinkContextMessage(
+      '{"type":"link-long-pressed","payload":{"href":"https://example.com/linked","text":"Linked Article","pageUrl":"https://news.ycombinator.com","pageTitle":"Hacker News"}}',
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Linked Article'), findsOneWidget);
+    expect(find.text('Open'), findsOneWidget);
+    expect(find.text('Open in New Tab'), findsOneWidget);
+    expect(find.text('Copy Link'), findsOneWidget);
+    expect(find.text('Add Bookmark'), findsOneWidget);
+
+    await tester.tap(find.text('Open in New Tab'));
+    await tester.pumpAndSettle();
+
+    expect(platform.controller.loadedUri, Uri.parse('https://example.com/linked'));
+    expect(find.text('Tabs 2'), findsOneWidget);
+  });
+
+  testWidgets('BrowserScreen browser menu exposes page, tab, and annotation actions', (tester) async {
+    await _seedPageAnnotation(database);
+    Uri? sharedUrl;
+    String? sharedTitle;
+    Rect? sharedOrigin;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          nativeUrlShareProvider.overrideWithValue(({required title, required url, sharePositionOrigin}) async {
+            sharedUrl = url;
+            sharedTitle = title;
+            sharedOrigin = sharePositionOrigin;
+          }),
+          browserWebViewBuilderProvider.overrideWithValue(
+            (context, controller) => const Center(child: Text('Fake WebView')),
+          ),
+        ],
+        child: const MarkerApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Browser'));
+    await _pumpRouteTransition(tester);
+
+    await tester.tap(find.text('Menu'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Browser Menu'), findsOneWidget);
+    expect(find.text('Reload'), findsOneWidget);
+    expect(find.text('Copy URL'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget);
+    expect(find.text('Bookmark'), findsOneWidget);
+    expect(find.text('New Tab'), findsOneWidget);
+    expect(find.text('Show Tabs'), findsOneWidget);
+    expect(find.text('Open Annotations'), findsOneWidget);
+    expect(find.text('Hide Highlights'), findsOneWidget);
+
+    await tester.tap(find.text('Share'));
+    await tester.pumpAndSettle();
+    expect(sharedUrl, Uri.parse('https://news.ycombinator.com'));
+    expect(sharedTitle, 'Example Domain');
+    expect(sharedOrigin, isNotNull);
+
+    await tester.tap(find.text('Menu'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Hide Highlights'));
+    await tester.pumpAndSettle();
+    expect(platform.controller.injectedScripts.last, contains('renderAnnotations([])'));
+
+    await tester.tap(find.text('Menu'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Show Highlights'), findsOneWidget);
   });
 
   testWidgets('BrowserScreen exposes bookmark and tab controls', (tester) async {
@@ -659,6 +758,10 @@ class _FakePlatformWebViewController extends PlatformWebViewController {
 
   void sendSelectionMessage(String message) {
     javaScriptChannels['MarkerSelection']?.onMessageReceived(JavaScriptMessage(message: message));
+  }
+
+  void sendLinkContextMessage(String message) {
+    javaScriptChannels['MarkerLinkContext']?.onMessageReceived(JavaScriptMessage(message: message));
   }
 }
 

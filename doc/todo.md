@@ -96,7 +96,7 @@ Status: not started.
 - Support bookmarking the link URL.
 - Avoid triggering link menus for ordinary text selection or non-link long presses.
 
-Status: not started.
+Status: implemented.
 
 ## Milestone 11: Browser Kebab Menu
 
@@ -108,7 +108,7 @@ Status: not started.
 - Include history/settings entry points once those screens exist.
 - Keep the action list grouped and testable as the menu grows.
 
-Status: not started.
+Status: implemented.
 
 ## Milestone 12: Edge Swipe Navigation
 

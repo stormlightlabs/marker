@@ -4,6 +4,19 @@ import 'package:marker/src/features/annotations/data/annotation_repository.dart'
 
 typedef AnnotationSidebarAction = Future<void> Function(PageAnnotation annotation);
 
+final annotationSidebarOpenProvider = NotifierProvider<AnnotationSidebarOpenController, bool>(
+  AnnotationSidebarOpenController.new,
+);
+
+class AnnotationSidebarOpenController extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void open() => state = true;
+
+  void close() => state = false;
+}
+
 enum AnnotationSidebarFilter {
   all('All'),
   highlights('Highlights'),
@@ -43,7 +56,6 @@ class AnnotationSidebarWidget extends ConsumerStatefulWidget {
 
 class _AnnotationSidebarWidgetState extends ConsumerState<AnnotationSidebarWidget> {
   String? _focusedAnnotationId;
-  bool _isOpen = false;
   AnnotationSidebarFilter _filter = AnnotationSidebarFilter.all;
 
   @override
@@ -61,6 +73,7 @@ class _AnnotationSidebarWidgetState extends ConsumerState<AnnotationSidebarWidge
           return const SizedBox.shrink();
         }
 
+        final isOpen = ref.watch(annotationSidebarOpenProvider);
         final visibleItems = items.where((annotation) => _filter.matches(annotation)).toList(growable: false);
 
         return LayoutBuilder(
@@ -69,20 +82,23 @@ class _AnnotationSidebarWidgetState extends ConsumerState<AnnotationSidebarWidge
 
             return Stack(
               children: [
-                if (!_isOpen)
+                if (!isOpen)
                   Positioned(
                     right: 0,
                     top: constraints.maxHeight * 0.32,
-                    child: _SidebarToggle(count: items.length, onPressed: () => setState(() => _isOpen = true)),
+                    child: _SidebarToggle(
+                      count: items.length,
+                      onPressed: ref.read(annotationSidebarOpenProvider.notifier).open,
+                    ),
                   ),
-                if (_isOpen)
+                if (isOpen)
                   Positioned.fill(
                     child: Row(
                       children: [
                         Expanded(
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () => setState(() => _isOpen = false),
+                            onTap: ref.read(annotationSidebarOpenProvider.notifier).close,
                             child: const ColoredBox(color: Color(0x73000000)),
                           ),
                         ),
@@ -95,7 +111,7 @@ class _AnnotationSidebarWidgetState extends ConsumerState<AnnotationSidebarWidge
                   curve: Curves.easeInOutCubic,
                   top: 0,
                   bottom: 0,
-                  right: _isOpen ? 0 : -panelWidth,
+                  right: isOpen ? 0 : -panelWidth,
                   width: panelWidth,
                   child: _SidebarPanel(
                     sourceUrl: sourceUrl,
@@ -103,7 +119,7 @@ class _AnnotationSidebarWidgetState extends ConsumerState<AnnotationSidebarWidge
                     visibleItems: visibleItems,
                     filter: _filter,
                     focusedAnnotationId: _focusedAnnotationId,
-                    onClose: () => setState(() => _isOpen = false),
+                    onClose: ref.read(annotationSidebarOpenProvider.notifier).close,
                     onFilterChanged: (nextFilter) => setState(() => _filter = nextFilter),
                     onEdit: widget.onEdit,
                     onJump: (annotation) async {

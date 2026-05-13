@@ -6,6 +6,7 @@ class ReaderWebViewBridge {
   const ReaderWebViewBridge();
 
   static const String selectionChannelName = 'MarkerSelection';
+  static const String linkContextChannelName = 'MarkerLinkContext';
 
   String get bootstrapScript => '''
 (function () {
@@ -17,6 +18,12 @@ class ReaderWebViewBridge {
   function postSelectionMessage(message) {
     if (window.MarkerSelection && typeof window.MarkerSelection.postMessage === 'function') {
       window.MarkerSelection.postMessage(JSON.stringify(message));
+    }
+  }
+
+  function postLinkContextMessage(message) {
+    if (window.MarkerLinkContext && typeof window.MarkerLinkContext.postMessage === 'function') {
+      window.MarkerLinkContext.postMessage(JSON.stringify(message));
     }
   }
 
@@ -298,6 +305,79 @@ class ReaderWebViewBridge {
     }
   }
 
+  var linkPressTimer = null;
+  var linkPressAnchor = null;
+  var linkPressStartX = 0;
+  var linkPressStartY = 0;
+
+  function clearLinkPressTimer() {
+    window.clearTimeout(linkPressTimer);
+    linkPressTimer = null;
+    linkPressAnchor = null;
+  }
+
+  function nearestAnchor(target) {
+    return target && target.closest ? target.closest('a[href]') : null;
+  }
+
+  function postLinkLongPress(anchor) {
+    if (!anchor || !anchor.href) {
+      return;
+    }
+    postLinkContextMessage({
+      type: 'link-long-pressed',
+      payload: {
+        href: anchor.href,
+        text: (anchor.innerText || anchor.textContent || '').trim(),
+        pageUrl: window.location.href,
+        pageTitle: document.title || ''
+      }
+    });
+  }
+
+  function scheduleLinkLongPress(event) {
+    var anchor = nearestAnchor(event.target);
+    if (!anchor) {
+      return;
+    }
+    var selection = window.getSelection && window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      return;
+    }
+
+    var point = event.touches && event.touches.length > 0 ? event.touches[0] : event;
+    linkPressAnchor = anchor;
+    linkPressStartX = point.clientX || 0;
+    linkPressStartY = point.clientY || 0;
+    window.clearTimeout(linkPressTimer);
+    linkPressTimer = window.setTimeout(function () {
+      postLinkLongPress(linkPressAnchor);
+      clearLinkPressTimer();
+    }, 560);
+  }
+
+  function cancelLinkLongPressIfMoved(event) {
+    if (!linkPressTimer) {
+      return;
+    }
+    var point = event.touches && event.touches.length > 0 ? event.touches[0] : event;
+    var dx = Math.abs((point.clientX || 0) - linkPressStartX);
+    var dy = Math.abs((point.clientY || 0) - linkPressStartY);
+    if (dx > 10 || dy > 10) {
+      clearLinkPressTimer();
+    }
+  }
+
+  function handleContextMenu(event) {
+    var anchor = nearestAnchor(event.target);
+    if (!anchor) {
+      return;
+    }
+    event.preventDefault();
+    clearLinkPressTimer();
+    postLinkLongPress(anchor);
+  }
+
   var captureTimer = null;
   function scheduleCapture() {
     window.clearTimeout(captureTimer);
@@ -334,6 +414,14 @@ class ReaderWebViewBridge {
   document.addEventListener('mouseup', scheduleCapture);
   document.addEventListener('touchend', scheduleCapture);
   document.addEventListener('keyup', scheduleCapture);
+  document.addEventListener('contextmenu', handleContextMenu);
+  document.addEventListener('touchstart', scheduleLinkLongPress, { passive: true });
+  document.addEventListener('touchmove', cancelLinkLongPressIfMoved, { passive: true });
+  document.addEventListener('touchend', clearLinkPressTimer);
+  document.addEventListener('mousedown', scheduleLinkLongPress);
+  document.addEventListener('mousemove', cancelLinkLongPressIfMoved);
+  document.addEventListener('mouseup', clearLinkPressTimer);
+  document.addEventListener('scroll', clearLinkPressTimer, true);
   document.documentElement.dataset.markerReader = 'installed';
 })();
 ''';

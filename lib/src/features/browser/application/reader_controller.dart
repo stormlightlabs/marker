@@ -88,6 +88,18 @@ class ReaderController extends Notifier<ReaderSessionState> {
     return Uri.parse(defaultBrowserUrl);
   }
 
+  Uri openInNewTab(Uri url) {
+    final tab = BrowserTab.initial().copyWith(urlText: url.toString(), currentUrl: url);
+    state = state.copyWith(
+      tabs: [...state.tabs, tab],
+      activeTabId: tab.id,
+      isLoading: true,
+      progress: 0,
+      clearError: true,
+    );
+    return url;
+  }
+
   Uri? switchTab(String tabId) {
     if (tabId == state.activeTabId || state.tabs.every((tab) => tab.id != tabId)) {
       return null;
@@ -133,6 +145,11 @@ class ReaderController extends Notifier<ReaderSessionState> {
     state = state.copyWith(bookmarks: bookmarks);
   }
 
+  Future<void> bookmarkUrl(Uri url, {String? title}) async {
+    final bookmarks = await ref.read(bookmarkRepositoryProvider).addBookmark(url: url, title: title);
+    state = state.copyWith(bookmarks: bookmarks);
+  }
+
   Uri? openBookmark(Uri url) {
     setUrlText(url.toString());
     return beginLoad();
@@ -147,6 +164,9 @@ class ReaderController extends Notifier<ReaderSessionState> {
 
   Future<void> _hydrateBookmarks() async {
     final bookmarks = await ref.read(bookmarkRepositoryProvider).getBookmarks();
+    if (!ref.mounted) {
+      return;
+    }
     state = state.copyWith(bookmarks: bookmarks);
   }
 }
