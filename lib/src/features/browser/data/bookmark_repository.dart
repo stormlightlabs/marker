@@ -37,6 +37,7 @@ class BookmarkRepository {
               id: _uuid.v4(),
               url: url.toString(),
               title: Value(_normalizeTitle(title)),
+              sortOrder: Value(await _nextRootSortOrder()),
               createdAt: _now(),
             ),
           );
@@ -66,5 +67,10 @@ class BookmarkRepository {
   String? _normalizeTitle(String? title) {
     final trimmed = title?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  Future<int> _nextRootSortOrder() async {
+    final rows = await (_database.select(_database.bookmarks)..where((bookmark) => bookmark.folderId.isNull())).get();
+    return rows.fold<int>(-1, (max, bookmark) => bookmark.sortOrder > max ? bookmark.sortOrder : max) + 1;
   }
 }

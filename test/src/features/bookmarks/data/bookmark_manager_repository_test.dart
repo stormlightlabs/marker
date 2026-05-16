@@ -54,6 +54,49 @@ void main() {
     expect(folderContents.bookmarks.single.url, Uri.parse('https://dart.dev'));
   });
 
+  test('reorders mixed folder and bookmark entries', () async {
+    final folder = await repository.createFolder(title: 'Programming');
+    await _insertBookmark(database, id: 'bookmark', url: 'https://dart.dev', title: 'Dart');
+
+    await repository.reorderEntries(
+      folderId: null,
+      entries: [
+        const BookmarkEntryRef(type: BookmarkEntryType.bookmark, id: 'bookmark'),
+        BookmarkEntryRef(type: BookmarkEntryType.folder, id: folder.id),
+      ],
+    );
+
+    final contents = await repository.loadFolderContents();
+    expect(contents.items.map((item) => item.title), ['Dart', 'Programming']);
+  });
+
+  test('moves folders and prevents folder cycles', () async {
+    final parent = await repository.createFolder(title: 'Parent');
+    final child = await repository.createFolder(title: 'Child', parentId: parent.id);
+
+    expect(
+      () => repository.moveEntry(
+        BookmarkEntryRef(type: BookmarkEntryType.folder, id: parent.id),
+        folderId: child.id,
+      ),
+      throwsArgumentError,
+    );
+
+    await repository.moveEntry(BookmarkEntryRef(type: BookmarkEntryType.folder, id: child.id), folderId: null);
+    final rootContents = await repository.loadFolderContents();
+    expect(rootContents.folders.map((folder) => folder.title), contains('Child'));
+  });
+
+  test('deletes folders recursively with child bookmarks', () async {
+    final folder = await repository.createFolder(title: 'Programming');
+    await _insertBookmark(database, id: 'bookmark', folderId: folder.id, url: 'https://dart.dev', title: 'Dart');
+
+    await repository.deleteEntries([BookmarkEntryRef(type: BookmarkEntryType.folder, id: folder.id)]);
+
+    expect(await database.select(database.bookmarkFolders).get(), isEmpty);
+    expect(await database.select(database.bookmarks).get(), isEmpty);
+  });
+
   test('exports Netscape bookmarks with folders and escaped values', () async {
     final folder = await repository.createFolder(title: 'Programming & Docs');
     await _insertBookmark(

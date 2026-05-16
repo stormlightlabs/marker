@@ -25,6 +25,35 @@ final bookmarksExportProvider = FutureProvider.autoDispose.family<String, List<S
   return ref.watch(bookmarkManagerRepositoryProvider).exportNetscapeBookmarks(selectedIds: selectedIds);
 });
 
+enum BookmarkEntryType { folder, bookmark }
+
+class BookmarkEntryRef {
+  const BookmarkEntryRef({required this.type, required this.id});
+
+  factory BookmarkEntryRef.fromKey(String key) {
+    final separator = key.indexOf(':');
+    if (separator <= 0) {
+      throw FormatException('Invalid bookmark entry key: $key');
+    }
+    final typeName = key.substring(0, separator);
+    final id = key.substring(separator + 1);
+    return BookmarkEntryRef(type: _typeFromName(typeName), id: id);
+  }
+
+  final BookmarkEntryType type;
+  final String id;
+
+  String get key => '${type.name}:$id';
+
+  static BookmarkEntryType _typeFromName(String name) {
+    return switch (name) {
+      'folder' => BookmarkEntryType.folder,
+      'bookmark' => BookmarkEntryType.bookmark,
+      _ => throw FormatException('Invalid bookmark entry type: $name'),
+    };
+  }
+}
+
 class BookmarkManagerRepository {
   BookmarkManagerRepository(this._database, {Uuid? uuid, DateTime Function()? now})
     : _uuid = uuid ?? const Uuid(),
@@ -38,24 +67,27 @@ class BookmarkManagerRepository {
   Future<BookmarkFolderContents> loadFolderContents({String? folderId}) async {
     final folder = folderId == null ? null : await _folder(folderId);
     if (folderId != null && folder == null) {
-      return const BookmarkFolderContents(folder: null, folders: [], bookmarks: []);
+      return const BookmarkFolderContents(folder: null, folders: [], bookmarks: [], items: []);
     }
 
-    final folderRows =
-        await (_database.select(_database.bookmarkFolders)
-              ..where((folder) => folder.parentId.equalsNullable(folderId))
-              ..orderBy([(folder) => OrderingTerm.asc(folder.title)]))
-            .get();
-    final bookmarkRows =
-        await (_database.select(_database.bookmarks)
-              ..where((bookmark) => bookmark.folderId.equalsNullable(folderId))
-              ..orderBy([(bookmark) => OrderingTerm.desc(bookmark.createdAt)]))
-            .get();
+    final folderRows = await (_database.select(
+      _database.bookmarkFolders,
+    )..where((folder) => folder.parentId.equalsNullable(folderId))).get();
+    final bookmarkRows = await (_database.select(
+      _database.bookmarks,
+    )..where((bookmark) => bookmark.folderId.equalsNullable(folderId))).get();
+    final folders = folderRows.map(BookmarkFolderItem.fromRow).toList(growable: false);
+    final bookmarks = bookmarkRows.map(BookmarkItem.fromRow).toList(growable: false);
+    final items = <BookmarkListItem>[
+      for (final folder in folders) BookmarkListItem.folder(folder),
+      for (final bookmark in bookmarks) BookmarkListItem.bookmark(bookmark),
+    ]..sort(_compareListItems);
 
     return BookmarkFolderContents(
       folder: folder == null ? null : BookmarkFolderItem.fromRow(folder),
-      folders: folderRows.map(BookmarkFolderItem.fromRow).toList(growable: false),
-      bookmarks: bookmarkRows.map(BookmarkItem.fromRow).toList(growable: false),
+      folders: folders,
+      bookmarks: bookmarks,
+      items: items,
     );
   }
 
@@ -75,22 +107,31 @@ class BookmarkManagerRepository {
     return null;
   }
 
+  Future<List<BookmarkFolderItem>> loadFolders() async {
+    final rows = await _database.select(_database.bookmarkFolders).get();
+    final folders = rows.map(BookmarkFolderItem.fromRow).toList(growable: false);
+    return folders..sort((a, b) => a.title.compareTo(b.title));
+  }
+
   Future<BookmarkFolderItem> createFolder({required String title, String? parentId}) async {
     final normalizedTitle = _normalizeRequiredTitle(title);
+    final now = _now();
     final folder = BookmarkFoldersCompanion.insert(
       id: _uuid.v4(),
       parentId: Value(parentId),
       title: normalizedTitle,
-      createdAt: _now(),
-      updatedAt: _now(),
+      sortOrder: Value(await _nextSortOrder(parentId)),
+      createdAt: now,
+      updatedAt: now,
     );
     await _database.into(_database.bookmarkFolders).insert(folder);
     return BookmarkFolderItem(
       id: folder.id.value,
       parentId: parentId,
       title: normalizedTitle,
-      createdAt: folder.createdAt.value,
-      updatedAt: folder.updatedAt.value,
+      sortOrder: folder.sortOrder.value,
+      createdAt: now,
+      updatedAt: now,
     );
   }
 
@@ -107,9 +148,63 @@ class BookmarkManagerRepository {
   }
 
   Future<void> moveBookmark({required String bookmarkId, required String? folderId}) async {
-    await (_database.update(
-      _database.bookmarks,
-    )..where((bookmark) => bookmark.id.equals(bookmarkId))).write(BookmarksCompanion(folderId: Value(folderId)));
+    await moveEntry(
+      BookmarkEntryRef(type: BookmarkEntryType.bookmark, id: bookmarkId),
+      folderId: folderId,
+    );
+  }
+
+  Future<void> moveEntry(BookmarkEntryRef entry, {required String? folderId}) async {
+    final sortOrder = await _nextSortOrder(folderId);
+    switch (entry.type) {
+      case BookmarkEntryType.bookmark:
+        await (_database.update(_database.bookmarks)..where((bookmark) => bookmark.id.equals(entry.id))).write(
+          BookmarksCompanion(folderId: Value(folderId), sortOrder: Value(sortOrder)),
+        );
+      case BookmarkEntryType.folder:
+        if (entry.id == folderId || await _isDescendantFolder(folderId, entry.id)) {
+          throw ArgumentError.value(folderId, 'folderId', 'Cannot move a folder into itself or its descendants.');
+        }
+        await (_database.update(_database.bookmarkFolders)..where((folder) => folder.id.equals(entry.id))).write(
+          BookmarkFoldersCompanion(parentId: Value(folderId), sortOrder: Value(sortOrder), updatedAt: Value(_now())),
+        );
+    }
+  }
+
+  Future<void> moveEntries(Iterable<BookmarkEntryRef> entries, {required String? folderId}) async {
+    for (final entry in entries) {
+      await moveEntry(entry, folderId: folderId);
+    }
+  }
+
+  Future<void> reorderEntries({required String? folderId, required List<BookmarkEntryRef> entries}) async {
+    await _database.transaction(() async {
+      entries.asMap().forEach((index, entry) async {
+        switch (entry.type) {
+          case BookmarkEntryType.folder:
+            await (_database.update(_database.bookmarkFolders)..where((folder) => folder.id.equals(entry.id))).write(
+              BookmarkFoldersCompanion(parentId: Value(folderId), sortOrder: Value(index), updatedAt: Value(_now())),
+            );
+          case BookmarkEntryType.bookmark:
+            await (_database.update(_database.bookmarks)..where((bookmark) => bookmark.id.equals(entry.id))).write(
+              BookmarksCompanion(folderId: Value(folderId), sortOrder: Value(index)),
+            );
+        }
+      });
+    });
+  }
+
+  Future<void> deleteEntries(Iterable<BookmarkEntryRef> entries) async {
+    await _database.transaction(() async {
+      for (final entry in entries) {
+        switch (entry.type) {
+          case BookmarkEntryType.bookmark:
+            await (_database.delete(_database.bookmarks)..where((bookmark) => bookmark.id.equals(entry.id))).go();
+          case BookmarkEntryType.folder:
+            await _deleteFolderTree(entry.id);
+        }
+      }
+    });
   }
 
   Future<String> exportNetscapeBookmarks({List<String>? selectedIds}) async {
@@ -163,13 +258,13 @@ class BookmarkManagerRepository {
                   _shouldExportFolder(folder.id, selectedFolderIds, selectedBookmarkIds, folders, bookmarks),
             )
             .toList()
-          ..sort((a, b) => a.title.compareTo(b.title));
+          ..sort((a, b) => _compareRows(a.sortOrder, a.title, b.sortOrder, b.title));
     final childBookmarks = bookmarks.where((bookmark) {
       if (bookmark.folderId != parentId) {
         return false;
       }
       return selectedBookmarkIds == null || selectedBookmarkIds.contains(bookmark.id);
-    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }).toList()..sort((a, b) => _compareRows(a.sortOrder, a.title ?? a.url, b.sortOrder, b.title ?? b.url));
 
     for (final folder in childFolders) {
       final indent = '  ' * depth;
@@ -215,8 +310,58 @@ class BookmarkManagerRepository {
         );
   }
 
+  Future<void> _deleteFolderTree(String folderId) async {
+    final children = await (_database.select(
+      _database.bookmarkFolders,
+    )..where((folder) => folder.parentId.equals(folderId))).get();
+    for (final child in children) {
+      await _deleteFolderTree(child.id);
+    }
+    await (_database.delete(_database.bookmarks)..where((bookmark) => bookmark.folderId.equals(folderId))).go();
+    await (_database.delete(_database.bookmarkFolders)..where((folder) => folder.id.equals(folderId))).go();
+  }
+
+  Future<int> _nextSortOrder(String? folderId) async {
+    final folders = await (_database.select(
+      _database.bookmarkFolders,
+    )..where((folder) => folder.parentId.equalsNullable(folderId))).get();
+    final bookmarks = await (_database.select(
+      _database.bookmarks,
+    )..where((bookmark) => bookmark.folderId.equalsNullable(folderId))).get();
+    final folderMax = folders.fold<int>(-1, (max, folder) => folder.sortOrder > max ? folder.sortOrder : max);
+    final bookmarkMax = bookmarks.fold<int>(-1, (max, bookmark) => bookmark.sortOrder > max ? bookmark.sortOrder : max);
+    return (folderMax > bookmarkMax ? folderMax : bookmarkMax) + 1;
+  }
+
+  Future<bool> _isDescendantFolder(String? candidateFolderId, String ancestorFolderId) async {
+    var currentId = candidateFolderId;
+    while (currentId != null) {
+      if (currentId == ancestorFolderId) {
+        return true;
+      }
+      currentId = (await _folder(currentId))?.parentId;
+    }
+    return false;
+  }
+
   Future<BookmarkFolder?> _folder(String id) {
     return (_database.select(_database.bookmarkFolders)..where((folder) => folder.id.equals(id))).getSingleOrNull();
+  }
+
+  int _compareListItems(BookmarkListItem a, BookmarkListItem b) {
+    final order = a.sortOrder.compareTo(b.sortOrder);
+    if (order != 0) {
+      return order;
+    }
+    if (a.type != b.type) {
+      return a.type == BookmarkEntryType.folder ? -1 : 1;
+    }
+    return a.title.compareTo(b.title);
+  }
+
+  int _compareRows(int aSortOrder, String aTitle, int bSortOrder, String bTitle) {
+    final order = aSortOrder.compareTo(bSortOrder);
+    return order == 0 ? aTitle.compareTo(bTitle) : order;
   }
 
   int _unixSeconds(DateTime value) => value.toUtc().millisecondsSinceEpoch ~/ Duration.millisecondsPerSecond;
@@ -234,13 +379,46 @@ class BookmarkManagerRepository {
 }
 
 class BookmarkFolderContents {
-  const BookmarkFolderContents({required this.folder, required this.folders, required this.bookmarks});
+  const BookmarkFolderContents({
+    required this.folder,
+    required this.folders,
+    required this.bookmarks,
+    required this.items,
+  });
 
   final BookmarkFolderItem? folder;
   final List<BookmarkFolderItem> folders;
   final List<BookmarkItem> bookmarks;
+  final List<BookmarkListItem> items;
 
-  bool get isEmpty => folders.isEmpty && bookmarks.isEmpty;
+  bool get isEmpty => items.isEmpty;
+}
+
+class BookmarkListItem {
+  const BookmarkListItem._({required this.folder, required this.bookmark});
+
+  const BookmarkListItem.folder(BookmarkFolderItem folder) : this._(folder: folder, bookmark: null);
+
+  const BookmarkListItem.bookmark(BookmarkItem bookmark) : this._(folder: null, bookmark: bookmark);
+
+  final BookmarkFolderItem? folder;
+  final BookmarkItem? bookmark;
+
+  BookmarkEntryType get type => folder == null ? BookmarkEntryType.bookmark : BookmarkEntryType.folder;
+
+  String get id => folder?.id ?? bookmark!.id;
+
+  String? get parentId => folder?.parentId ?? bookmark?.folderId;
+
+  int get sortOrder => folder?.sortOrder ?? bookmark!.sortOrder;
+
+  String get title => folder?.title ?? bookmark!.displayTitle;
+
+  String get subtitle => folder == null ? bookmark!.url.toString() : 'Folder';
+
+  BookmarkEntryRef get ref => BookmarkEntryRef(type: type, id: id);
+
+  String get key => ref.key;
 }
 
 class BookmarkFolderItem {
@@ -248,6 +426,7 @@ class BookmarkFolderItem {
     required this.id,
     required this.parentId,
     required this.title,
+    required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -257,6 +436,7 @@ class BookmarkFolderItem {
       id: row.id,
       parentId: row.parentId,
       title: row.title,
+      sortOrder: row.sortOrder,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );
@@ -265,6 +445,7 @@ class BookmarkFolderItem {
   final String id;
   final String? parentId;
   final String title;
+  final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
 }
@@ -275,6 +456,7 @@ class BookmarkItem {
     required this.folderId,
     required this.url,
     required this.title,
+    required this.sortOrder,
     required this.createdAt,
   });
 
@@ -284,6 +466,7 @@ class BookmarkItem {
       folderId: row.folderId,
       url: Uri.parse(row.url),
       title: row.title,
+      sortOrder: row.sortOrder,
       createdAt: row.createdAt,
     );
   }
@@ -292,6 +475,7 @@ class BookmarkItem {
   final String? folderId;
   final Uri url;
   final String? title;
+  final int sortOrder;
   final DateTime createdAt;
 
   String get displayTitle => title?.trim().isNotEmpty == true ? title!.trim() : url.host;

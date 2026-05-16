@@ -27,7 +27,9 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
-  static const VerificationMeta _canonicalUrlMeta = const VerificationMeta('canonicalUrl');
+  static const VerificationMeta _canonicalUrlMeta = const VerificationMeta(
+    'canonicalUrl',
+  );
   @override
   late final GeneratedColumn<String> canonicalUrl = GeneratedColumn<String>(
     'canonical_url',
@@ -45,7 +47,9 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
     'created_at',
@@ -54,24 +58,37 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _lastVisitedAtMeta = const VerificationMeta('lastVisitedAt');
-  @override
-  late final GeneratedColumn<DateTime> lastVisitedAt = GeneratedColumn<DateTime>(
-    'last_visited_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
+  static const VerificationMeta _lastVisitedAtMeta = const VerificationMeta(
+    'lastVisitedAt',
   );
   @override
-  List<GeneratedColumn> get $columns => [id, url, canonicalUrl, title, createdAt, lastVisitedAt];
+  late final GeneratedColumn<DateTime> lastVisitedAt =
+      GeneratedColumn<DateTime>(
+        'last_visited_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    url,
+    canonicalUrl,
+    title,
+    createdAt,
+    lastVisitedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'pages';
   @override
-  VerificationContext validateIntegrity(Insertable<Page> instance, {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Page> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -80,25 +97,43 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
       context.missing(_idMeta);
     }
     if (data.containsKey('url')) {
-      context.handle(_urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
     } else if (isInserting) {
       context.missing(_urlMeta);
     }
     if (data.containsKey('canonical_url')) {
-      context.handle(_canonicalUrlMeta, canonicalUrl.isAcceptableOrUnknown(data['canonical_url']!, _canonicalUrlMeta));
+      context.handle(
+        _canonicalUrlMeta,
+        canonicalUrl.isAcceptableOrUnknown(
+          data['canonical_url']!,
+          _canonicalUrlMeta,
+        ),
+      );
     }
     if (data.containsKey('title')) {
-      context.handle(_titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('last_visited_at')) {
       context.handle(
         _lastVisitedAtMeta,
-        lastVisitedAt.isAcceptableOrUnknown(data['last_visited_at']!, _lastVisitedAtMeta),
+        lastVisitedAt.isAcceptableOrUnknown(
+          data['last_visited_at']!,
+          _lastVisitedAtMeta,
+        ),
       );
     } else if (isInserting) {
       context.missing(_lastVisitedAtMeta);
@@ -112,11 +147,26 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
   Page map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Page(
-      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      url: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}url'])!,
-      canonicalUrl: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}canonical_url']),
-      title: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}title']),
-      createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      )!,
+      canonicalUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}canonical_url'],
+      ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
       lastVisitedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_visited_at'],
@@ -165,14 +215,21 @@ class Page extends DataClass implements Insertable<Page> {
     return PagesCompanion(
       id: Value(id),
       url: Value(url),
-      canonicalUrl: canonicalUrl == null && nullToAbsent ? const Value.absent() : Value(canonicalUrl),
-      title: title == null && nullToAbsent ? const Value.absent() : Value(title),
+      canonicalUrl: canonicalUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canonicalUrl),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
       createdAt: Value(createdAt),
       lastVisitedAt: Value(lastVisitedAt),
     );
   }
 
-  factory Page.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+  factory Page.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Page(
       id: serializer.fromJson<String>(json['id']),
@@ -215,10 +272,14 @@ class Page extends DataClass implements Insertable<Page> {
     return Page(
       id: data.id.present ? data.id.value : this.id,
       url: data.url.present ? data.url.value : this.url,
-      canonicalUrl: data.canonicalUrl.present ? data.canonicalUrl.value : this.canonicalUrl,
+      canonicalUrl: data.canonicalUrl.present
+          ? data.canonicalUrl.value
+          : this.canonicalUrl,
       title: data.title.present ? data.title.value : this.title,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      lastVisitedAt: data.lastVisitedAt.present ? data.lastVisitedAt.value : this.lastVisitedAt,
+      lastVisitedAt: data.lastVisitedAt.present
+          ? data.lastVisitedAt.value
+          : this.lastVisitedAt,
     );
   }
 
@@ -236,7 +297,8 @@ class Page extends DataClass implements Insertable<Page> {
   }
 
   @override
-  int get hashCode => Object.hash(id, url, canonicalUrl, title, createdAt, lastVisitedAt);
+  int get hashCode =>
+      Object.hash(id, url, canonicalUrl, title, createdAt, lastVisitedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -360,7 +422,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
   }
 }
 
-class $AnnotationsTable extends Annotations with TableInfo<$AnnotationsTable, Annotation> {
+class $AnnotationsTable extends Annotations
+    with TableInfo<$AnnotationsTable, Annotation> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -382,9 +445,13 @@ class $AnnotationsTable extends Annotations with TableInfo<$AnnotationsTable, An
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES pages (id)'),
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pages (id)',
+    ),
   );
-  static const VerificationMeta _motivationMeta = const VerificationMeta('motivation');
+  static const VerificationMeta _motivationMeta = const VerificationMeta(
+    'motivation',
+  );
   @override
   late final GeneratedColumn<String> motivation = GeneratedColumn<String>(
     'motivation',
@@ -393,7 +460,9 @@ class $AnnotationsTable extends Annotations with TableInfo<$AnnotationsTable, An
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
     'created_at',
@@ -402,7 +471,9 @@ class $AnnotationsTable extends Annotations with TableInfo<$AnnotationsTable, An
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _modifiedAtMeta = const VerificationMeta('modifiedAt');
+  static const VerificationMeta _modifiedAtMeta = const VerificationMeta(
+    'modifiedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> modifiedAt = GeneratedColumn<DateTime>(
     'modified_at',
@@ -411,7 +482,9 @@ class $AnnotationsTable extends Annotations with TableInfo<$AnnotationsTable, An
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _deletedAtMeta = const VerificationMeta('deletedAt');
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
     'deleted_at',
@@ -421,14 +494,24 @@ class $AnnotationsTable extends Annotations with TableInfo<$AnnotationsTable, An
     requiredDuringInsert: false,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, pageId, motivation, createdAt, modifiedAt, deletedAt];
+  List<GeneratedColumn> get $columns => [
+    id,
+    pageId,
+    motivation,
+    createdAt,
+    modifiedAt,
+    deletedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'annotations';
   @override
-  VerificationContext validateIntegrity(Insertable<Annotation> instance, {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Annotation> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -437,27 +520,42 @@ class $AnnotationsTable extends Annotations with TableInfo<$AnnotationsTable, An
       context.missing(_idMeta);
     }
     if (data.containsKey('page_id')) {
-      context.handle(_pageIdMeta, pageId.isAcceptableOrUnknown(data['page_id']!, _pageIdMeta));
+      context.handle(
+        _pageIdMeta,
+        pageId.isAcceptableOrUnknown(data['page_id']!, _pageIdMeta),
+      );
     } else if (isInserting) {
       context.missing(_pageIdMeta);
     }
     if (data.containsKey('motivation')) {
-      context.handle(_motivationMeta, motivation.isAcceptableOrUnknown(data['motivation']!, _motivationMeta));
+      context.handle(
+        _motivationMeta,
+        motivation.isAcceptableOrUnknown(data['motivation']!, _motivationMeta),
+      );
     } else if (isInserting) {
       context.missing(_motivationMeta);
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('modified_at')) {
-      context.handle(_modifiedAtMeta, modifiedAt.isAcceptableOrUnknown(data['modified_at']!, _modifiedAtMeta));
+      context.handle(
+        _modifiedAtMeta,
+        modifiedAt.isAcceptableOrUnknown(data['modified_at']!, _modifiedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_modifiedAtMeta);
     }
     if (data.containsKey('deleted_at')) {
-      context.handle(_deletedAtMeta, deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
     }
     return context;
   }
@@ -468,12 +566,30 @@ class $AnnotationsTable extends Annotations with TableInfo<$AnnotationsTable, An
   Annotation map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Annotation(
-      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      pageId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}page_id'])!,
-      motivation: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}motivation'])!,
-      createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      modifiedAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}modified_at'])!,
-      deletedAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      pageId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}page_id'],
+      )!,
+      motivation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}motivation'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      modifiedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}modified_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -519,11 +635,16 @@ class Annotation extends DataClass implements Insertable<Annotation> {
       motivation: Value(motivation),
       createdAt: Value(createdAt),
       modifiedAt: Value(modifiedAt),
-      deletedAt: deletedAt == null && nullToAbsent ? const Value.absent() : Value(deletedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
-  factory Annotation.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+  factory Annotation.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Annotation(
       id: serializer.fromJson<String>(json['id']),
@@ -566,9 +687,13 @@ class Annotation extends DataClass implements Insertable<Annotation> {
     return Annotation(
       id: data.id.present ? data.id.value : this.id,
       pageId: data.pageId.present ? data.pageId.value : this.pageId,
-      motivation: data.motivation.present ? data.motivation.value : this.motivation,
+      motivation: data.motivation.present
+          ? data.motivation.value
+          : this.motivation,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      modifiedAt: data.modifiedAt.present ? data.modifiedAt.value : this.modifiedAt,
+      modifiedAt: data.modifiedAt.present
+          ? data.modifiedAt.value
+          : this.modifiedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
@@ -587,7 +712,8 @@ class Annotation extends DataClass implements Insertable<Annotation> {
   }
 
   @override
-  int get hashCode => Object.hash(id, pageId, motivation, createdAt, modifiedAt, deletedAt);
+  int get hashCode =>
+      Object.hash(id, pageId, motivation, createdAt, modifiedAt, deletedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -712,7 +838,8 @@ class AnnotationsCompanion extends UpdateCompanion<Annotation> {
   }
 }
 
-class $AnnotationTargetsTable extends AnnotationTargets with TableInfo<$AnnotationTargetsTable, AnnotationTarget> {
+class $AnnotationTargetsTable extends AnnotationTargets
+    with TableInfo<$AnnotationTargetsTable, AnnotationTarget> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -726,7 +853,9 @@ class $AnnotationTargetsTable extends AnnotationTargets with TableInfo<$Annotati
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _annotationIdMeta = const VerificationMeta('annotationId');
+  static const VerificationMeta _annotationIdMeta = const VerificationMeta(
+    'annotationId',
+  );
   @override
   late final GeneratedColumn<String> annotationId = GeneratedColumn<String>(
     'annotation_id',
@@ -734,9 +863,13 @@ class $AnnotationTargetsTable extends AnnotationTargets with TableInfo<$Annotati
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES annotations (id)'),
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES annotations (id)',
+    ),
   );
-  static const VerificationMeta _sourceUrlMeta = const VerificationMeta('sourceUrl');
+  static const VerificationMeta _sourceUrlMeta = const VerificationMeta(
+    'sourceUrl',
+  );
   @override
   late final GeneratedColumn<String> sourceUrl = GeneratedColumn<String>(
     'source_url',
@@ -745,7 +878,9 @@ class $AnnotationTargetsTable extends AnnotationTargets with TableInfo<$Annotati
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _selectorJsonMeta = const VerificationMeta('selectorJson');
+  static const VerificationMeta _selectorJsonMeta = const VerificationMeta(
+    'selectorJson',
+  );
   @override
   late final GeneratedColumn<String> selectorJson = GeneratedColumn<String>(
     'selector_json',
@@ -755,14 +890,22 @@ class $AnnotationTargetsTable extends AnnotationTargets with TableInfo<$Annotati
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, annotationId, sourceUrl, selectorJson];
+  List<GeneratedColumn> get $columns => [
+    id,
+    annotationId,
+    sourceUrl,
+    selectorJson,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'annotation_targets';
   @override
-  VerificationContext validateIntegrity(Insertable<AnnotationTarget> instance, {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<AnnotationTarget> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -771,17 +914,32 @@ class $AnnotationTargetsTable extends AnnotationTargets with TableInfo<$Annotati
       context.missing(_idMeta);
     }
     if (data.containsKey('annotation_id')) {
-      context.handle(_annotationIdMeta, annotationId.isAcceptableOrUnknown(data['annotation_id']!, _annotationIdMeta));
+      context.handle(
+        _annotationIdMeta,
+        annotationId.isAcceptableOrUnknown(
+          data['annotation_id']!,
+          _annotationIdMeta,
+        ),
+      );
     } else if (isInserting) {
       context.missing(_annotationIdMeta);
     }
     if (data.containsKey('source_url')) {
-      context.handle(_sourceUrlMeta, sourceUrl.isAcceptableOrUnknown(data['source_url']!, _sourceUrlMeta));
+      context.handle(
+        _sourceUrlMeta,
+        sourceUrl.isAcceptableOrUnknown(data['source_url']!, _sourceUrlMeta),
+      );
     } else if (isInserting) {
       context.missing(_sourceUrlMeta);
     }
     if (data.containsKey('selector_json')) {
-      context.handle(_selectorJsonMeta, selectorJson.isAcceptableOrUnknown(data['selector_json']!, _selectorJsonMeta));
+      context.handle(
+        _selectorJsonMeta,
+        selectorJson.isAcceptableOrUnknown(
+          data['selector_json']!,
+          _selectorJsonMeta,
+        ),
+      );
     } else if (isInserting) {
       context.missing(_selectorJsonMeta);
     }
@@ -794,10 +952,22 @@ class $AnnotationTargetsTable extends AnnotationTargets with TableInfo<$Annotati
   AnnotationTarget map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AnnotationTarget(
-      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      annotationId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}annotation_id'])!,
-      sourceUrl: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}source_url'])!,
-      selectorJson: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}selector_json'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      annotationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}annotation_id'],
+      )!,
+      sourceUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_url'],
+      )!,
+      selectorJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}selector_json'],
+      )!,
     );
   }
 
@@ -807,7 +977,8 @@ class $AnnotationTargetsTable extends AnnotationTargets with TableInfo<$Annotati
   }
 }
 
-class AnnotationTarget extends DataClass implements Insertable<AnnotationTarget> {
+class AnnotationTarget extends DataClass
+    implements Insertable<AnnotationTarget> {
   final String id;
   final String annotationId;
   final String sourceUrl;
@@ -837,7 +1008,10 @@ class AnnotationTarget extends DataClass implements Insertable<AnnotationTarget>
     );
   }
 
-  factory AnnotationTarget.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+  factory AnnotationTarget.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AnnotationTarget(
       id: serializer.fromJson<String>(json['id']),
@@ -857,19 +1031,27 @@ class AnnotationTarget extends DataClass implements Insertable<AnnotationTarget>
     };
   }
 
-  AnnotationTarget copyWith({String? id, String? annotationId, String? sourceUrl, String? selectorJson}) =>
-      AnnotationTarget(
-        id: id ?? this.id,
-        annotationId: annotationId ?? this.annotationId,
-        sourceUrl: sourceUrl ?? this.sourceUrl,
-        selectorJson: selectorJson ?? this.selectorJson,
-      );
+  AnnotationTarget copyWith({
+    String? id,
+    String? annotationId,
+    String? sourceUrl,
+    String? selectorJson,
+  }) => AnnotationTarget(
+    id: id ?? this.id,
+    annotationId: annotationId ?? this.annotationId,
+    sourceUrl: sourceUrl ?? this.sourceUrl,
+    selectorJson: selectorJson ?? this.selectorJson,
+  );
   AnnotationTarget copyWithCompanion(AnnotationTargetsCompanion data) {
     return AnnotationTarget(
       id: data.id.present ? data.id.value : this.id,
-      annotationId: data.annotationId.present ? data.annotationId.value : this.annotationId,
+      annotationId: data.annotationId.present
+          ? data.annotationId.value
+          : this.annotationId,
       sourceUrl: data.sourceUrl.present ? data.sourceUrl.value : this.sourceUrl,
-      selectorJson: data.selectorJson.present ? data.selectorJson.value : this.selectorJson,
+      selectorJson: data.selectorJson.present
+          ? data.selectorJson.value
+          : this.selectorJson,
     );
   }
 
@@ -985,7 +1167,8 @@ class AnnotationTargetsCompanion extends UpdateCompanion<AnnotationTarget> {
   }
 }
 
-class $AnnotationBodiesTable extends AnnotationBodies with TableInfo<$AnnotationBodiesTable, AnnotationBody> {
+class $AnnotationBodiesTable extends AnnotationBodies
+    with TableInfo<$AnnotationBodiesTable, AnnotationBody> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -999,7 +1182,9 @@ class $AnnotationBodiesTable extends AnnotationBodies with TableInfo<$Annotation
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _annotationIdMeta = const VerificationMeta('annotationId');
+  static const VerificationMeta _annotationIdMeta = const VerificationMeta(
+    'annotationId',
+  );
   @override
   late final GeneratedColumn<String> annotationId = GeneratedColumn<String>(
     'annotation_id',
@@ -1007,7 +1192,9 @@ class $AnnotationBodiesTable extends AnnotationBodies with TableInfo<$Annotation
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES annotations (id)'),
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES annotations (id)',
+    ),
   );
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
@@ -1044,7 +1231,10 @@ class $AnnotationBodiesTable extends AnnotationBodies with TableInfo<$Annotation
   String get actualTableName => $name;
   static const String $name = 'annotation_bodies';
   @override
-  VerificationContext validateIntegrity(Insertable<AnnotationBody> instance, {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<AnnotationBody> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1053,20 +1243,35 @@ class $AnnotationBodiesTable extends AnnotationBodies with TableInfo<$Annotation
       context.missing(_idMeta);
     }
     if (data.containsKey('annotation_id')) {
-      context.handle(_annotationIdMeta, annotationId.isAcceptableOrUnknown(data['annotation_id']!, _annotationIdMeta));
+      context.handle(
+        _annotationIdMeta,
+        annotationId.isAcceptableOrUnknown(
+          data['annotation_id']!,
+          _annotationIdMeta,
+        ),
+      );
     } else if (isInserting) {
       context.missing(_annotationIdMeta);
     }
     if (data.containsKey('type')) {
-      context.handle(_typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
     } else if (isInserting) {
       context.missing(_typeMeta);
     }
     if (data.containsKey('format')) {
-      context.handle(_formatMeta, format.isAcceptableOrUnknown(data['format']!, _formatMeta));
+      context.handle(
+        _formatMeta,
+        format.isAcceptableOrUnknown(data['format']!, _formatMeta),
+      );
     }
     if (data.containsKey('value')) {
-      context.handle(_valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
     } else if (isInserting) {
       context.missing(_valueMeta);
     }
@@ -1079,11 +1284,26 @@ class $AnnotationBodiesTable extends AnnotationBodies with TableInfo<$Annotation
   AnnotationBody map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AnnotationBody(
-      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      annotationId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}annotation_id'])!,
-      type: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}type'])!,
-      format: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}format']),
-      value: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}value'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      annotationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}annotation_id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      format: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}format'],
+      ),
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
     );
   }
 
@@ -1124,12 +1344,17 @@ class AnnotationBody extends DataClass implements Insertable<AnnotationBody> {
       id: Value(id),
       annotationId: Value(annotationId),
       type: Value(type),
-      format: format == null && nullToAbsent ? const Value.absent() : Value(format),
+      format: format == null && nullToAbsent
+          ? const Value.absent()
+          : Value(format),
       value: Value(value),
     );
   }
 
-  factory AnnotationBody.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+  factory AnnotationBody.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AnnotationBody(
       id: serializer.fromJson<String>(json['id']),
@@ -1167,7 +1392,9 @@ class AnnotationBody extends DataClass implements Insertable<AnnotationBody> {
   AnnotationBody copyWithCompanion(AnnotationBodiesCompanion data) {
     return AnnotationBody(
       id: data.id.present ? data.id.value : this.id,
-      annotationId: data.annotationId.present ? data.annotationId.value : this.annotationId,
+      annotationId: data.annotationId.present
+          ? data.annotationId.value
+          : this.annotationId,
       type: data.type.present ? data.type.value : this.type,
       format: data.format.present ? data.format.value : this.format,
       value: data.value.present ? data.value.value : this.value,
@@ -1299,7 +1526,8 @@ class AnnotationBodiesCompanion extends UpdateCompanion<AnnotationBody> {
   }
 }
 
-class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFoldersTable, BookmarkFolder> {
+class $BookmarkFoldersTable extends BookmarkFolders
+    with TableInfo<$BookmarkFoldersTable, BookmarkFolder> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -1313,7 +1541,9 @@ class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFold
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _parentIdMeta = const VerificationMeta('parentId');
+  static const VerificationMeta _parentIdMeta = const VerificationMeta(
+    'parentId',
+  );
   @override
   late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
     'parent_id',
@@ -1321,7 +1551,9 @@ class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFold
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES bookmark_folders (id)'),
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES bookmark_folders (id)',
+    ),
   );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
@@ -1332,7 +1564,21 @@ class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFold
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
     'created_at',
@@ -1341,7 +1587,9 @@ class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFold
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta('updatedAt');
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
     'updated_at',
@@ -1351,14 +1599,24 @@ class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFold
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, parentId, title, createdAt, updatedAt];
+  List<GeneratedColumn> get $columns => [
+    id,
+    parentId,
+    title,
+    sortOrder,
+    createdAt,
+    updatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'bookmark_folders';
   @override
-  VerificationContext validateIntegrity(Insertable<BookmarkFolder> instance, {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<BookmarkFolder> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1367,20 +1625,38 @@ class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFold
       context.missing(_idMeta);
     }
     if (data.containsKey('parent_id')) {
-      context.handle(_parentIdMeta, parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta));
+      context.handle(
+        _parentIdMeta,
+        parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta),
+      );
     }
     if (data.containsKey('title')) {
-      context.handle(_titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta, updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -1393,11 +1669,30 @@ class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFold
   BookmarkFolder map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return BookmarkFolder(
-      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      parentId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}parent_id']),
-      title: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}title'])!,
-      createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
-      updatedAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      parentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_id'],
+      ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
     );
   }
 
@@ -1411,12 +1706,14 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
   final String id;
   final String? parentId;
   final String title;
+  final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
   const BookmarkFolder({
     required this.id,
     this.parentId,
     required this.title,
+    required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1428,6 +1725,7 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
       map['parent_id'] = Variable<String>(parentId);
     }
     map['title'] = Variable<String>(title);
+    map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1436,19 +1734,26 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
   BookmarkFoldersCompanion toCompanion(bool nullToAbsent) {
     return BookmarkFoldersCompanion(
       id: Value(id),
-      parentId: parentId == null && nullToAbsent ? const Value.absent() : Value(parentId),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
       title: Value(title),
+      sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory BookmarkFolder.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+  factory BookmarkFolder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return BookmarkFolder(
       id: serializer.fromJson<String>(json['id']),
       parentId: serializer.fromJson<String?>(json['parentId']),
       title: serializer.fromJson<String>(json['title']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1460,6 +1765,7 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
       'id': serializer.toJson<String>(id),
       'parentId': serializer.toJson<String?>(parentId),
       'title': serializer.toJson<String>(title),
+      'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1469,12 +1775,14 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
     String? id,
     Value<String?> parentId = const Value.absent(),
     String? title,
+    int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => BookmarkFolder(
     id: id ?? this.id,
     parentId: parentId.present ? parentId.value : this.parentId,
     title: title ?? this.title,
+    sortOrder: sortOrder ?? this.sortOrder,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1483,6 +1791,7 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
       id: data.id.present ? data.id.value : this.id,
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
       title: data.title.present ? data.title.value : this.title,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1494,6 +1803,7 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
           ..write('id: $id, ')
           ..write('parentId: $parentId, ')
           ..write('title: $title, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1501,7 +1811,8 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
   }
 
   @override
-  int get hashCode => Object.hash(id, parentId, title, createdAt, updatedAt);
+  int get hashCode =>
+      Object.hash(id, parentId, title, sortOrder, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1509,6 +1820,7 @@ class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
           other.id == this.id &&
           other.parentId == this.parentId &&
           other.title == this.title &&
+          other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1517,6 +1829,7 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
   final Value<String> id;
   final Value<String?> parentId;
   final Value<String> title;
+  final Value<int> sortOrder;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -1524,6 +1837,7 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
     this.id = const Value.absent(),
     this.parentId = const Value.absent(),
     this.title = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1532,6 +1846,7 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
     required String id,
     this.parentId = const Value.absent(),
     required String title,
+    this.sortOrder = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -1543,6 +1858,7 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
     Expression<String>? id,
     Expression<String>? parentId,
     Expression<String>? title,
+    Expression<int>? sortOrder,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -1551,6 +1867,7 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
       if (id != null) 'id': id,
       if (parentId != null) 'parent_id': parentId,
       if (title != null) 'title': title,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1561,6 +1878,7 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
     Value<String>? id,
     Value<String?>? parentId,
     Value<String>? title,
+    Value<int>? sortOrder,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -1569,6 +1887,7 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
       id: id ?? this.id,
       parentId: parentId ?? this.parentId,
       title: title ?? this.title,
+      sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1586,6 +1905,9 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -1605,6 +1927,7 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
           ..write('id: $id, ')
           ..write('parentId: $parentId, ')
           ..write('title: $title, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -1613,7 +1936,8 @@ class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
   }
 }
 
-class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark> {
+class $BookmarksTable extends Bookmarks
+    with TableInfo<$BookmarksTable, Bookmark> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -1627,7 +1951,9 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _folderIdMeta = const VerificationMeta('folderId');
+  static const VerificationMeta _folderIdMeta = const VerificationMeta(
+    'folderId',
+  );
   @override
   late final GeneratedColumn<String> folderId = GeneratedColumn<String>(
     'folder_id',
@@ -1635,7 +1961,9 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES bookmark_folders (id)'),
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES bookmark_folders (id)',
+    ),
   );
   static const VerificationMeta _urlMeta = const VerificationMeta('url');
   @override
@@ -1656,7 +1984,21 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
   @override
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
     'created_at',
@@ -1666,14 +2008,24 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, folderId, url, title, createdAt];
+  List<GeneratedColumn> get $columns => [
+    id,
+    folderId,
+    url,
+    title,
+    sortOrder,
+    createdAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'bookmarks';
   @override
-  VerificationContext validateIntegrity(Insertable<Bookmark> instance, {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<Bookmark> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1682,18 +2034,36 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
       context.missing(_idMeta);
     }
     if (data.containsKey('folder_id')) {
-      context.handle(_folderIdMeta, folderId.isAcceptableOrUnknown(data['folder_id']!, _folderIdMeta));
+      context.handle(
+        _folderIdMeta,
+        folderId.isAcceptableOrUnknown(data['folder_id']!, _folderIdMeta),
+      );
     }
     if (data.containsKey('url')) {
-      context.handle(_urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
     } else if (isInserting) {
       context.missing(_urlMeta);
     }
     if (data.containsKey('title')) {
-      context.handle(_titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
     }
     if (data.containsKey('created_at')) {
-      context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
@@ -1706,11 +2076,30 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
   Bookmark map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Bookmark(
-      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      folderId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}folder_id']),
-      url: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}url'])!,
-      title: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}title']),
-      createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      folderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}folder_id'],
+      ),
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
     );
   }
 
@@ -1725,8 +2114,16 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
   final String? folderId;
   final String url;
   final String? title;
+  final int sortOrder;
   final DateTime createdAt;
-  const Bookmark({required this.id, this.folderId, required this.url, this.title, required this.createdAt});
+  const Bookmark({
+    required this.id,
+    this.folderId,
+    required this.url,
+    this.title,
+    required this.sortOrder,
+    required this.createdAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1738,6 +2135,7 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
     if (!nullToAbsent || title != null) {
       map['title'] = Variable<String>(title);
     }
+    map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -1745,20 +2143,29 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
   BookmarksCompanion toCompanion(bool nullToAbsent) {
     return BookmarksCompanion(
       id: Value(id),
-      folderId: folderId == null && nullToAbsent ? const Value.absent() : Value(folderId),
+      folderId: folderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(folderId),
       url: Value(url),
-      title: title == null && nullToAbsent ? const Value.absent() : Value(title),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
     );
   }
 
-  factory Bookmark.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+  factory Bookmark.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Bookmark(
       id: serializer.fromJson<String>(json['id']),
       folderId: serializer.fromJson<String?>(json['folderId']),
       url: serializer.fromJson<String>(json['url']),
       title: serializer.fromJson<String?>(json['title']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -1770,6 +2177,7 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
       'folderId': serializer.toJson<String?>(folderId),
       'url': serializer.toJson<String>(url),
       'title': serializer.toJson<String?>(title),
+      'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -1779,12 +2187,14 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
     Value<String?> folderId = const Value.absent(),
     String? url,
     Value<String?> title = const Value.absent(),
+    int? sortOrder,
     DateTime? createdAt,
   }) => Bookmark(
     id: id ?? this.id,
     folderId: folderId.present ? folderId.value : this.folderId,
     url: url ?? this.url,
     title: title.present ? title.value : this.title,
+    sortOrder: sortOrder ?? this.sortOrder,
     createdAt: createdAt ?? this.createdAt,
   );
   Bookmark copyWithCompanion(BookmarksCompanion data) {
@@ -1793,6 +2203,7 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
       folderId: data.folderId.present ? data.folderId.value : this.folderId,
       url: data.url.present ? data.url.value : this.url,
       title: data.title.present ? data.title.value : this.title,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -1804,13 +2215,15 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
           ..write('folderId: $folderId, ')
           ..write('url: $url, ')
           ..write('title: $title, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, folderId, url, title, createdAt);
+  int get hashCode =>
+      Object.hash(id, folderId, url, title, sortOrder, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1819,6 +2232,7 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
           other.folderId == this.folderId &&
           other.url == this.url &&
           other.title == this.title &&
+          other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt);
 }
 
@@ -1827,6 +2241,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
   final Value<String?> folderId;
   final Value<String> url;
   final Value<String?> title;
+  final Value<int> sortOrder;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const BookmarksCompanion({
@@ -1834,6 +2249,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     this.folderId = const Value.absent(),
     this.url = const Value.absent(),
     this.title = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1842,6 +2258,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     this.folderId = const Value.absent(),
     required String url,
     this.title = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -1852,6 +2269,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     Expression<String>? folderId,
     Expression<String>? url,
     Expression<String>? title,
+    Expression<int>? sortOrder,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -1860,6 +2278,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
       if (folderId != null) 'folder_id': folderId,
       if (url != null) 'url': url,
       if (title != null) 'title': title,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1870,6 +2289,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     Value<String?>? folderId,
     Value<String>? url,
     Value<String?>? title,
+    Value<int>? sortOrder,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -1878,6 +2298,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
       folderId: folderId ?? this.folderId,
       url: url ?? this.url,
       title: title ?? this.title,
+      sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -1898,6 +2319,9 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1914,6 +2338,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
           ..write('folderId: $folderId, ')
           ..write('url: $url, ')
           ..write('title: $title, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1945,7 +2370,9 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _canonicalUrlMeta = const VerificationMeta('canonicalUrl');
+  static const VerificationMeta _canonicalUrlMeta = const VerificationMeta(
+    'canonicalUrl',
+  );
   @override
   late final GeneratedColumn<String> canonicalUrl = GeneratedColumn<String>(
     'canonical_url',
@@ -1963,7 +2390,9 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _visitedAtMeta = const VerificationMeta('visitedAt');
+  static const VerificationMeta _visitedAtMeta = const VerificationMeta(
+    'visitedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> visitedAt = GeneratedColumn<DateTime>(
     'visited_at',
@@ -1973,14 +2402,23 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, url, canonicalUrl, title, visitedAt];
+  List<GeneratedColumn> get $columns => [
+    id,
+    url,
+    canonicalUrl,
+    title,
+    visitedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
   static const String $name = 'browser_history_entries';
   @override
-  VerificationContext validateIntegrity(Insertable<BrowserHistoryEntry> instance, {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<BrowserHistoryEntry> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
@@ -1989,18 +2427,33 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
       context.missing(_idMeta);
     }
     if (data.containsKey('url')) {
-      context.handle(_urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
     } else if (isInserting) {
       context.missing(_urlMeta);
     }
     if (data.containsKey('canonical_url')) {
-      context.handle(_canonicalUrlMeta, canonicalUrl.isAcceptableOrUnknown(data['canonical_url']!, _canonicalUrlMeta));
+      context.handle(
+        _canonicalUrlMeta,
+        canonicalUrl.isAcceptableOrUnknown(
+          data['canonical_url']!,
+          _canonicalUrlMeta,
+        ),
+      );
     }
     if (data.containsKey('title')) {
-      context.handle(_titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
     }
     if (data.containsKey('visited_at')) {
-      context.handle(_visitedAtMeta, visitedAt.isAcceptableOrUnknown(data['visited_at']!, _visitedAtMeta));
+      context.handle(
+        _visitedAtMeta,
+        visitedAt.isAcceptableOrUnknown(data['visited_at']!, _visitedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_visitedAtMeta);
     }
@@ -2013,11 +2466,26 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
   BrowserHistoryEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return BrowserHistoryEntry(
-      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
-      url: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}url'])!,
-      canonicalUrl: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}canonical_url']),
-      title: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}title']),
-      visitedAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}visited_at'])!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      )!,
+      canonicalUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}canonical_url'],
+      ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      visitedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}visited_at'],
+      )!,
     );
   }
 
@@ -2027,7 +2495,8 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
   }
 }
 
-class BrowserHistoryEntry extends DataClass implements Insertable<BrowserHistoryEntry> {
+class BrowserHistoryEntry extends DataClass
+    implements Insertable<BrowserHistoryEntry> {
   final String id;
   final String url;
   final String? canonicalUrl;
@@ -2059,13 +2528,20 @@ class BrowserHistoryEntry extends DataClass implements Insertable<BrowserHistory
     return BrowserHistoryEntriesCompanion(
       id: Value(id),
       url: Value(url),
-      canonicalUrl: canonicalUrl == null && nullToAbsent ? const Value.absent() : Value(canonicalUrl),
-      title: title == null && nullToAbsent ? const Value.absent() : Value(title),
+      canonicalUrl: canonicalUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canonicalUrl),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
       visitedAt: Value(visitedAt),
     );
   }
 
-  factory BrowserHistoryEntry.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+  factory BrowserHistoryEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return BrowserHistoryEntry(
       id: serializer.fromJson<String>(json['id']),
@@ -2104,7 +2580,9 @@ class BrowserHistoryEntry extends DataClass implements Insertable<BrowserHistory
     return BrowserHistoryEntry(
       id: data.id.present ? data.id.value : this.id,
       url: data.url.present ? data.url.value : this.url,
-      canonicalUrl: data.canonicalUrl.present ? data.canonicalUrl.value : this.canonicalUrl,
+      canonicalUrl: data.canonicalUrl.present
+          ? data.canonicalUrl.value
+          : this.canonicalUrl,
       title: data.title.present ? data.title.value : this.title,
       visitedAt: data.visitedAt.present ? data.visitedAt.value : this.visitedAt,
     );
@@ -2135,7 +2613,8 @@ class BrowserHistoryEntry extends DataClass implements Insertable<BrowserHistory
           other.visitedAt == this.visitedAt);
 }
 
-class BrowserHistoryEntriesCompanion extends UpdateCompanion<BrowserHistoryEntry> {
+class BrowserHistoryEntriesCompanion
+    extends UpdateCompanion<BrowserHistoryEntry> {
   final Value<String> id;
   final Value<String> url;
   final Value<String?> canonicalUrl;
@@ -2234,7 +2713,8 @@ class BrowserHistoryEntriesCompanion extends UpdateCompanion<BrowserHistoryEntry
   }
 }
 
-class $AppSettingsTable extends AppSettings with TableInfo<$AppSettingsTable, AppSetting> {
+class $AppSettingsTable extends AppSettings
+    with TableInfo<$AppSettingsTable, AppSetting> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -2257,7 +2737,9 @@ class $AppSettingsTable extends AppSettings with TableInfo<$AppSettingsTable, Ap
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta('updatedAt');
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
     'updated_at',
@@ -2274,21 +2756,33 @@ class $AppSettingsTable extends AppSettings with TableInfo<$AppSettingsTable, Ap
   String get actualTableName => $name;
   static const String $name = 'app_settings';
   @override
-  VerificationContext validateIntegrity(Insertable<AppSetting> instance, {bool isInserting = false}) {
+  VerificationContext validateIntegrity(
+    Insertable<AppSetting> instance, {
+    bool isInserting = false,
+  }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
     if (data.containsKey('key')) {
-      context.handle(_keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
     } else if (isInserting) {
       context.missing(_keyMeta);
     }
     if (data.containsKey('value')) {
-      context.handle(_valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
     } else if (isInserting) {
       context.missing(_valueMeta);
     }
     if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta, updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
@@ -2301,9 +2795,18 @@ class $AppSettingsTable extends AppSettings with TableInfo<$AppSettingsTable, Ap
   AppSetting map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AppSetting(
-      key: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}key'])!,
-      value: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}value'])!,
-      updatedAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
     );
   }
 
@@ -2317,7 +2820,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String key;
   final String value;
   final DateTime updatedAt;
-  const AppSetting({required this.key, required this.value, required this.updatedAt});
+  const AppSetting({
+    required this.key,
+    required this.value,
+    required this.updatedAt,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2328,10 +2835,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   }
 
   AppSettingsCompanion toCompanion(bool nullToAbsent) {
-    return AppSettingsCompanion(key: Value(key), value: Value(value), updatedAt: Value(updatedAt));
+    return AppSettingsCompanion(
+      key: Value(key),
+      value: Value(value),
+      updatedAt: Value(updatedAt),
+    );
   }
 
-  factory AppSetting.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+  factory AppSetting.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AppSetting(
       key: serializer.fromJson<String>(json['key']),
@@ -2350,7 +2864,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   }
 
   AppSetting copyWith({String? key, String? value, DateTime? updatedAt}) =>
-      AppSetting(key: key ?? this.key, value: value ?? this.value, updatedAt: updatedAt ?? this.updatedAt);
+      AppSetting(
+        key: key ?? this.key,
+        value: value ?? this.value,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
       key: data.key.present ? data.key.value : this.key,
@@ -2374,7 +2892,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is AppSetting && other.key == this.key && other.value == this.value && other.updatedAt == this.updatedAt);
+      (other is AppSetting &&
+          other.key == this.key &&
+          other.value == this.value &&
+          other.updatedAt == this.updatedAt);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -2459,14 +2980,21 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $PagesTable pages = $PagesTable(this);
   late final $AnnotationsTable annotations = $AnnotationsTable(this);
-  late final $AnnotationTargetsTable annotationTargets = $AnnotationTargetsTable(this);
-  late final $AnnotationBodiesTable annotationBodies = $AnnotationBodiesTable(this);
-  late final $BookmarkFoldersTable bookmarkFolders = $BookmarkFoldersTable(this);
+  late final $AnnotationTargetsTable annotationTargets =
+      $AnnotationTargetsTable(this);
+  late final $AnnotationBodiesTable annotationBodies = $AnnotationBodiesTable(
+    this,
+  );
+  late final $BookmarkFoldersTable bookmarkFolders = $BookmarkFoldersTable(
+    this,
+  );
   late final $BookmarksTable bookmarks = $BookmarksTable(this);
-  late final $BrowserHistoryEntriesTable browserHistoryEntries = $BrowserHistoryEntriesTable(this);
+  late final $BrowserHistoryEntriesTable browserHistoryEntries =
+      $BrowserHistoryEntriesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   @override
-  Iterable<TableInfo<Table, Object?>> get allTables => allSchemaEntities.whereType<TableInfo<Table, Object?>>();
+  Iterable<TableInfo<Table, Object?>> get allTables =>
+      allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     pages,
@@ -2501,14 +3029,15 @@ typedef $$PagesTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$PagesTableReferences extends BaseReferences<_$AppDatabase, $PagesTable, Page> {
+final class $$PagesTableReferences
+    extends BaseReferences<_$AppDatabase, $PagesTable, Page> {
   $$PagesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static MultiTypedResultKey<$AnnotationsTable, List<Annotation>> _annotationsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.annotations,
-        aliasName: $_aliasNameGenerator(db.pages.id, db.annotations.pageId),
-      );
+  static MultiTypedResultKey<$AnnotationsTable, List<Annotation>>
+  _annotationsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.annotations,
+    aliasName: $_aliasNameGenerator(db.pages.id, db.annotations.pageId),
+  );
 
   $$AnnotationsTableProcessedTableManager get annotationsRefs {
     final manager = $$AnnotationsTableTableManager(
@@ -2517,7 +3046,9 @@ final class $$PagesTableReferences extends BaseReferences<_$AppDatabase, $PagesT
     ).filter((f) => f.pageId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_annotationsRefsTable($_db));
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
@@ -2529,42 +3060,64 @@ class $$PagesTableFilterComposer extends Composer<_$AppDatabase, $PagesTable> {
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get url => $composableBuilder(column: $table.url, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get canonicalUrl =>
-      $composableBuilder(column: $table.canonicalUrl, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get canonicalUrl => $composableBuilder(
+    column: $table.canonicalUrl,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get lastVisitedAt =>
-      $composableBuilder(column: $table.lastVisitedAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get lastVisitedAt => $composableBuilder(
+    column: $table.lastVisitedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  Expression<bool> annotationsRefs(Expression<bool> Function($$AnnotationsTableFilterComposer f) f) {
+  Expression<bool> annotationsRefs(
+    Expression<bool> Function($$AnnotationsTableFilterComposer f) f,
+  ) {
     final $$AnnotationsTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.annotations,
       getReferencedColumn: (t) => t.pageId,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationsTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableFilterComposer(
             $db: $db,
             $table: $db.annotations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return f(composer);
   }
 }
 
-class $$PagesTableOrderingComposer extends Composer<_$AppDatabase, $PagesTable> {
+class $$PagesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PagesTable> {
   $$PagesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -2572,25 +3125,39 @@ class $$PagesTableOrderingComposer extends Composer<_$AppDatabase, $PagesTable> 
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get url =>
-      $composableBuilder(column: $table.url, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get canonicalUrl =>
-      $composableBuilder(column: $table.canonicalUrl, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get canonicalUrl => $composableBuilder(
+    column: $table.canonicalUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get lastVisitedAt =>
-      $composableBuilder(column: $table.lastVisitedAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get lastVisitedAt => $composableBuilder(
+    column: $table.lastVisitedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
-class $$PagesTableAnnotationComposer extends Composer<_$AppDatabase, $PagesTable> {
+class $$PagesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PagesTable> {
   $$PagesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -2598,33 +3165,48 @@ class $$PagesTableAnnotationComposer extends Composer<_$AppDatabase, $PagesTable
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get url => $composableBuilder(column: $table.url, builder: (column) => column);
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
 
-  GeneratedColumn<String> get canonicalUrl =>
-      $composableBuilder(column: $table.canonicalUrl, builder: (column) => column);
+  GeneratedColumn<String> get canonicalUrl => $composableBuilder(
+    column: $table.canonicalUrl,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<String> get title => $composableBuilder(column: $table.title, builder: (column) => column);
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get lastVisitedAt =>
-      $composableBuilder(column: $table.lastVisitedAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get lastVisitedAt => $composableBuilder(
+    column: $table.lastVisitedAt,
+    builder: (column) => column,
+  );
 
-  Expression<T> annotationsRefs<T extends Object>(Expression<T> Function($$AnnotationsTableAnnotationComposer a) f) {
+  Expression<T> annotationsRefs<T extends Object>(
+    Expression<T> Function($$AnnotationsTableAnnotationComposer a) f,
+  ) {
     final $$AnnotationsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.annotations,
       getReferencedColumn: (t) => t.pageId,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationsTableAnnotationComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableAnnotationComposer(
             $db: $db,
             $table: $db.annotations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return f(composer);
@@ -2651,9 +3233,12 @@ class $$PagesTableTableManager
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () => $$PagesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () => $$PagesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () => $$PagesTableAnnotationComposer($db: db, $table: table),
+          createFilteringComposer: () =>
+              $$PagesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PagesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PagesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
@@ -2690,8 +3275,12 @@ class $$PagesTableTableManager
                 lastVisitedAt: lastVisitedAt,
                 rowid: rowid,
               ),
-          withReferenceMapper: (p0) =>
-              p0.map((e) => (e.readTable(table), $$PagesTableReferences(db, table, e))).toList(),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) =>
+                    (e.readTable(table), $$PagesTableReferences(db, table, e)),
+              )
+              .toList(),
           prefetchHooksCallback: ({annotationsRefs = false}) {
             return PrefetchHooks(
               db: db,
@@ -2702,8 +3291,10 @@ class $$PagesTableTableManager
                   if (annotationsRefs)
                     await $_getPrefetchedData<Page, $PagesTable, Annotation>(
                       currentTable: table,
-                      referencedTable: $$PagesTableReferences._annotationsRefsTable(db),
-                      managerFromTypedResult: (p0) => $$PagesTableReferences(db, table, p0).annotationsRefs,
+                      referencedTable: $$PagesTableReferences
+                          ._annotationsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$PagesTableReferences(db, table, p0).annotationsRefs,
                       referencedItemsForCurrentItem: (item, referencedItems) =>
                           referencedItems.where((e) => e.pageId == item.id),
                       typedResults: items,
@@ -2751,27 +3342,37 @@ typedef $$AnnotationsTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-final class $$AnnotationsTableReferences extends BaseReferences<_$AppDatabase, $AnnotationsTable, Annotation> {
+final class $$AnnotationsTableReferences
+    extends BaseReferences<_$AppDatabase, $AnnotationsTable, Annotation> {
   $$AnnotationsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $PagesTable _pageIdTable(_$AppDatabase db) =>
-      db.pages.createAlias($_aliasNameGenerator(db.annotations.pageId, db.pages.id));
+  static $PagesTable _pageIdTable(_$AppDatabase db) => db.pages.createAlias(
+    $_aliasNameGenerator(db.annotations.pageId, db.pages.id),
+  );
 
   $$PagesTableProcessedTableManager get pageId {
     final $_column = $_itemColumn<String>('page_id')!;
 
-    final manager = $$PagesTableTableManager($_db, $_db.pages).filter((f) => f.id.sqlEquals($_column));
+    final manager = $$PagesTableTableManager(
+      $_db,
+      $_db.pages,
+    ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_pageIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 
-  static MultiTypedResultKey<$AnnotationTargetsTable, List<AnnotationTarget>> _annotationTargetsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.annotationTargets,
-    aliasName: $_aliasNameGenerator(db.annotations.id, db.annotationTargets.annotationId),
-  );
+  static MultiTypedResultKey<$AnnotationTargetsTable, List<AnnotationTarget>>
+  _annotationTargetsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.annotationTargets,
+        aliasName: $_aliasNameGenerator(
+          db.annotations.id,
+          db.annotationTargets.annotationId,
+        ),
+      );
 
   $$AnnotationTargetsTableProcessedTableManager get annotationTargetsRefs {
     final manager = $$AnnotationTargetsTableTableManager(
@@ -2779,15 +3380,21 @@ final class $$AnnotationsTableReferences extends BaseReferences<_$AppDatabase, $
       $_db.annotationTargets,
     ).filter((f) => f.annotationId.id.sqlEquals($_itemColumn<String>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(_annotationTargetsRefsTable($_db));
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+    final cache = $_typedResult.readTableOrNull(
+      _annotationTargetsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 
-  static MultiTypedResultKey<$AnnotationBodiesTable, List<AnnotationBody>> _annotationBodiesRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
+  static MultiTypedResultKey<$AnnotationBodiesTable, List<AnnotationBody>>
+  _annotationBodiesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.annotationBodies,
-    aliasName: $_aliasNameGenerator(db.annotations.id, db.annotationBodies.annotationId),
+    aliasName: $_aliasNameGenerator(
+      db.annotations.id,
+      db.annotationBodies.annotationId,
+    ),
   );
 
   $$AnnotationBodiesTableProcessedTableManager get annotationBodiesRefs {
@@ -2796,12 +3403,17 @@ final class $$AnnotationsTableReferences extends BaseReferences<_$AppDatabase, $
       $_db.annotationBodies,
     ).filter((f) => f.annotationId.id.sqlEquals($_itemColumn<String>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(_annotationBodiesRefsTable($_db));
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+    final cache = $_typedResult.readTableOrNull(
+      _annotationBodiesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
-class $$AnnotationsTableFilterComposer extends Composer<_$AppDatabase, $AnnotationsTable> {
+class $$AnnotationsTableFilterComposer
+    extends Composer<_$AppDatabase, $AnnotationsTable> {
   $$AnnotationsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -2809,19 +3421,30 @@ class $$AnnotationsTableFilterComposer extends Composer<_$AppDatabase, $Annotati
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get motivation =>
-      $composableBuilder(column: $table.motivation, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get motivation => $composableBuilder(
+    column: $table.motivation,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get modifiedAt =>
-      $composableBuilder(column: $table.modifiedAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get modifiedAt => $composableBuilder(
+    column: $table.modifiedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get deletedAt =>
-      $composableBuilder(column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$PagesTableFilterComposer get pageId {
     final $$PagesTableFilterComposer composer = $composerBuilder(
@@ -2829,56 +3452,76 @@ class $$AnnotationsTableFilterComposer extends Composer<_$AppDatabase, $Annotati
       getCurrentColumn: (t) => t.pageId,
       referencedTable: $db.pages,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$PagesTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PagesTableFilterComposer(
             $db: $db,
             $table: $db.pages,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 
-  Expression<bool> annotationTargetsRefs(Expression<bool> Function($$AnnotationTargetsTableFilterComposer f) f) {
+  Expression<bool> annotationTargetsRefs(
+    Expression<bool> Function($$AnnotationTargetsTableFilterComposer f) f,
+  ) {
     final $$AnnotationTargetsTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.annotationTargets,
       getReferencedColumn: (t) => t.annotationId,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationTargetsTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationTargetsTableFilterComposer(
             $db: $db,
             $table: $db.annotationTargets,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return f(composer);
   }
 
-  Expression<bool> annotationBodiesRefs(Expression<bool> Function($$AnnotationBodiesTableFilterComposer f) f) {
+  Expression<bool> annotationBodiesRefs(
+    Expression<bool> Function($$AnnotationBodiesTableFilterComposer f) f,
+  ) {
     final $$AnnotationBodiesTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.annotationBodies,
       getReferencedColumn: (t) => t.annotationId,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationBodiesTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationBodiesTableFilterComposer(
             $db: $db,
             $table: $db.annotationBodies,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return f(composer);
   }
 }
 
-class $$AnnotationsTableOrderingComposer extends Composer<_$AppDatabase, $AnnotationsTable> {
+class $$AnnotationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AnnotationsTable> {
   $$AnnotationsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -2886,19 +3529,30 @@ class $$AnnotationsTableOrderingComposer extends Composer<_$AppDatabase, $Annota
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get motivation =>
-      $composableBuilder(column: $table.motivation, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get motivation => $composableBuilder(
+    column: $table.motivation,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get modifiedAt =>
-      $composableBuilder(column: $table.modifiedAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get modifiedAt => $composableBuilder(
+    column: $table.modifiedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get deletedAt =>
-      $composableBuilder(column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$PagesTableOrderingComposer get pageId {
     final $$PagesTableOrderingComposer composer = $composerBuilder(
@@ -2906,20 +3560,26 @@ class $$AnnotationsTableOrderingComposer extends Composer<_$AppDatabase, $Annota
       getCurrentColumn: (t) => t.pageId,
       referencedTable: $db.pages,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$PagesTableOrderingComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PagesTableOrderingComposer(
             $db: $db,
             $table: $db.pages,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 }
 
-class $$AnnotationsTableAnnotationComposer extends Composer<_$AppDatabase, $AnnotationsTable> {
+class $$AnnotationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AnnotationsTable> {
   $$AnnotationsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -2927,16 +3587,24 @@ class $$AnnotationsTableAnnotationComposer extends Composer<_$AppDatabase, $Anno
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get motivation => $composableBuilder(column: $table.motivation, builder: (column) => column);
+  GeneratedColumn<String> get motivation => $composableBuilder(
+    column: $table.motivation,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<DateTime> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get modifiedAt =>
-      $composableBuilder(column: $table.modifiedAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get modifiedAt => $composableBuilder(
+    column: $table.modifiedAt,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<DateTime> get deletedAt => $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   $$PagesTableAnnotationComposer get pageId {
     final $$PagesTableAnnotationComposer composer = $composerBuilder(
@@ -2944,13 +3612,18 @@ class $$AnnotationsTableAnnotationComposer extends Composer<_$AppDatabase, $Anno
       getCurrentColumn: (t) => t.pageId,
       referencedTable: $db.pages,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$PagesTableAnnotationComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PagesTableAnnotationComposer(
             $db: $db,
             $table: $db.pages,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
@@ -2959,20 +3632,26 @@ class $$AnnotationsTableAnnotationComposer extends Composer<_$AppDatabase, $Anno
   Expression<T> annotationTargetsRefs<T extends Object>(
     Expression<T> Function($$AnnotationTargetsTableAnnotationComposer a) f,
   ) {
-    final $$AnnotationTargetsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.annotationTargets,
-      getReferencedColumn: (t) => t.annotationId,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationTargetsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.annotationTargets,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
-          ),
-    );
+    final $$AnnotationTargetsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.annotationTargets,
+          getReferencedColumn: (t) => t.annotationId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$AnnotationTargetsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.annotationTargets,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 
@@ -2984,13 +3663,18 @@ class $$AnnotationsTableAnnotationComposer extends Composer<_$AppDatabase, $Anno
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.annotationBodies,
       getReferencedColumn: (t) => t.annotationId,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationBodiesTableAnnotationComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationBodiesTableAnnotationComposer(
             $db: $db,
             $table: $db.annotationBodies,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return f(composer);
@@ -3010,16 +3694,23 @@ class $$AnnotationsTableTableManager
           $$AnnotationsTableUpdateCompanionBuilder,
           (Annotation, $$AnnotationsTableReferences),
           Annotation,
-          PrefetchHooks Function({bool pageId, bool annotationTargetsRefs, bool annotationBodiesRefs})
+          PrefetchHooks Function({
+            bool pageId,
+            bool annotationTargetsRefs,
+            bool annotationBodiesRefs,
+          })
         > {
   $$AnnotationsTableTableManager(_$AppDatabase db, $AnnotationsTable table)
     : super(
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () => $$AnnotationsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () => $$AnnotationsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () => $$AnnotationsTableAnnotationComposer($db: db, $table: table),
+          createFilteringComposer: () =>
+              $$AnnotationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnnotationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnnotationsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
@@ -3056,68 +3747,108 @@ class $$AnnotationsTableTableManager
                 deletedAt: deletedAt,
                 rowid: rowid,
               ),
-          withReferenceMapper: (p0) =>
-              p0.map((e) => (e.readTable(table), $$AnnotationsTableReferences(db, table, e))).toList(),
-          prefetchHooksCallback: ({pageId = false, annotationTargetsRefs = false, annotationBodiesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (annotationTargetsRefs) db.annotationTargets,
-                if (annotationBodiesRefs) db.annotationBodies,
-              ],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (pageId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.pageId,
-                                referencedTable: $$AnnotationsTableReferences._pageIdTable(db),
-                                referencedColumn: $$AnnotationsTableReferences._pageIdTable(db).id,
-                              )
-                              as T;
-                    }
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AnnotationsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                pageId = false,
+                annotationTargetsRefs = false,
+                annotationBodiesRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (annotationTargetsRefs) db.annotationTargets,
+                    if (annotationBodiesRefs) db.annotationBodies,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (pageId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.pageId,
+                                    referencedTable:
+                                        $$AnnotationsTableReferences
+                                            ._pageIdTable(db),
+                                    referencedColumn:
+                                        $$AnnotationsTableReferences
+                                            ._pageIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (annotationTargetsRefs)
+                        await $_getPrefetchedData<
+                          Annotation,
+                          $AnnotationsTable,
+                          AnnotationTarget
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AnnotationsTableReferences
+                              ._annotationTargetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AnnotationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).annotationTargetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.annotationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (annotationBodiesRefs)
+                        await $_getPrefetchedData<
+                          Annotation,
+                          $AnnotationsTable,
+                          AnnotationBody
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AnnotationsTableReferences
+                              ._annotationBodiesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AnnotationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).annotationBodiesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.annotationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (annotationTargetsRefs)
-                    await $_getPrefetchedData<Annotation, $AnnotationsTable, AnnotationTarget>(
-                      currentTable: table,
-                      referencedTable: $$AnnotationsTableReferences._annotationTargetsRefsTable(db),
-                      managerFromTypedResult: (p0) => $$AnnotationsTableReferences(db, table, p0).annotationTargetsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.annotationId == item.id),
-                      typedResults: items,
-                    ),
-                  if (annotationBodiesRefs)
-                    await $_getPrefetchedData<Annotation, $AnnotationsTable, AnnotationBody>(
-                      currentTable: table,
-                      referencedTable: $$AnnotationsTableReferences._annotationBodiesRefsTable(db),
-                      managerFromTypedResult: (p0) => $$AnnotationsTableReferences(db, table, p0).annotationBodiesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.annotationId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3134,7 +3865,11 @@ typedef $$AnnotationsTableProcessedTableManager =
       $$AnnotationsTableUpdateCompanionBuilder,
       (Annotation, $$AnnotationsTableReferences),
       Annotation,
-      PrefetchHooks Function({bool pageId, bool annotationTargetsRefs, bool annotationBodiesRefs})
+      PrefetchHooks Function({
+        bool pageId,
+        bool annotationTargetsRefs,
+        bool annotationBodiesRefs,
+      })
     >;
 typedef $$AnnotationTargetsTableCreateCompanionBuilder =
     AnnotationTargetsCompanion Function({
@@ -3154,23 +3889,43 @@ typedef $$AnnotationTargetsTableUpdateCompanionBuilder =
     });
 
 final class $$AnnotationTargetsTableReferences
-    extends BaseReferences<_$AppDatabase, $AnnotationTargetsTable, AnnotationTarget> {
-  $$AnnotationTargetsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $AnnotationTargetsTable,
+          AnnotationTarget
+        > {
+  $$AnnotationTargetsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
   static $AnnotationsTable _annotationIdTable(_$AppDatabase db) =>
-      db.annotations.createAlias($_aliasNameGenerator(db.annotationTargets.annotationId, db.annotations.id));
+      db.annotations.createAlias(
+        $_aliasNameGenerator(
+          db.annotationTargets.annotationId,
+          db.annotations.id,
+        ),
+      );
 
   $$AnnotationsTableProcessedTableManager get annotationId {
     final $_column = $_itemColumn<String>('annotation_id')!;
 
-    final manager = $$AnnotationsTableTableManager($_db, $_db.annotations).filter((f) => f.id.sqlEquals($_column));
+    final manager = $$AnnotationsTableTableManager(
+      $_db,
+      $_db.annotations,
+    ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_annotationIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 }
 
-class $$AnnotationTargetsTableFilterComposer extends Composer<_$AppDatabase, $AnnotationTargetsTable> {
+class $$AnnotationTargetsTableFilterComposer
+    extends Composer<_$AppDatabase, $AnnotationTargetsTable> {
   $$AnnotationTargetsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -3178,13 +3933,20 @@ class $$AnnotationTargetsTableFilterComposer extends Composer<_$AppDatabase, $An
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get sourceUrl =>
-      $composableBuilder(column: $table.sourceUrl, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get sourceUrl => $composableBuilder(
+    column: $table.sourceUrl,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get selectorJson =>
-      $composableBuilder(column: $table.selectorJson, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get selectorJson => $composableBuilder(
+    column: $table.selectorJson,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$AnnotationsTableFilterComposer get annotationId {
     final $$AnnotationsTableFilterComposer composer = $composerBuilder(
@@ -3192,20 +3954,26 @@ class $$AnnotationTargetsTableFilterComposer extends Composer<_$AppDatabase, $An
       getCurrentColumn: (t) => t.annotationId,
       referencedTable: $db.annotations,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationsTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableFilterComposer(
             $db: $db,
             $table: $db.annotations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 }
 
-class $$AnnotationTargetsTableOrderingComposer extends Composer<_$AppDatabase, $AnnotationTargetsTable> {
+class $$AnnotationTargetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AnnotationTargetsTable> {
   $$AnnotationTargetsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -3213,13 +3981,20 @@ class $$AnnotationTargetsTableOrderingComposer extends Composer<_$AppDatabase, $
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get sourceUrl =>
-      $composableBuilder(column: $table.sourceUrl, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get sourceUrl => $composableBuilder(
+    column: $table.sourceUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get selectorJson =>
-      $composableBuilder(column: $table.selectorJson, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get selectorJson => $composableBuilder(
+    column: $table.selectorJson,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$AnnotationsTableOrderingComposer get annotationId {
     final $$AnnotationsTableOrderingComposer composer = $composerBuilder(
@@ -3227,20 +4002,26 @@ class $$AnnotationTargetsTableOrderingComposer extends Composer<_$AppDatabase, $
       getCurrentColumn: (t) => t.annotationId,
       referencedTable: $db.annotations,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationsTableOrderingComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableOrderingComposer(
             $db: $db,
             $table: $db.annotations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 }
 
-class $$AnnotationTargetsTableAnnotationComposer extends Composer<_$AppDatabase, $AnnotationTargetsTable> {
+class $$AnnotationTargetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AnnotationTargetsTable> {
   $$AnnotationTargetsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -3248,12 +4029,16 @@ class $$AnnotationTargetsTableAnnotationComposer extends Composer<_$AppDatabase,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get sourceUrl => $composableBuilder(column: $table.sourceUrl, builder: (column) => column);
+  GeneratedColumn<String> get sourceUrl =>
+      $composableBuilder(column: $table.sourceUrl, builder: (column) => column);
 
-  GeneratedColumn<String> get selectorJson =>
-      $composableBuilder(column: $table.selectorJson, builder: (column) => column);
+  GeneratedColumn<String> get selectorJson => $composableBuilder(
+    column: $table.selectorJson,
+    builder: (column) => column,
+  );
 
   $$AnnotationsTableAnnotationComposer get annotationId {
     final $$AnnotationsTableAnnotationComposer composer = $composerBuilder(
@@ -3261,13 +4046,18 @@ class $$AnnotationTargetsTableAnnotationComposer extends Composer<_$AppDatabase,
       getCurrentColumn: (t) => t.annotationId,
       referencedTable: $db.annotations,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationsTableAnnotationComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableAnnotationComposer(
             $db: $db,
             $table: $db.annotations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
@@ -3289,14 +4079,22 @@ class $$AnnotationTargetsTableTableManager
           AnnotationTarget,
           PrefetchHooks Function({bool annotationId})
         > {
-  $$AnnotationTargetsTableTableManager(_$AppDatabase db, $AnnotationTargetsTable table)
-    : super(
+  $$AnnotationTargetsTableTableManager(
+    _$AppDatabase db,
+    $AnnotationTargetsTable table,
+  ) : super(
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () => $$AnnotationTargetsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () => $$AnnotationTargetsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () => $$AnnotationTargetsTableAnnotationComposer($db: db, $table: table),
+          createFilteringComposer: () =>
+              $$AnnotationTargetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnnotationTargetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnnotationTargetsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
@@ -3325,8 +4123,14 @@ class $$AnnotationTargetsTableTableManager
                 selectorJson: selectorJson,
                 rowid: rowid,
               ),
-          withReferenceMapper: (p0) =>
-              p0.map((e) => (e.readTable(table), $$AnnotationTargetsTableReferences(db, table, e))).toList(),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AnnotationTargetsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
           prefetchHooksCallback: ({annotationId = false}) {
             return PrefetchHooks(
               db: db,
@@ -3352,8 +4156,13 @@ class $$AnnotationTargetsTableTableManager
                           state.withJoin(
                                 currentTable: table,
                                 currentColumn: table.annotationId,
-                                referencedTable: $$AnnotationTargetsTableReferences._annotationIdTable(db),
-                                referencedColumn: $$AnnotationTargetsTableReferences._annotationIdTable(db).id,
+                                referencedTable:
+                                    $$AnnotationTargetsTableReferences
+                                        ._annotationIdTable(db),
+                                referencedColumn:
+                                    $$AnnotationTargetsTableReferences
+                                        ._annotationIdTable(db)
+                                        .id,
                               )
                               as T;
                     }
@@ -3403,23 +4212,39 @@ typedef $$AnnotationBodiesTableUpdateCompanionBuilder =
     });
 
 final class $$AnnotationBodiesTableReferences
-    extends BaseReferences<_$AppDatabase, $AnnotationBodiesTable, AnnotationBody> {
-  $$AnnotationBodiesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+    extends
+        BaseReferences<_$AppDatabase, $AnnotationBodiesTable, AnnotationBody> {
+  $$AnnotationBodiesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
   static $AnnotationsTable _annotationIdTable(_$AppDatabase db) =>
-      db.annotations.createAlias($_aliasNameGenerator(db.annotationBodies.annotationId, db.annotations.id));
+      db.annotations.createAlias(
+        $_aliasNameGenerator(
+          db.annotationBodies.annotationId,
+          db.annotations.id,
+        ),
+      );
 
   $$AnnotationsTableProcessedTableManager get annotationId {
     final $_column = $_itemColumn<String>('annotation_id')!;
 
-    final manager = $$AnnotationsTableTableManager($_db, $_db.annotations).filter((f) => f.id.sqlEquals($_column));
+    final manager = $$AnnotationsTableTableManager(
+      $_db,
+      $_db.annotations,
+    ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_annotationIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 }
 
-class $$AnnotationBodiesTableFilterComposer extends Composer<_$AppDatabase, $AnnotationBodiesTable> {
+class $$AnnotationBodiesTableFilterComposer
+    extends Composer<_$AppDatabase, $AnnotationBodiesTable> {
   $$AnnotationBodiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -3427,15 +4252,25 @@ class $$AnnotationBodiesTableFilterComposer extends Composer<_$AppDatabase, $Ann
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get type => $composableBuilder(column: $table.type, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get format =>
-      $composableBuilder(column: $table.format, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get value =>
-      $composableBuilder(column: $table.value, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$AnnotationsTableFilterComposer get annotationId {
     final $$AnnotationsTableFilterComposer composer = $composerBuilder(
@@ -3443,20 +4278,26 @@ class $$AnnotationBodiesTableFilterComposer extends Composer<_$AppDatabase, $Ann
       getCurrentColumn: (t) => t.annotationId,
       referencedTable: $db.annotations,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationsTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableFilterComposer(
             $db: $db,
             $table: $db.annotations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 }
 
-class $$AnnotationBodiesTableOrderingComposer extends Composer<_$AppDatabase, $AnnotationBodiesTable> {
+class $$AnnotationBodiesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AnnotationBodiesTable> {
   $$AnnotationBodiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -3464,16 +4305,25 @@ class $$AnnotationBodiesTableOrderingComposer extends Composer<_$AppDatabase, $A
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get type =>
-      $composableBuilder(column: $table.type, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get format =>
-      $composableBuilder(column: $table.format, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get format => $composableBuilder(
+    column: $table.format,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get value =>
-      $composableBuilder(column: $table.value, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$AnnotationsTableOrderingComposer get annotationId {
     final $$AnnotationsTableOrderingComposer composer = $composerBuilder(
@@ -3481,20 +4331,26 @@ class $$AnnotationBodiesTableOrderingComposer extends Composer<_$AppDatabase, $A
       getCurrentColumn: (t) => t.annotationId,
       referencedTable: $db.annotations,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationsTableOrderingComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableOrderingComposer(
             $db: $db,
             $table: $db.annotations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 }
 
-class $$AnnotationBodiesTableAnnotationComposer extends Composer<_$AppDatabase, $AnnotationBodiesTable> {
+class $$AnnotationBodiesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AnnotationBodiesTable> {
   $$AnnotationBodiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -3502,13 +4358,17 @@ class $$AnnotationBodiesTableAnnotationComposer extends Composer<_$AppDatabase, 
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get type => $composableBuilder(column: $table.type, builder: (column) => column);
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
 
-  GeneratedColumn<String> get format => $composableBuilder(column: $table.format, builder: (column) => column);
+  GeneratedColumn<String> get format =>
+      $composableBuilder(column: $table.format, builder: (column) => column);
 
-  GeneratedColumn<String> get value => $composableBuilder(column: $table.value, builder: (column) => column);
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
 
   $$AnnotationsTableAnnotationComposer get annotationId {
     final $$AnnotationsTableAnnotationComposer composer = $composerBuilder(
@@ -3516,13 +4376,18 @@ class $$AnnotationBodiesTableAnnotationComposer extends Composer<_$AppDatabase, 
       getCurrentColumn: (t) => t.annotationId,
       referencedTable: $db.annotations,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$AnnotationsTableAnnotationComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableAnnotationComposer(
             $db: $db,
             $table: $db.annotations,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
@@ -3544,14 +4409,19 @@ class $$AnnotationBodiesTableTableManager
           AnnotationBody,
           PrefetchHooks Function({bool annotationId})
         > {
-  $$AnnotationBodiesTableTableManager(_$AppDatabase db, $AnnotationBodiesTable table)
-    : super(
+  $$AnnotationBodiesTableTableManager(
+    _$AppDatabase db,
+    $AnnotationBodiesTable table,
+  ) : super(
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () => $$AnnotationBodiesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () => $$AnnotationBodiesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () => $$AnnotationBodiesTableAnnotationComposer($db: db, $table: table),
+          createFilteringComposer: () =>
+              $$AnnotationBodiesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnnotationBodiesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnnotationBodiesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
@@ -3584,8 +4454,14 @@ class $$AnnotationBodiesTableTableManager
                 value: value,
                 rowid: rowid,
               ),
-          withReferenceMapper: (p0) =>
-              p0.map((e) => (e.readTable(table), $$AnnotationBodiesTableReferences(db, table, e))).toList(),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AnnotationBodiesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
           prefetchHooksCallback: ({annotationId = false}) {
             return PrefetchHooks(
               db: db,
@@ -3611,8 +4487,13 @@ class $$AnnotationBodiesTableTableManager
                           state.withJoin(
                                 currentTable: table,
                                 currentColumn: table.annotationId,
-                                referencedTable: $$AnnotationBodiesTableReferences._annotationIdTable(db),
-                                referencedColumn: $$AnnotationBodiesTableReferences._annotationIdTable(db).id,
+                                referencedTable:
+                                    $$AnnotationBodiesTableReferences
+                                        ._annotationIdTable(db),
+                                referencedColumn:
+                                    $$AnnotationBodiesTableReferences
+                                        ._annotationIdTable(db)
+                                        .id,
                               )
                               as T;
                     }
@@ -3647,6 +4528,7 @@ typedef $$BookmarkFoldersTableCreateCompanionBuilder =
       required String id,
       Value<String?> parentId,
       required String title,
+      Value<int> sortOrder,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -3656,17 +4538,28 @@ typedef $$BookmarkFoldersTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String?> parentId,
       Value<String> title,
+      Value<int> sortOrder,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
     });
 
 final class $$BookmarkFoldersTableReferences
-    extends BaseReferences<_$AppDatabase, $BookmarkFoldersTable, BookmarkFolder> {
-  $$BookmarkFoldersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+    extends
+        BaseReferences<_$AppDatabase, $BookmarkFoldersTable, BookmarkFolder> {
+  $$BookmarkFoldersTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
 
   static $BookmarkFoldersTable _parentIdTable(_$AppDatabase db) =>
-      db.bookmarkFolders.createAlias($_aliasNameGenerator(db.bookmarkFolders.parentId, db.bookmarkFolders.id));
+      db.bookmarkFolders.createAlias(
+        $_aliasNameGenerator(
+          db.bookmarkFolders.parentId,
+          db.bookmarkFolders.id,
+        ),
+      );
 
   $$BookmarkFoldersTableProcessedTableManager? get parentId {
     final $_column = $_itemColumn<String>('parent_id');
@@ -3677,14 +4570,19 @@ final class $$BookmarkFoldersTableReferences
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_parentIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 
-  static MultiTypedResultKey<$BookmarksTable, List<Bookmark>> _bookmarksRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.bookmarks,
-        aliasName: $_aliasNameGenerator(db.bookmarkFolders.id, db.bookmarks.folderId),
-      );
+  static MultiTypedResultKey<$BookmarksTable, List<Bookmark>>
+  _bookmarksRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.bookmarks,
+    aliasName: $_aliasNameGenerator(
+      db.bookmarkFolders.id,
+      db.bookmarks.folderId,
+    ),
+  );
 
   $$BookmarksTableProcessedTableManager get bookmarksRefs {
     final manager = $$BookmarksTableTableManager(
@@ -3693,11 +4591,14 @@ final class $$BookmarkFoldersTableReferences
     ).filter((f) => f.folderId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_bookmarksRefsTable($_db));
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
   }
 }
 
-class $$BookmarkFoldersTableFilterComposer extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
+class $$BookmarkFoldersTableFilterComposer
+    extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
   $$BookmarkFoldersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -3705,16 +4606,30 @@ class $$BookmarkFoldersTableFilterComposer extends Composer<_$AppDatabase, $Book
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$BookmarkFoldersTableFilterComposer get parentId {
     final $$BookmarkFoldersTableFilterComposer composer = $composerBuilder(
@@ -3722,38 +4637,51 @@ class $$BookmarkFoldersTableFilterComposer extends Composer<_$AppDatabase, $Book
       getCurrentColumn: (t) => t.parentId,
       referencedTable: $db.bookmarkFolders,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$BookmarkFoldersTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarkFoldersTableFilterComposer(
             $db: $db,
             $table: $db.bookmarkFolders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 
-  Expression<bool> bookmarksRefs(Expression<bool> Function($$BookmarksTableFilterComposer f) f) {
+  Expression<bool> bookmarksRefs(
+    Expression<bool> Function($$BookmarksTableFilterComposer f) f,
+  ) {
     final $$BookmarksTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.bookmarks,
       getReferencedColumn: (t) => t.folderId,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$BookmarksTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarksTableFilterComposer(
             $db: $db,
             $table: $db.bookmarks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return f(composer);
   }
 }
 
-class $$BookmarkFoldersTableOrderingComposer extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
+class $$BookmarkFoldersTableOrderingComposer
+    extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
   $$BookmarkFoldersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -3761,16 +4689,30 @@ class $$BookmarkFoldersTableOrderingComposer extends Composer<_$AppDatabase, $Bo
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$BookmarkFoldersTableOrderingComposer get parentId {
     final $$BookmarkFoldersTableOrderingComposer composer = $composerBuilder(
@@ -3778,20 +4720,26 @@ class $$BookmarkFoldersTableOrderingComposer extends Composer<_$AppDatabase, $Bo
       getCurrentColumn: (t) => t.parentId,
       referencedTable: $db.bookmarkFolders,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$BookmarkFoldersTableOrderingComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarkFoldersTableOrderingComposer(
             $db: $db,
             $table: $db.bookmarkFolders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 }
 
-class $$BookmarkFoldersTableAnnotationComposer extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
+class $$BookmarkFoldersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
   $$BookmarkFoldersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -3799,13 +4747,20 @@ class $$BookmarkFoldersTableAnnotationComposer extends Composer<_$AppDatabase, $
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get title => $composableBuilder(column: $table.title, builder: (column) => column);
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt => $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
   $$BookmarkFoldersTableAnnotationComposer get parentId {
     final $$BookmarkFoldersTableAnnotationComposer composer = $composerBuilder(
@@ -3813,31 +4768,43 @@ class $$BookmarkFoldersTableAnnotationComposer extends Composer<_$AppDatabase, $
       getCurrentColumn: (t) => t.parentId,
       referencedTable: $db.bookmarkFolders,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$BookmarkFoldersTableAnnotationComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarkFoldersTableAnnotationComposer(
             $db: $db,
             $table: $db.bookmarkFolders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 
-  Expression<T> bookmarksRefs<T extends Object>(Expression<T> Function($$BookmarksTableAnnotationComposer a) f) {
+  Expression<T> bookmarksRefs<T extends Object>(
+    Expression<T> Function($$BookmarksTableAnnotationComposer a) f,
+  ) {
     final $$BookmarksTableAnnotationComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
       referencedTable: $db.bookmarks,
       getReferencedColumn: (t) => t.folderId,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$BookmarksTableAnnotationComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarksTableAnnotationComposer(
             $db: $db,
             $table: $db.bookmarks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return f(composer);
@@ -3859,19 +4826,25 @@ class $$BookmarkFoldersTableTableManager
           BookmarkFolder,
           PrefetchHooks Function({bool parentId, bool bookmarksRefs})
         > {
-  $$BookmarkFoldersTableTableManager(_$AppDatabase db, $BookmarkFoldersTable table)
-    : super(
+  $$BookmarkFoldersTableTableManager(
+    _$AppDatabase db,
+    $BookmarkFoldersTable table,
+  ) : super(
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () => $$BookmarkFoldersTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () => $$BookmarkFoldersTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () => $$BookmarkFoldersTableAnnotationComposer($db: db, $table: table),
+          createFilteringComposer: () =>
+              $$BookmarkFoldersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BookmarkFoldersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BookmarkFoldersTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
                 Value<String?> parentId = const Value.absent(),
                 Value<String> title = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3879,6 +4852,7 @@ class $$BookmarkFoldersTableTableManager
                 id: id,
                 parentId: parentId,
                 title: title,
+                sortOrder: sortOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -3888,6 +4862,7 @@ class $$BookmarkFoldersTableTableManager
                 required String id,
                 Value<String?> parentId = const Value.absent(),
                 required String title,
+                Value<int> sortOrder = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -3895,12 +4870,19 @@ class $$BookmarkFoldersTableTableManager
                 id: id,
                 parentId: parentId,
                 title: title,
+                sortOrder: sortOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
-          withReferenceMapper: (p0) =>
-              p0.map((e) => (e.readTable(table), $$BookmarkFoldersTableReferences(db, table, e))).toList(),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$BookmarkFoldersTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
           prefetchHooksCallback: ({parentId = false, bookmarksRefs = false}) {
             return PrefetchHooks(
               db: db,
@@ -3926,8 +4908,13 @@ class $$BookmarkFoldersTableTableManager
                           state.withJoin(
                                 currentTable: table,
                                 currentColumn: table.parentId,
-                                referencedTable: $$BookmarkFoldersTableReferences._parentIdTable(db),
-                                referencedColumn: $$BookmarkFoldersTableReferences._parentIdTable(db).id,
+                                referencedTable:
+                                    $$BookmarkFoldersTableReferences
+                                        ._parentIdTable(db),
+                                referencedColumn:
+                                    $$BookmarkFoldersTableReferences
+                                        ._parentIdTable(db)
+                                        .id,
                               )
                               as T;
                     }
@@ -3937,10 +4924,20 @@ class $$BookmarkFoldersTableTableManager
               getPrefetchedDataCallback: (items) async {
                 return [
                   if (bookmarksRefs)
-                    await $_getPrefetchedData<BookmarkFolder, $BookmarkFoldersTable, Bookmark>(
+                    await $_getPrefetchedData<
+                      BookmarkFolder,
+                      $BookmarkFoldersTable,
+                      Bookmark
+                    >(
                       currentTable: table,
-                      referencedTable: $$BookmarkFoldersTableReferences._bookmarksRefsTable(db),
-                      managerFromTypedResult: (p0) => $$BookmarkFoldersTableReferences(db, table, p0).bookmarksRefs,
+                      referencedTable: $$BookmarkFoldersTableReferences
+                          ._bookmarksRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$BookmarkFoldersTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).bookmarksRefs,
                       referencedItemsForCurrentItem: (item, referencedItems) =>
                           referencedItems.where((e) => e.folderId == item.id),
                       typedResults: items,
@@ -3973,6 +4970,7 @@ typedef $$BookmarksTableCreateCompanionBuilder =
       Value<String?> folderId,
       required String url,
       Value<String?> title,
+      Value<int> sortOrder,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -3982,15 +4980,19 @@ typedef $$BookmarksTableUpdateCompanionBuilder =
       Value<String?> folderId,
       Value<String> url,
       Value<String?> title,
+      Value<int> sortOrder,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
 
-final class $$BookmarksTableReferences extends BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark> {
+final class $$BookmarksTableReferences
+    extends BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark> {
   $$BookmarksTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $BookmarkFoldersTable _folderIdTable(_$AppDatabase db) =>
-      db.bookmarkFolders.createAlias($_aliasNameGenerator(db.bookmarks.folderId, db.bookmarkFolders.id));
+      db.bookmarkFolders.createAlias(
+        $_aliasNameGenerator(db.bookmarks.folderId, db.bookmarkFolders.id),
+      );
 
   $$BookmarkFoldersTableProcessedTableManager? get folderId {
     final $_column = $_itemColumn<String>('folder_id');
@@ -4001,11 +5003,14 @@ final class $$BookmarksTableReferences extends BaseReferences<_$AppDatabase, $Bo
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_folderIdTable($_db));
     if (item == null) return manager;
-    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
   }
 }
 
-class $$BookmarksTableFilterComposer extends Composer<_$AppDatabase, $BookmarksTable> {
+class $$BookmarksTableFilterComposer
+    extends Composer<_$AppDatabase, $BookmarksTable> {
   $$BookmarksTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -4013,15 +5018,30 @@ class $$BookmarksTableFilterComposer extends Composer<_$AppDatabase, $BookmarksT
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get url => $composableBuilder(column: $table.url, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
 
   $$BookmarkFoldersTableFilterComposer get folderId {
     final $$BookmarkFoldersTableFilterComposer composer = $composerBuilder(
@@ -4029,20 +5049,26 @@ class $$BookmarksTableFilterComposer extends Composer<_$AppDatabase, $BookmarksT
       getCurrentColumn: (t) => t.folderId,
       referencedTable: $db.bookmarkFolders,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$BookmarkFoldersTableFilterComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarkFoldersTableFilterComposer(
             $db: $db,
             $table: $db.bookmarkFolders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 }
 
-class $$BookmarksTableOrderingComposer extends Composer<_$AppDatabase, $BookmarksTable> {
+class $$BookmarksTableOrderingComposer
+    extends Composer<_$AppDatabase, $BookmarksTable> {
   $$BookmarksTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -4050,16 +5076,30 @@ class $$BookmarksTableOrderingComposer extends Composer<_$AppDatabase, $Bookmark
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get url =>
-      $composableBuilder(column: $table.url, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 
   $$BookmarkFoldersTableOrderingComposer get folderId {
     final $$BookmarkFoldersTableOrderingComposer composer = $composerBuilder(
@@ -4067,20 +5107,26 @@ class $$BookmarksTableOrderingComposer extends Composer<_$AppDatabase, $Bookmark
       getCurrentColumn: (t) => t.folderId,
       referencedTable: $db.bookmarkFolders,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$BookmarkFoldersTableOrderingComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarkFoldersTableOrderingComposer(
             $db: $db,
             $table: $db.bookmarkFolders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
   }
 }
 
-class $$BookmarksTableAnnotationComposer extends Composer<_$AppDatabase, $BookmarksTable> {
+class $$BookmarksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BookmarksTable> {
   $$BookmarksTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -4088,13 +5134,20 @@ class $$BookmarksTableAnnotationComposer extends Composer<_$AppDatabase, $Bookma
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get url => $composableBuilder(column: $table.url, builder: (column) => column);
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
 
-  GeneratedColumn<String> get title => $composableBuilder(column: $table.title, builder: (column) => column);
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   $$BookmarkFoldersTableAnnotationComposer get folderId {
     final $$BookmarkFoldersTableAnnotationComposer composer = $composerBuilder(
@@ -4102,13 +5155,18 @@ class $$BookmarksTableAnnotationComposer extends Composer<_$AppDatabase, $Bookma
       getCurrentColumn: (t) => t.folderId,
       referencedTable: $db.bookmarkFolders,
       getReferencedColumn: (t) => t.id,
-      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
-          $$BookmarkFoldersTableAnnotationComposer(
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$BookmarkFoldersTableAnnotationComposer(
             $db: $db,
             $table: $db.bookmarkFolders,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
           ),
     );
     return composer;
@@ -4135,15 +5193,19 @@ class $$BookmarksTableTableManager
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () => $$BookmarksTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () => $$BookmarksTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () => $$BookmarksTableAnnotationComposer($db: db, $table: table),
+          createFilteringComposer: () =>
+              $$BookmarksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BookmarksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BookmarksTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
                 Value<String?> folderId = const Value.absent(),
                 Value<String> url = const Value.absent(),
                 Value<String?> title = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BookmarksCompanion(
@@ -4151,6 +5213,7 @@ class $$BookmarksTableTableManager
                 folderId: folderId,
                 url: url,
                 title: title,
+                sortOrder: sortOrder,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -4160,6 +5223,7 @@ class $$BookmarksTableTableManager
                 Value<String?> folderId = const Value.absent(),
                 required String url,
                 Value<String?> title = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => BookmarksCompanion.insert(
@@ -4167,11 +5231,18 @@ class $$BookmarksTableTableManager
                 folderId: folderId,
                 url: url,
                 title: title,
+                sortOrder: sortOrder,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
-          withReferenceMapper: (p0) =>
-              p0.map((e) => (e.readTable(table), $$BookmarksTableReferences(db, table, e))).toList(),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$BookmarksTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
           prefetchHooksCallback: ({folderId = false}) {
             return PrefetchHooks(
               db: db,
@@ -4197,8 +5268,11 @@ class $$BookmarksTableTableManager
                           state.withJoin(
                                 currentTable: table,
                                 currentColumn: table.folderId,
-                                referencedTable: $$BookmarksTableReferences._folderIdTable(db),
-                                referencedColumn: $$BookmarksTableReferences._folderIdTable(db).id,
+                                referencedTable: $$BookmarksTableReferences
+                                    ._folderIdTable(db),
+                                referencedColumn: $$BookmarksTableReferences
+                                    ._folderIdTable(db)
+                                    .id,
                               )
                               as T;
                     }
@@ -4247,7 +5321,8 @@ typedef $$BrowserHistoryEntriesTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-class $$BrowserHistoryEntriesTableFilterComposer extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
+class $$BrowserHistoryEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
   $$BrowserHistoryEntriesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -4255,21 +5330,34 @@ class $$BrowserHistoryEntriesTableFilterComposer extends Composer<_$AppDatabase,
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get url => $composableBuilder(column: $table.url, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get canonicalUrl =>
-      $composableBuilder(column: $table.canonicalUrl, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get canonicalUrl => $composableBuilder(
+    column: $table.canonicalUrl,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get visitedAt =>
-      $composableBuilder(column: $table.visitedAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get visitedAt => $composableBuilder(
+    column: $table.visitedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
-class $$BrowserHistoryEntriesTableOrderingComposer extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
+class $$BrowserHistoryEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
   $$BrowserHistoryEntriesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -4277,22 +5365,34 @@ class $$BrowserHistoryEntriesTableOrderingComposer extends Composer<_$AppDatabas
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get url =>
-      $composableBuilder(column: $table.url, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get canonicalUrl =>
-      $composableBuilder(column: $table.canonicalUrl, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get canonicalUrl => $composableBuilder(
+    column: $table.canonicalUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get title =>
-      $composableBuilder(column: $table.title, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get visitedAt =>
-      $composableBuilder(column: $table.visitedAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get visitedAt => $composableBuilder(
+    column: $table.visitedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
-class $$BrowserHistoryEntriesTableAnnotationComposer extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
+class $$BrowserHistoryEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BrowserHistoryEntriesTable> {
   $$BrowserHistoryEntriesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -4300,16 +5400,22 @@ class $$BrowserHistoryEntriesTableAnnotationComposer extends Composer<_$AppDatab
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get url => $composableBuilder(column: $table.url, builder: (column) => column);
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
 
-  GeneratedColumn<String> get canonicalUrl =>
-      $composableBuilder(column: $table.canonicalUrl, builder: (column) => column);
+  GeneratedColumn<String> get canonicalUrl => $composableBuilder(
+    column: $table.canonicalUrl,
+    builder: (column) => column,
+  );
 
-  GeneratedColumn<String> get title => $composableBuilder(column: $table.title, builder: (column) => column);
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get visitedAt => $composableBuilder(column: $table.visitedAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get visitedAt =>
+      $composableBuilder(column: $table.visitedAt, builder: (column) => column);
 }
 
 class $$BrowserHistoryEntriesTableTableManager
@@ -4323,18 +5429,39 @@ class $$BrowserHistoryEntriesTableTableManager
           $$BrowserHistoryEntriesTableAnnotationComposer,
           $$BrowserHistoryEntriesTableCreateCompanionBuilder,
           $$BrowserHistoryEntriesTableUpdateCompanionBuilder,
-          (BrowserHistoryEntry, BaseReferences<_$AppDatabase, $BrowserHistoryEntriesTable, BrowserHistoryEntry>),
+          (
+            BrowserHistoryEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $BrowserHistoryEntriesTable,
+              BrowserHistoryEntry
+            >,
+          ),
           BrowserHistoryEntry,
           PrefetchHooks Function()
         > {
-  $$BrowserHistoryEntriesTableTableManager(_$AppDatabase db, $BrowserHistoryEntriesTable table)
-    : super(
+  $$BrowserHistoryEntriesTableTableManager(
+    _$AppDatabase db,
+    $BrowserHistoryEntriesTable table,
+  ) : super(
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () => $$BrowserHistoryEntriesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () => $$BrowserHistoryEntriesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () => $$BrowserHistoryEntriesTableAnnotationComposer($db: db, $table: table),
+          createFilteringComposer: () =>
+              $$BrowserHistoryEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$BrowserHistoryEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$BrowserHistoryEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
@@ -4367,7 +5494,9 @@ class $$BrowserHistoryEntriesTableTableManager
                 visitedAt: visitedAt,
                 rowid: rowid,
               ),
-          withReferenceMapper: (p0) => p0.map((e) => (e.readTable(table), BaseReferences(db, table, e))).toList(),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
           prefetchHooksCallback: null,
         ),
       );
@@ -4383,7 +5512,14 @@ typedef $$BrowserHistoryEntriesTableProcessedTableManager =
       $$BrowserHistoryEntriesTableAnnotationComposer,
       $$BrowserHistoryEntriesTableCreateCompanionBuilder,
       $$BrowserHistoryEntriesTableUpdateCompanionBuilder,
-      (BrowserHistoryEntry, BaseReferences<_$AppDatabase, $BrowserHistoryEntriesTable, BrowserHistoryEntry>),
+      (
+        BrowserHistoryEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $BrowserHistoryEntriesTable,
+          BrowserHistoryEntry
+        >,
+      ),
       BrowserHistoryEntry,
       PrefetchHooks Function()
     >;
@@ -4402,7 +5538,8 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<int> rowid,
     });
 
-class $$AppSettingsTableFilterComposer extends Composer<_$AppDatabase, $AppSettingsTable> {
+class $$AppSettingsTableFilterComposer
+    extends Composer<_$AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -4410,16 +5547,24 @@ class $$AppSettingsTableFilterComposer extends Composer<_$AppDatabase, $AppSetti
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get key => $composableBuilder(column: $table.key, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<String> get value =>
-      $composableBuilder(column: $table.value, builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
 
-  ColumnFilters<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
-class $$AppSettingsTableOrderingComposer extends Composer<_$AppDatabase, $AppSettingsTable> {
+class $$AppSettingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -4427,17 +5572,24 @@ class $$AppSettingsTableOrderingComposer extends Composer<_$AppDatabase, $AppSet
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<String> get key =>
-      $composableBuilder(column: $table.key, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<String> get value =>
-      $composableBuilder(column: $table.value, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
 
-  ColumnOrderings<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
-class $$AppSettingsTableAnnotationComposer extends Composer<_$AppDatabase, $AppSettingsTable> {
+class $$AppSettingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -4445,11 +5597,14 @@ class $$AppSettingsTableAnnotationComposer extends Composer<_$AppDatabase, $AppS
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get key => $composableBuilder(column: $table.key, builder: (column) => column);
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
 
-  GeneratedColumn<String> get value => $composableBuilder(column: $table.value, builder: (column) => column);
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get updatedAt => $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
 class $$AppSettingsTableTableManager
@@ -4463,7 +5618,10 @@ class $$AppSettingsTableTableManager
           $$AppSettingsTableAnnotationComposer,
           $$AppSettingsTableCreateCompanionBuilder,
           $$AppSettingsTableUpdateCompanionBuilder,
-          (AppSetting, BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>),
+          (
+            AppSetting,
+            BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+          ),
           AppSetting,
           PrefetchHooks Function()
         > {
@@ -4472,24 +5630,39 @@ class $$AppSettingsTableTableManager
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () => $$AppSettingsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () => $$AppSettingsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () => $$AppSettingsTableAnnotationComposer($db: db, $table: table),
+          createFilteringComposer: () =>
+              $$AppSettingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppSettingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppSettingsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<String> key = const Value.absent(),
                 Value<String> value = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => AppSettingsCompanion(key: key, value: value, updatedAt: updatedAt, rowid: rowid),
+              }) => AppSettingsCompanion(
+                key: key,
+                value: value,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
           createCompanionCallback:
               ({
                 required String key,
                 required String value,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
-              }) => AppSettingsCompanion.insert(key: key, value: value, updatedAt: updatedAt, rowid: rowid),
-          withReferenceMapper: (p0) => p0.map((e) => (e.readTable(table), BaseReferences(db, table, e))).toList(),
+              }) => AppSettingsCompanion.insert(
+                key: key,
+                value: value,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
           prefetchHooksCallback: null,
         ),
       );
@@ -4505,7 +5678,10 @@ typedef $$AppSettingsTableProcessedTableManager =
       $$AppSettingsTableAnnotationComposer,
       $$AppSettingsTableCreateCompanionBuilder,
       $$AppSettingsTableUpdateCompanionBuilder,
-      (AppSetting, BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>),
+      (
+        AppSetting,
+        BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+      ),
       AppSetting,
       PrefetchHooks Function()
     >;
@@ -4513,16 +5689,20 @@ typedef $$AppSettingsTableProcessedTableManager =
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
-  $$PagesTableTableManager get pages => $$PagesTableTableManager(_db, _db.pages);
-  $$AnnotationsTableTableManager get annotations => $$AnnotationsTableTableManager(_db, _db.annotations);
+  $$PagesTableTableManager get pages =>
+      $$PagesTableTableManager(_db, _db.pages);
+  $$AnnotationsTableTableManager get annotations =>
+      $$AnnotationsTableTableManager(_db, _db.annotations);
   $$AnnotationTargetsTableTableManager get annotationTargets =>
       $$AnnotationTargetsTableTableManager(_db, _db.annotationTargets);
   $$AnnotationBodiesTableTableManager get annotationBodies =>
       $$AnnotationBodiesTableTableManager(_db, _db.annotationBodies);
   $$BookmarkFoldersTableTableManager get bookmarkFolders =>
       $$BookmarkFoldersTableTableManager(_db, _db.bookmarkFolders);
-  $$BookmarksTableTableManager get bookmarks => $$BookmarksTableTableManager(_db, _db.bookmarks);
+  $$BookmarksTableTableManager get bookmarks =>
+      $$BookmarksTableTableManager(_db, _db.bookmarks);
   $$BrowserHistoryEntriesTableTableManager get browserHistoryEntries =>
       $$BrowserHistoryEntriesTableTableManager(_db, _db.browserHistoryEntries);
-  $$AppSettingsTableTableManager get appSettings => $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$AppSettingsTableTableManager get appSettings =>
+      $$AppSettingsTableTableManager(_db, _db.appSettings);
 }

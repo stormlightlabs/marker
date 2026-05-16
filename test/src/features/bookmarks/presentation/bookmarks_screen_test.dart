@@ -46,7 +46,7 @@ void main() {
     expect(platform.controller.loadedUri, Uri.parse('https://example.com/article'));
   });
 
-  testWidgets('shows bookmark detail and edit route for folders', (tester) async {
+  testWidgets('opens folder child list and info detail from folder rows', (tester) async {
     await _seedBookmarkManager(database);
 
     await tester.pumpWidget(markerTestApp(database: database));
@@ -58,8 +58,58 @@ void main() {
     await tester.tap(find.text('Programming'));
     await pumpRouteTransition(tester);
 
+    expect(find.text('Child Bookmark'), findsOneWidget);
+
+    await tester.tap(find.byIcon(CupertinoIcons.info_circle));
+    await pumpRouteTransition(tester);
+
     expect(find.text('Bookmark'), findsOneWidget);
     expect(find.text('Programming'), findsOneWidget);
+  });
+
+  testWidgets('long pressing bookmarks opens detail', (tester) async {
+    await _seedBookmarkManager(database);
+
+    await tester.pumpWidget(markerTestApp(database: database));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Bookmarks'));
+    await pumpRouteTransition(tester);
+    await tester.longPress(find.text('Example Article'));
+    await pumpRouteTransition(tester);
+
+    expect(find.text('Bookmark'), findsOneWidget);
+    expect(find.text('https://example.com/article'), findsOneWidget);
+  });
+
+  testWidgets('edit mode selects and deletes bookmarks', (tester) async {
+    await _seedBookmarkManager(database);
+
+    await tester.pumpWidget(markerTestApp(database: database));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Bookmarks'));
+    await pumpRouteTransition(tester);
+    await tester.tap(find.text('Edit'));
+    await tester.pump();
+    await tester.tap(find.text('Example Article'));
+    await tester.pump();
+
+    expect(find.text('1 selected'), findsOneWidget);
+
+    await tester.tap(find.text('Delete'));
+    await tester.pump();
+    await tester.tap(find.text('Delete').last);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Example Article'), findsNothing);
+  });
+
+  testWidgets('shows bookmark edit screen', (tester) async {
+    await _seedBookmarkManager(database);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -88,6 +138,17 @@ Future<void> _seedBookmarkManager(AppDatabase database) async {
           id: 'bookmark',
           url: 'https://example.com/article',
           title: const Value('Example Article'),
+          createdAt: now,
+        ),
+      );
+  await database
+      .into(database.bookmarks)
+      .insert(
+        BookmarksCompanion.insert(
+          id: 'child-bookmark',
+          folderId: const Value('folder'),
+          url: 'https://example.com/child',
+          title: const Value('Child Bookmark'),
           createdAt: now,
         ),
       );

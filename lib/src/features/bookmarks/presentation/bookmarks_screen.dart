@@ -195,75 +195,85 @@ class BookmarksExportScreen extends ConsumerWidget {
   }
 }
 
-class _BookmarksContent extends ConsumerWidget {
+class _BookmarksContent extends ConsumerStatefulWidget {
   const _BookmarksContent({required this.folderId, required this.contents});
 
   final String? folderId;
   final BookmarkFolderContents contents;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BookmarksContent> createState() => _BookmarksContentState();
+}
+
+class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
+  final Set<String> _expandedFolderIds = <String>{};
+  final Set<String> _selectedKeys = <String>{};
+  bool _isEditing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final contents = widget.contents;
+    final folderId = widget.folderId;
     if (folderId != null && contents.folder == null) {
       return const _BookmarkEmpty(title: 'Folder Not Found');
     }
 
-    return CustomScrollView(
-      slivers: [
-        CupertinoSliverNavigationBar(
-          largeTitle: Text(contents.folder?.title ?? 'Bookmarks'),
-          backgroundColor: CupertinoColors.black,
-          border: null,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () => _createFolder(context, ref),
-                child: const Icon(CupertinoIcons.folder_badge_plus, size: 22),
-              ),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () => context.pushNamed(AppRoute.bookmarksExport.routeName),
-                child: const Icon(CupertinoIcons.square_arrow_up, size: 22),
-              ),
-            ],
-          ),
+    return Column(
+      children: [
+        _BookmarkHeader(
+          title: contents.folder?.title ?? 'Bookmarks',
+          canPop: folderId != null,
+          isEditing: _isEditing,
+          onBackPressed: () => context.pop(),
+          onCreateFolder: () => _createFolder(context, ref),
+          onExport: () => context.pushNamed(AppRoute.bookmarksExport.routeName),
+          onInfo: contents.folder == null
+              ? null
+              : () => context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': contents.folder!.id}),
+          onEdit: () => setState(() {
+            _isEditing = !_isEditing;
+            _selectedKeys.clear();
+          }),
         ),
-        if (contents.isEmpty)
-          const SliverFillRemaining(hasScrollBody: false, child: _BookmarkEmpty(title: 'No Bookmarks'))
-        else
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF151519),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
+        Expanded(
+          child: contents.isEmpty
+              ? const _BookmarkEmpty(title: 'No Bookmarks')
+              : ReorderableList(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+                  proxyDecorator: (child, index, animation) => DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E24),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 18)],
+                    ),
+                    child: child,
+                  ),
+                  itemCount: contents.items.length,
+                  onReorder: (oldIndex, newIndex) => _reorder(ref, oldIndex, newIndex),
+                  itemBuilder: (context, index) {
+                    final item = contents.items[index];
+                    return _BookmarkItemBlock(
+                      key: ValueKey(item.key),
+                      index: index,
+                      item: item,
+                      isEditing: _isEditing,
+                      isSelected: _selectedKeys.contains(item.key),
+                      isExpanded: item.type == BookmarkEntryType.folder && _expandedFolderIds.contains(item.id),
+                      onPressed: () => _pressItem(context, ref, item),
+                      onLongPress: () => _longPressItem(context, item),
+                      onInfoPressed: item.type == BookmarkEntryType.folder
+                          ? () => context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': item.id})
+                          : null,
+                      onDroppedOnFolder: (dragged) => _moveEntryToFolder(ref, dragged, item.id),
+                    );
+                  },
                 ),
-                child: Column(
-                  children: [
-                    for (final folder in contents.folders)
-                      _BookmarkRow(
-                        icon: CupertinoIcons.folder_fill,
-                        color: CupertinoColors.systemYellow,
-                        title: folder.title,
-                        subtitle: 'Folder',
-                        onPressed: () =>
-                            context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': folder.id}),
-                      ),
-                    for (final bookmark in contents.bookmarks)
-                      _BookmarkRow(
-                        icon: CupertinoIcons.bookmark_fill,
-                        color: CupertinoColors.activeBlue,
-                        title: bookmark.displayTitle,
-                        subtitle: bookmark.url.toString(),
-                        onPressed: () => _openBookmark(context, ref, bookmark.url),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+        ),
+        if (_isEditing)
+          _BookmarkEditBar(
+            selectedCount: _selectedKeys.length,
+            onMove: _selectedKeys.isEmpty ? null : () => _moveSelected(context, ref),
+            onDelete: _selectedKeys.isEmpty ? null : () => _deleteSelected(context, ref),
           ),
       ],
     );
@@ -293,13 +303,308 @@ class _BookmarksContent extends ConsumerWidget {
       return;
     }
 
-    await ref.read(bookmarkManagerRepositoryProvider).createFolder(title: title, parentId: folderId);
+    await ref.read(bookmarkManagerRepositoryProvider).createFolder(title: title, parentId: widget.folderId);
+    ref.invalidate(bookmarkFolderContentsProvider(widget.folderId));
+  }
+
+  Future<void> _reorder(WidgetRef ref, int oldIndex, int newIndex) async {
+    final items = widget.contents.items.toList();
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    final moved = items.removeAt(oldIndex);
+    items.insert(newIndex, moved);
+    await ref
+        .read(bookmarkManagerRepositoryProvider)
+        .reorderEntries(folderId: widget.folderId, entries: items.map((item) => item.ref).toList(growable: false));
+    ref.invalidate(bookmarkFolderContentsProvider(widget.folderId));
+  }
+
+  void _pressItem(BuildContext context, WidgetRef ref, BookmarkListItem item) {
+    if (_isEditing) {
+      setState(() {
+        if (!_selectedKeys.add(item.key)) {
+          _selectedKeys.remove(item.key);
+        }
+      });
+      return;
+    }
+    if (item.type == BookmarkEntryType.folder) {
+      context.pushNamed(AppRoute.bookmarksFolder.routeName, pathParameters: {'id': item.id});
+      return;
+    }
+    _openBookmark(context, ref, item.bookmark!.url);
+  }
+
+  void _longPressItem(BuildContext context, BookmarkListItem item) {
+    if (_isEditing) {
+      _pressItem(context, ref, item);
+      return;
+    }
+    if (item.type == BookmarkEntryType.folder) {
+      setState(() {
+        if (!_expandedFolderIds.add(item.id)) {
+          _expandedFolderIds.remove(item.id);
+        }
+      });
+      return;
+    }
+    context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': item.id});
+  }
+
+  Future<void> _moveEntryToFolder(WidgetRef ref, BookmarkEntryRef entry, String folderId) async {
+    if (entry.type == BookmarkEntryType.folder && entry.id == folderId) {
+      return;
+    }
+    await ref.read(bookmarkManagerRepositoryProvider).moveEntry(entry, folderId: folderId);
+    ref.invalidate(bookmarkFolderContentsProvider(widget.folderId));
     ref.invalidate(bookmarkFolderContentsProvider(folderId));
+  }
+
+  Future<void> _moveSelected(BuildContext context, WidgetRef ref) async {
+    final targetFolderId = await _chooseFolder(context, ref);
+    if (!mounted) {
+      return;
+    }
+    await ref.read(bookmarkManagerRepositoryProvider).moveEntries(_selectedRefs(), folderId: targetFolderId);
+    setState(() {
+      _selectedKeys.clear();
+      _isEditing = false;
+    });
+    ref.invalidate(bookmarkFolderContentsProvider(widget.folderId));
+    ref.invalidate(bookmarkFolderContentsProvider(targetFolderId));
+  }
+
+  Future<void> _deleteSelected(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Delete Selected'),
+        content: Text('Delete ${_selectedKeys.length} selected item(s)?'),
+        actions: [
+          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    await ref.read(bookmarkManagerRepositoryProvider).deleteEntries(_selectedRefs());
+    setState(() {
+      _selectedKeys.clear();
+      _isEditing = false;
+    });
+    ref.invalidate(bookmarkFolderContentsProvider(widget.folderId));
+  }
+
+  Future<String?> _chooseFolder(BuildContext context, WidgetRef ref) async {
+    final folders = await ref.read(bookmarkManagerRepositoryProvider).loadFolders();
+    if (!context.mounted) {
+      return null;
+    }
+    return showCupertinoModalPopup<String?>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('Move To'),
+        actions: [
+          CupertinoActionSheetAction(onPressed: () => Navigator.of(sheetContext).pop(), child: const Text('Bookmarks')),
+          for (final folder in folders)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop(folder.id),
+              child: Text(folder.title),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(widget.folderId),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  List<BookmarkEntryRef> _selectedRefs() {
+    return _selectedKeys.map(BookmarkEntryRef.fromKey).toList(growable: false);
   }
 
   void _openBookmark(BuildContext context, WidgetRef ref, Uri url) {
     ref.read(readerControllerProvider.notifier).openBookmark(url);
     context.goNamed(AppRoute.browser.routeName);
+  }
+}
+
+class _BookmarkHeader extends StatelessWidget {
+  const _BookmarkHeader({
+    required this.title,
+    required this.canPop,
+    required this.isEditing,
+    required this.onBackPressed,
+    required this.onCreateFolder,
+    required this.onExport,
+    required this.onEdit,
+    this.onInfo,
+  });
+
+  final String title;
+  final bool canPop;
+  final bool isEditing;
+  final VoidCallback onBackPressed;
+  final VoidCallback onCreateFolder;
+  final VoidCallback onExport;
+  final VoidCallback onEdit;
+  final VoidCallback? onInfo;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+    child: Row(
+      children: [
+        if (canPop)
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: onBackPressed,
+            child: const Icon(CupertinoIcons.chevron_back, size: 24),
+          ),
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: CupertinoColors.white,
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+        CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: onCreateFolder,
+          child: const Icon(CupertinoIcons.folder_badge_plus, size: 22),
+        ),
+        CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: onExport,
+          child: const Icon(CupertinoIcons.square_arrow_up, size: 22),
+        ),
+        if (onInfo != null)
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: onInfo,
+            child: const Icon(CupertinoIcons.info_circle, size: 22),
+          ),
+        CupertinoButton(padding: EdgeInsets.zero, onPressed: onEdit, child: Text(isEditing ? 'Done' : 'Edit')),
+      ],
+    ),
+  );
+}
+
+class _BookmarkItemBlock extends ConsumerWidget {
+  const _BookmarkItemBlock({
+    required super.key,
+    required this.index,
+    required this.item,
+    required this.isEditing,
+    required this.isSelected,
+    required this.isExpanded,
+    required this.onPressed,
+    required this.onLongPress,
+    required this.onDroppedOnFolder,
+    this.onInfoPressed,
+  });
+
+  final int index;
+  final BookmarkListItem item;
+  final bool isEditing;
+  final bool isSelected;
+  final bool isExpanded;
+  final VoidCallback onPressed;
+  final VoidCallback onLongPress;
+  final VoidCallback? onInfoPressed;
+  final ValueChanged<BookmarkEntryRef> onDroppedOnFolder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final row = _BookmarkRow(
+      item: item,
+      index: index,
+      isEditing: isEditing,
+      isSelected: isSelected,
+      isExpanded: isExpanded,
+      onPressed: onPressed,
+      onLongPress: onLongPress,
+      onInfoPressed: onInfoPressed,
+    );
+
+    return Column(
+      key: key,
+      children: [
+        if (item.type == BookmarkEntryType.folder)
+          DragTarget<BookmarkEntryRef>(
+            onWillAcceptWithDetails: (details) => details.data.key != item.key,
+            onAcceptWithDetails: (details) => onDroppedOnFolder(details.data),
+            builder: (context, candidateData, rejectedData) => DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: candidateData.isEmpty ? null : Border.all(color: CupertinoColors.activeBlue, width: 1.5),
+              ),
+              child: row,
+            ),
+          )
+        else
+          row,
+        if (item.type == BookmarkEntryType.folder && isExpanded) _ExpandedFolderContents(folderId: item.id, depth: 1),
+      ],
+    );
+  }
+}
+
+class _ExpandedFolderContents extends ConsumerWidget {
+  const _ExpandedFolderContents({required this.folderId, required this.depth});
+
+  final String folderId;
+  final int depth;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final contents = ref.watch(bookmarkFolderContentsProvider(folderId));
+    return contents.maybeWhen(
+      data: (data) => Column(
+        children: [
+          for (final item in data.items)
+            Padding(
+              padding: EdgeInsets.only(left: 18.0 * depth),
+              child: _BookmarkRow(
+                item: item,
+                index: 0,
+                isEditing: false,
+                isSelected: false,
+                isExpanded: false,
+                onPressed: () {
+                  if (item.type == BookmarkEntryType.folder) {
+                    context.pushNamed(AppRoute.bookmarksFolder.routeName, pathParameters: {'id': item.id});
+                  } else {
+                    ref.read(readerControllerProvider.notifier).openBookmark(item.bookmark!.url);
+                    context.goNamed(AppRoute.browser.routeName);
+                  }
+                },
+                onLongPress: () =>
+                    context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': item.id}),
+                onInfoPressed: item.type == BookmarkEntryType.folder
+                    ? () => context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': item.id})
+                    : null,
+                showDragControls: false,
+              ),
+            ),
+        ],
+      ),
+      orElse: () => const SizedBox.shrink(),
+    );
   }
 }
 
@@ -340,37 +645,55 @@ class _BookmarkDetail extends StatelessWidget {
 
 class _BookmarkRow extends StatelessWidget {
   const _BookmarkRow({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
+    required this.item,
+    required this.index,
+    required this.isEditing,
+    required this.isSelected,
+    required this.isExpanded,
     required this.onPressed,
+    required this.onLongPress,
+    this.onInfoPressed,
+    this.showDragControls = true,
   });
 
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
+  final BookmarkListItem item;
+  final int index;
+  final bool isEditing;
+  final bool isSelected;
+  final bool isExpanded;
   final VoidCallback onPressed;
+  final VoidCallback onLongPress;
+  final VoidCallback? onInfoPressed;
+  final bool showDragControls;
 
   @override
   Widget build(BuildContext context) => CupertinoButton(
     padding: EdgeInsets.zero,
     onPressed: onPressed,
+    onLongPress: onLongPress,
     child: Container(
       constraints: const BoxConstraints(minHeight: 64),
       padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF26262C), width: 0.5)),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFF1D2A3A) : const Color(0xFF151519),
+        border: const Border(bottom: BorderSide(color: Color(0xFF26262C), width: 0.5)),
       ),
       child: Row(
         children: [
+          if (isEditing) ...[
+            Icon(
+              isSelected ? CupertinoIcons.check_mark_circled_solid : CupertinoIcons.circle,
+              color: isSelected ? CupertinoColors.activeBlue : CupertinoColors.systemGrey,
+              size: 22,
+            ),
+            const SizedBox(width: 10),
+          ],
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: _rowColor.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8)),
             alignment: Alignment.center,
-            child: Icon(icon, color: color, size: 19),
+            child: Icon(_rowIcon, color: _rowColor, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -379,7 +702,7 @@ class _BookmarkRow extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  title,
+                  item.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -391,7 +714,7 @@ class _BookmarkRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  subtitle,
+                  item.type == BookmarkEntryType.folder && isExpanded ? 'Expanded folder' : item.subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
@@ -400,8 +723,97 @@ class _BookmarkRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey2, size: 17),
+          if (onInfoPressed != null)
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size.square(34),
+              onPressed: onInfoPressed,
+              child: const Icon(CupertinoIcons.info_circle, color: CupertinoColors.systemGrey2, size: 21),
+            ),
+          if (showDragControls) ...[
+            LongPressDraggable<BookmarkEntryRef>(
+              data: item.ref,
+              feedback: _DragFeedback(title: item.title),
+              childWhenDragging: const Icon(CupertinoIcons.arrow_right_arrow_left, color: CupertinoColors.systemGrey3),
+              child: const Icon(CupertinoIcons.arrow_right_arrow_left, color: CupertinoColors.systemGrey2, size: 20),
+            ),
+            ReorderableDragStartListener(
+              index: index,
+              child: const Padding(
+                padding: EdgeInsets.only(left: 10),
+                child: Icon(CupertinoIcons.line_horizontal_3, color: CupertinoColors.systemGrey2, size: 20),
+              ),
+            ),
+          ] else
+            const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey2, size: 17),
         ],
+      ),
+    ),
+  );
+
+  IconData get _rowIcon =>
+      item.type == BookmarkEntryType.folder ? CupertinoIcons.folder_fill : CupertinoIcons.bookmark_fill;
+
+  Color get _rowColor =>
+      item.type == BookmarkEntryType.folder ? CupertinoColors.systemYellow : CupertinoColors.activeBlue;
+}
+
+class _DragFeedback extends StatelessWidget {
+  const _DragFeedback({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(color: const Color(0xFF1E1E24), borderRadius: BorderRadius.circular(8)),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      child: Text(
+        title,
+        style: const TextStyle(color: CupertinoColors.white, fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    ),
+  );
+}
+
+class _BookmarkEditBar extends StatelessWidget {
+  const _BookmarkEditBar({required this.selectedCount, required this.onMove, required this.onDelete});
+
+  final int selectedCount;
+  final VoidCallback? onMove;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      color: Color(0xFF111114),
+      border: Border(top: BorderSide(color: Color(0xFF2A2A30), width: 0.5)),
+    ),
+    child: SafeArea(
+      top: false,
+      child: SizedBox(
+        height: 54,
+        child: Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: Text(
+                  '$selectedCount selected',
+                  style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 14, letterSpacing: 0),
+                ),
+              ),
+            ),
+            CupertinoButton(onPressed: onMove, child: const Text('Move')),
+            CupertinoButton(
+              onPressed: onDelete,
+              child: Text(
+                'Delete',
+                style: TextStyle(color: onDelete == null ? CupertinoColors.systemGrey : CupertinoColors.systemRed),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );

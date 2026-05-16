@@ -52,6 +52,7 @@ class Bookmarks extends Table {
   TextColumn get folderId => text().nullable().references(BookmarkFolders, #id)();
   TextColumn get url => text().unique()();
   TextColumn get title => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
 
   @override
@@ -62,6 +63,7 @@ class BookmarkFolders extends Table {
   TextColumn get id => text()();
   TextColumn get parentId => text().nullable().references(BookmarkFolders, #id)();
   TextColumn get title => text()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -105,7 +107,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -123,6 +125,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 5) {
         await m.createTable(bookmarkFolders);
         await m.addColumn(bookmarks, bookmarks.folderId);
+      }
+      if (from < 6) {
+        await m.addColumn(bookmarks, bookmarks.sortOrder);
+        await m.addColumn(bookmarkFolders, bookmarkFolders.sortOrder);
       }
     },
     beforeOpen: (details) async {
