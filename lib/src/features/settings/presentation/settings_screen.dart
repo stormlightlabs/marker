@@ -47,6 +47,15 @@ class SettingsScreen extends ConsumerWidget {
                             subtitle: 'Recent page visits and clear history',
                             onPressed: () => context.pushNamed(AppRoute.history.routeName),
                           ),
+                          const SizedBox(height: 22),
+                          const _SettingsSectionLabel('Advanced'),
+                          const SizedBox(height: 8),
+                          _SettingsLinkRow(
+                            icon: CupertinoIcons.doc_text_search,
+                            title: 'Logs',
+                            subtitle: 'View, filter, and download diagnostic logs',
+                            onPressed: () => context.pushNamed(AppRoute.logs.routeName),
+                          ),
                         ],
                       ),
                     ),
@@ -60,6 +69,26 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _SettingsSectionLabel extends StatelessWidget {
+  const _SettingsSectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: CupertinoColors.systemGrey,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+      ),
+    ),
+  );
 }
 
 class _SettingsLinkRow extends StatelessWidget {
