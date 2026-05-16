@@ -74,6 +74,7 @@ class InAppBrowserWebViewController implements BrowserWebViewController {
 
   inapp.InAppWebViewSettings get settings => inapp.InAppWebViewSettings(
     javaScriptEnabled: true,
+    disableInputAccessoryView: true,
     useShouldOverrideUrlLoading: true,
     useShouldInterceptRequest: true,
     contentBlockers: _contentBlockersFor(_adBlockRules),
@@ -251,6 +252,9 @@ List<inapp.ContentBlocker> _contentBlockersFor(CompiledAdBlockRules? rules) {
   }
   final blockers = <inapp.ContentBlocker>[];
   for (final rule in rules.networkRules) {
+    if (!_isWebKitContentBlockerRuleSupported(rule)) {
+      continue;
+    }
     blockers.add(
       inapp.ContentBlocker(
         trigger: inapp.ContentBlockerTrigger(
@@ -271,24 +275,116 @@ List<inapp.ContentBlocker> _contentBlockersFor(CompiledAdBlockRules? rules) {
   return blockers;
 }
 
-inapp.ContentBlockerTriggerResourceType _contentBlockerResourceType(AdBlockResourceType type) {
-  return switch (type) {
-    AdBlockResourceType.document => inapp.ContentBlockerTriggerResourceType.DOCUMENT,
-    AdBlockResourceType.font => inapp.ContentBlockerTriggerResourceType.FONT,
-    AdBlockResourceType.image => inapp.ContentBlockerTriggerResourceType.IMAGE,
-    AdBlockResourceType.media => inapp.ContentBlockerTriggerResourceType.MEDIA,
-    AdBlockResourceType.raw => inapp.ContentBlockerTriggerResourceType.RAW,
-    AdBlockResourceType.script => inapp.ContentBlockerTriggerResourceType.SCRIPT,
-    AdBlockResourceType.styleSheet => inapp.ContentBlockerTriggerResourceType.STYLE_SHEET,
-  };
+bool _isWebKitContentBlockerRuleSupported(AdBlockNetworkRule rule) {
+  return _isWebKitContentBlockerPatternSupported(rule.urlFilter) &&
+      rule.ifTopUrl.every(_isWebKitContentBlockerPatternSupported) &&
+      rule.unlessTopUrl.every(_isWebKitContentBlockerPatternSupported);
 }
 
-inapp.ContentBlockerTriggerLoadType _contentBlockerLoadType(AdBlockLoadType type) {
-  return switch (type) {
-    AdBlockLoadType.firstParty => inapp.ContentBlockerTriggerLoadType.FIRST_PARTY,
-    AdBlockLoadType.thirdParty => inapp.ContentBlockerTriggerLoadType.THIRD_PARTY,
-  };
+bool _isWebKitContentBlockerPatternSupported(String pattern) {
+  if (pattern.codeUnits.any((codeUnit) => codeUnit > 0x7F)) {
+    return false;
+  }
+
+  var escaped = false;
+  var inCharacterClass = false;
+  var characterClassStart = -1;
+  for (var index = 0; index < pattern.length; index += 1) {
+    final char = pattern[index];
+    if (escaped) {
+      if (_isUnsupportedRegexEscape(char)) {
+        return false;
+      }
+      escaped = false;
+      continue;
+    }
+    if (char == r'\') {
+      escaped = true;
+      continue;
+    }
+    if (char == '|') {
+      return false;
+    }
+    if (!inCharacterClass && (char == '{' || char == '}')) {
+      return false;
+    }
+    if (char == '[') {
+      if (inCharacterClass) {
+        return false;
+      }
+      inCharacterClass = true;
+      characterClassStart = index;
+      continue;
+    }
+    if (char == ']') {
+      if (!inCharacterClass || !_isSupportedCharacterClass(pattern.substring(characterClassStart + 1, index))) {
+        return false;
+      }
+      inCharacterClass = false;
+      continue;
+    }
+    if (!inCharacterClass && char == '?' && _isUnsupportedQuestionMarkUse(pattern, index)) {
+      return false;
+    }
+    if (!inCharacterClass && char == '^' && index != 0) {
+      return false;
+    }
+    if (!inCharacterClass && char == r'$' && index != pattern.length - 1) {
+      return false;
+    }
+  }
+  return !escaped && !inCharacterClass;
 }
+
+bool _isUnsupportedRegexEscape(String char) {
+  return _isAsciiAlphaNumeric(char);
+}
+
+bool _isSupportedCharacterClass(String content) {
+  if (content.isEmpty || content.startsWith('^') || content.contains('|')) {
+    return false;
+  }
+  var escaped = false;
+  for (final codeUnit in content.codeUnits) {
+    final char = String.fromCharCode(codeUnit);
+    if (escaped) {
+      if (_isUnsupportedRegexEscape(char)) {
+        return false;
+      }
+      escaped = false;
+      continue;
+    }
+    if (char == r'\') {
+      escaped = true;
+      continue;
+    }
+  }
+  return !escaped;
+}
+
+bool _isUnsupportedQuestionMarkUse(String pattern, int index) => index > 0 && pattern[index - 1] == '(';
+
+bool _isAsciiAlphaNumeric(String char) {
+  final codeUnit = char.codeUnitAt(0);
+  return (codeUnit >= 0x30 && codeUnit <= 0x39) ||
+      (codeUnit >= 0x41 && codeUnit <= 0x5A) ||
+      (codeUnit >= 0x61 && codeUnit <= 0x7A);
+}
+
+inapp.ContentBlockerTriggerResourceType _contentBlockerResourceType(AdBlockResourceType type) => switch (type) {
+  AdBlockResourceType.document => inapp.ContentBlockerTriggerResourceType.DOCUMENT,
+  AdBlockResourceType.font => inapp.ContentBlockerTriggerResourceType.FONT,
+  AdBlockResourceType.image => inapp.ContentBlockerTriggerResourceType.IMAGE,
+  AdBlockResourceType.media => inapp.ContentBlockerTriggerResourceType.MEDIA,
+  AdBlockResourceType.raw => inapp.ContentBlockerTriggerResourceType.RAW,
+  AdBlockResourceType.script => inapp.ContentBlockerTriggerResourceType.SCRIPT,
+  AdBlockResourceType.styleSheet => inapp.ContentBlockerTriggerResourceType.STYLE_SHEET,
+};
+
+inapp.ContentBlockerTriggerLoadType _contentBlockerLoadType(AdBlockLoadType type) => switch (type) {
+  AdBlockLoadType.firstParty => inapp.ContentBlockerTriggerLoadType.FIRST_PARTY,
+  AdBlockLoadType.thirdParty => inapp.ContentBlockerTriggerLoadType.THIRD_PARTY,
+};
 
 AdBlockResourceType? _resourceTypeForRequest(inapp.WebResourceRequest request) {
   final path = request.url.path.toLowerCase();

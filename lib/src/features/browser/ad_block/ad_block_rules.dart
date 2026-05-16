@@ -246,7 +246,7 @@ class EasyListParser {
       isException = true;
       ruleText = ruleText.substring(2);
     }
-    final optionIndex = ruleText.lastIndexOf(r'$');
+    final optionIndex = _networkOptionIndex(ruleText);
     final options = <String>[];
     if (optionIndex > 0) {
       options.addAll(ruleText.substring(optionIndex + 1).split(',').map((option) => option.trim()));
@@ -317,6 +317,36 @@ class EasyListParser {
       important: important,
     );
   }
+}
+
+int _networkOptionIndex(String ruleText) {
+  if (!ruleText.startsWith('/')) {
+    return ruleText.lastIndexOf(r'$');
+  }
+  final regexEnd = _regexLiteralEndIndex(ruleText);
+  if (regexEnd == -1 || regexEnd == ruleText.length - 1) {
+    return -1;
+  }
+  return ruleText[regexEnd + 1] == r'$' ? regexEnd + 1 : -1;
+}
+
+int _regexLiteralEndIndex(String ruleText) {
+  var escaped = false;
+  for (var index = 1; index < ruleText.length; index += 1) {
+    final char = ruleText[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char == r'\') {
+      escaped = true;
+      continue;
+    }
+    if (char == '/') {
+      return index;
+    }
+  }
+  return -1;
 }
 
 bool _ruleMatches(

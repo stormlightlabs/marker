@@ -94,6 +94,22 @@ void main() {
       );
     });
 
+    test('keeps dollar anchors inside raw regex filters', () {
+      final rules = EasyListParser().parse(r'/foo$bar/');
+
+      expect(rules.networkRules, hasLength(1));
+      expect(rules.networkRules.single.urlFilter, r'foo$bar');
+      expect(rules.networkRules.single.resourceTypes, isEmpty);
+    });
+
+    test('parses options after raw regex filters', () {
+      final rules = EasyListParser().parse(r'/banner-[0-9]+\.js/$script');
+
+      expect(rules.networkRules, hasLength(1));
+      expect(rules.networkRules.single.urlFilter, r'banner-[0-9]+\.js');
+      expect(rules.networkRules.single.resourceTypes, {AdBlockResourceType.script});
+    });
+
     test('parses cosmetic rules and exceptions by page host', () {
       final rules = EasyListParser().parse('''
 ##.generic-ad
