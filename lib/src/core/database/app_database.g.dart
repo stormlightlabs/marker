@@ -1299,6 +1299,320 @@ class AnnotationBodiesCompanion extends UpdateCompanion<AnnotationBody> {
   }
 }
 
+class $BookmarkFoldersTable extends BookmarkFolders with TableInfo<$BookmarkFoldersTable, BookmarkFolder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BookmarkFoldersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _parentIdMeta = const VerificationMeta('parentId');
+  @override
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+    'parent_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES bookmark_folders (id)'),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, parentId, title, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'bookmark_folders';
+  @override
+  VerificationContext validateIntegrity(Insertable<BookmarkFolder> instance, {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('parent_id')) {
+      context.handle(_parentIdMeta, parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(_titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta, createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta, updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BookmarkFolder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BookmarkFolder(
+      id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      parentId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}parent_id']),
+      title: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $BookmarkFoldersTable createAlias(String alias) {
+    return $BookmarkFoldersTable(attachedDatabase, alias);
+  }
+}
+
+class BookmarkFolder extends DataClass implements Insertable<BookmarkFolder> {
+  final String id;
+  final String? parentId;
+  final String title;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const BookmarkFolder({
+    required this.id,
+    this.parentId,
+    required this.title,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
+    }
+    map['title'] = Variable<String>(title);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  BookmarkFoldersCompanion toCompanion(bool nullToAbsent) {
+    return BookmarkFoldersCompanion(
+      id: Value(id),
+      parentId: parentId == null && nullToAbsent ? const Value.absent() : Value(parentId),
+      title: Value(title),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory BookmarkFolder.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BookmarkFolder(
+      id: serializer.fromJson<String>(json['id']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
+      title: serializer.fromJson<String>(json['title']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'parentId': serializer.toJson<String?>(parentId),
+      'title': serializer.toJson<String>(title),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  BookmarkFolder copyWith({
+    String? id,
+    Value<String?> parentId = const Value.absent(),
+    String? title,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => BookmarkFolder(
+    id: id ?? this.id,
+    parentId: parentId.present ? parentId.value : this.parentId,
+    title: title ?? this.title,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  BookmarkFolder copyWithCompanion(BookmarkFoldersCompanion data) {
+    return BookmarkFolder(
+      id: data.id.present ? data.id.value : this.id,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
+      title: data.title.present ? data.title.value : this.title,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BookmarkFolder(')
+          ..write('id: $id, ')
+          ..write('parentId: $parentId, ')
+          ..write('title: $title, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, parentId, title, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BookmarkFolder &&
+          other.id == this.id &&
+          other.parentId == this.parentId &&
+          other.title == this.title &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class BookmarkFoldersCompanion extends UpdateCompanion<BookmarkFolder> {
+  final Value<String> id;
+  final Value<String?> parentId;
+  final Value<String> title;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const BookmarkFoldersCompanion({
+    this.id = const Value.absent(),
+    this.parentId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BookmarkFoldersCompanion.insert({
+    required String id,
+    this.parentId = const Value.absent(),
+    required String title,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<BookmarkFolder> custom({
+    Expression<String>? id,
+    Expression<String>? parentId,
+    Expression<String>? title,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (parentId != null) 'parent_id': parentId,
+      if (title != null) 'title': title,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BookmarkFoldersCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? parentId,
+    Value<String>? title,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return BookmarkFoldersCompanion(
+      id: id ?? this.id,
+      parentId: parentId ?? this.parentId,
+      title: title ?? this.title,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BookmarkFoldersCompanion(')
+          ..write('id: $id, ')
+          ..write('parentId: $parentId, ')
+          ..write('title: $title, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -1312,6 +1626,16 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _folderIdMeta = const VerificationMeta('folderId');
+  @override
+  late final GeneratedColumn<String> folderId = GeneratedColumn<String>(
+    'folder_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('REFERENCES bookmark_folders (id)'),
   );
   static const VerificationMeta _urlMeta = const VerificationMeta('url');
   @override
@@ -1342,7 +1666,7 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
     requiredDuringInsert: true,
   );
   @override
-  List<GeneratedColumn> get $columns => [id, url, title, createdAt];
+  List<GeneratedColumn> get $columns => [id, folderId, url, title, createdAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1356,6 +1680,9 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('folder_id')) {
+      context.handle(_folderIdMeta, folderId.isAcceptableOrUnknown(data['folder_id']!, _folderIdMeta));
     }
     if (data.containsKey('url')) {
       context.handle(_urlMeta, url.isAcceptableOrUnknown(data['url']!, _urlMeta));
@@ -1380,6 +1707,7 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Bookmark(
       id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      folderId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}folder_id']),
       url: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}url'])!,
       title: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}title']),
       createdAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
@@ -1394,14 +1722,18 @@ class $BookmarksTable extends Bookmarks with TableInfo<$BookmarksTable, Bookmark
 
 class Bookmark extends DataClass implements Insertable<Bookmark> {
   final String id;
+  final String? folderId;
   final String url;
   final String? title;
   final DateTime createdAt;
-  const Bookmark({required this.id, required this.url, this.title, required this.createdAt});
+  const Bookmark({required this.id, this.folderId, required this.url, this.title, required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    if (!nullToAbsent || folderId != null) {
+      map['folder_id'] = Variable<String>(folderId);
+    }
     map['url'] = Variable<String>(url);
     if (!nullToAbsent || title != null) {
       map['title'] = Variable<String>(title);
@@ -1413,6 +1745,7 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
   BookmarksCompanion toCompanion(bool nullToAbsent) {
     return BookmarksCompanion(
       id: Value(id),
+      folderId: folderId == null && nullToAbsent ? const Value.absent() : Value(folderId),
       url: Value(url),
       title: title == null && nullToAbsent ? const Value.absent() : Value(title),
       createdAt: Value(createdAt),
@@ -1423,6 +1756,7 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Bookmark(
       id: serializer.fromJson<String>(json['id']),
+      folderId: serializer.fromJson<String?>(json['folderId']),
       url: serializer.fromJson<String>(json['url']),
       title: serializer.fromJson<String?>(json['title']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1433,22 +1767,30 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'folderId': serializer.toJson<String?>(folderId),
       'url': serializer.toJson<String>(url),
       'title': serializer.toJson<String?>(title),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
 
-  Bookmark copyWith({String? id, String? url, Value<String?> title = const Value.absent(), DateTime? createdAt}) =>
-      Bookmark(
-        id: id ?? this.id,
-        url: url ?? this.url,
-        title: title.present ? title.value : this.title,
-        createdAt: createdAt ?? this.createdAt,
-      );
+  Bookmark copyWith({
+    String? id,
+    Value<String?> folderId = const Value.absent(),
+    String? url,
+    Value<String?> title = const Value.absent(),
+    DateTime? createdAt,
+  }) => Bookmark(
+    id: id ?? this.id,
+    folderId: folderId.present ? folderId.value : this.folderId,
+    url: url ?? this.url,
+    title: title.present ? title.value : this.title,
+    createdAt: createdAt ?? this.createdAt,
+  );
   Bookmark copyWithCompanion(BookmarksCompanion data) {
     return Bookmark(
       id: data.id.present ? data.id.value : this.id,
+      folderId: data.folderId.present ? data.folderId.value : this.folderId,
       url: data.url.present ? data.url.value : this.url,
       title: data.title.present ? data.title.value : this.title,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1459,6 +1801,7 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
   String toString() {
     return (StringBuffer('Bookmark(')
           ..write('id: $id, ')
+          ..write('folderId: $folderId, ')
           ..write('url: $url, ')
           ..write('title: $title, ')
           ..write('createdAt: $createdAt')
@@ -1467,12 +1810,13 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
   }
 
   @override
-  int get hashCode => Object.hash(id, url, title, createdAt);
+  int get hashCode => Object.hash(id, folderId, url, title, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Bookmark &&
           other.id == this.id &&
+          other.folderId == this.folderId &&
           other.url == this.url &&
           other.title == this.title &&
           other.createdAt == this.createdAt);
@@ -1480,12 +1824,14 @@ class Bookmark extends DataClass implements Insertable<Bookmark> {
 
 class BookmarksCompanion extends UpdateCompanion<Bookmark> {
   final Value<String> id;
+  final Value<String?> folderId;
   final Value<String> url;
   final Value<String?> title;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const BookmarksCompanion({
     this.id = const Value.absent(),
+    this.folderId = const Value.absent(),
     this.url = const Value.absent(),
     this.title = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1493,6 +1839,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
   });
   BookmarksCompanion.insert({
     required String id,
+    this.folderId = const Value.absent(),
     required String url,
     this.title = const Value.absent(),
     required DateTime createdAt,
@@ -1502,6 +1849,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
        createdAt = Value(createdAt);
   static Insertable<Bookmark> custom({
     Expression<String>? id,
+    Expression<String>? folderId,
     Expression<String>? url,
     Expression<String>? title,
     Expression<DateTime>? createdAt,
@@ -1509,6 +1857,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (folderId != null) 'folder_id': folderId,
       if (url != null) 'url': url,
       if (title != null) 'title': title,
       if (createdAt != null) 'created_at': createdAt,
@@ -1518,6 +1867,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
 
   BookmarksCompanion copyWith({
     Value<String>? id,
+    Value<String?>? folderId,
     Value<String>? url,
     Value<String?>? title,
     Value<DateTime>? createdAt,
@@ -1525,6 +1875,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
   }) {
     return BookmarksCompanion(
       id: id ?? this.id,
+      folderId: folderId ?? this.folderId,
       url: url ?? this.url,
       title: title ?? this.title,
       createdAt: createdAt ?? this.createdAt,
@@ -1537,6 +1888,9 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (folderId.present) {
+      map['folder_id'] = Variable<String>(folderId.value);
     }
     if (url.present) {
       map['url'] = Variable<String>(url.value);
@@ -1557,6 +1911,7 @@ class BookmarksCompanion extends UpdateCompanion<Bookmark> {
   String toString() {
     return (StringBuffer('BookmarksCompanion(')
           ..write('id: $id, ')
+          ..write('folderId: $folderId, ')
           ..write('url: $url, ')
           ..write('title: $title, ')
           ..write('createdAt: $createdAt, ')
@@ -2106,6 +2461,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AnnotationsTable annotations = $AnnotationsTable(this);
   late final $AnnotationTargetsTable annotationTargets = $AnnotationTargetsTable(this);
   late final $AnnotationBodiesTable annotationBodies = $AnnotationBodiesTable(this);
+  late final $BookmarkFoldersTable bookmarkFolders = $BookmarkFoldersTable(this);
   late final $BookmarksTable bookmarks = $BookmarksTable(this);
   late final $BrowserHistoryEntriesTable browserHistoryEntries = $BrowserHistoryEntriesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
@@ -2117,6 +2473,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     annotations,
     annotationTargets,
     annotationBodies,
+    bookmarkFolders,
     bookmarks,
     browserHistoryEntries,
     appSettings,
@@ -3285,9 +3642,335 @@ typedef $$AnnotationBodiesTableProcessedTableManager =
       AnnotationBody,
       PrefetchHooks Function({bool annotationId})
     >;
+typedef $$BookmarkFoldersTableCreateCompanionBuilder =
+    BookmarkFoldersCompanion Function({
+      required String id,
+      Value<String?> parentId,
+      required String title,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$BookmarkFoldersTableUpdateCompanionBuilder =
+    BookmarkFoldersCompanion Function({
+      Value<String> id,
+      Value<String?> parentId,
+      Value<String> title,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$BookmarkFoldersTableReferences
+    extends BaseReferences<_$AppDatabase, $BookmarkFoldersTable, BookmarkFolder> {
+  $$BookmarkFoldersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $BookmarkFoldersTable _parentIdTable(_$AppDatabase db) =>
+      db.bookmarkFolders.createAlias($_aliasNameGenerator(db.bookmarkFolders.parentId, db.bookmarkFolders.id));
+
+  $$BookmarkFoldersTableProcessedTableManager? get parentId {
+    final $_column = $_itemColumn<String>('parent_id');
+    if ($_column == null) return null;
+    final manager = $$BookmarkFoldersTableTableManager(
+      $_db,
+      $_db.bookmarkFolders,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_parentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static MultiTypedResultKey<$BookmarksTable, List<Bookmark>> _bookmarksRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.bookmarks,
+        aliasName: $_aliasNameGenerator(db.bookmarkFolders.id, db.bookmarks.folderId),
+      );
+
+  $$BookmarksTableProcessedTableManager get bookmarksRefs {
+    final manager = $$BookmarksTableTableManager(
+      $_db,
+      $_db.bookmarks,
+    ).filter((f) => f.folderId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_bookmarksRefsTable($_db));
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$BookmarkFoldersTableFilterComposer extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
+  $$BookmarkFoldersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  $$BookmarkFoldersTableFilterComposer get parentId {
+    final $$BookmarkFoldersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentId,
+      referencedTable: $db.bookmarkFolders,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$BookmarkFoldersTableFilterComposer(
+            $db: $db,
+            $table: $db.bookmarkFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> bookmarksRefs(Expression<bool> Function($$BookmarksTableFilterComposer f) f) {
+    final $$BookmarksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.bookmarks,
+      getReferencedColumn: (t) => t.folderId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$BookmarksTableFilterComposer(
+            $db: $db,
+            $table: $db.bookmarks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$BookmarkFoldersTableOrderingComposer extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
+  $$BookmarkFoldersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  $$BookmarkFoldersTableOrderingComposer get parentId {
+    final $$BookmarkFoldersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentId,
+      referencedTable: $db.bookmarkFolders,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$BookmarkFoldersTableOrderingComposer(
+            $db: $db,
+            $table: $db.bookmarkFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$BookmarkFoldersTableAnnotationComposer extends Composer<_$AppDatabase, $BookmarkFoldersTable> {
+  $$BookmarkFoldersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id => $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title => $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt => $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$BookmarkFoldersTableAnnotationComposer get parentId {
+    final $$BookmarkFoldersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.parentId,
+      referencedTable: $db.bookmarkFolders,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$BookmarkFoldersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookmarkFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> bookmarksRefs<T extends Object>(Expression<T> Function($$BookmarksTableAnnotationComposer a) f) {
+    final $$BookmarksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.bookmarks,
+      getReferencedColumn: (t) => t.folderId,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$BookmarksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookmarks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$BookmarkFoldersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BookmarkFoldersTable,
+          BookmarkFolder,
+          $$BookmarkFoldersTableFilterComposer,
+          $$BookmarkFoldersTableOrderingComposer,
+          $$BookmarkFoldersTableAnnotationComposer,
+          $$BookmarkFoldersTableCreateCompanionBuilder,
+          $$BookmarkFoldersTableUpdateCompanionBuilder,
+          (BookmarkFolder, $$BookmarkFoldersTableReferences),
+          BookmarkFolder,
+          PrefetchHooks Function({bool parentId, bool bookmarksRefs})
+        > {
+  $$BookmarkFoldersTableTableManager(_$AppDatabase db, $BookmarkFoldersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () => $$BookmarkFoldersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () => $$BookmarkFoldersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () => $$BookmarkFoldersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BookmarkFoldersCompanion(
+                id: id,
+                parentId: parentId,
+                title: title,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> parentId = const Value.absent(),
+                required String title,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => BookmarkFoldersCompanion.insert(
+                id: id,
+                parentId: parentId,
+                title: title,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) =>
+              p0.map((e) => (e.readTable(table), $$BookmarkFoldersTableReferences(db, table, e))).toList(),
+          prefetchHooksCallback: ({parentId = false, bookmarksRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (bookmarksRefs) db.bookmarks],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (parentId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.parentId,
+                                referencedTable: $$BookmarkFoldersTableReferences._parentIdTable(db),
+                                referencedColumn: $$BookmarkFoldersTableReferences._parentIdTable(db).id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (bookmarksRefs)
+                    await $_getPrefetchedData<BookmarkFolder, $BookmarkFoldersTable, Bookmark>(
+                      currentTable: table,
+                      referencedTable: $$BookmarkFoldersTableReferences._bookmarksRefsTable(db),
+                      managerFromTypedResult: (p0) => $$BookmarkFoldersTableReferences(db, table, p0).bookmarksRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.folderId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$BookmarkFoldersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BookmarkFoldersTable,
+      BookmarkFolder,
+      $$BookmarkFoldersTableFilterComposer,
+      $$BookmarkFoldersTableOrderingComposer,
+      $$BookmarkFoldersTableAnnotationComposer,
+      $$BookmarkFoldersTableCreateCompanionBuilder,
+      $$BookmarkFoldersTableUpdateCompanionBuilder,
+      (BookmarkFolder, $$BookmarkFoldersTableReferences),
+      BookmarkFolder,
+      PrefetchHooks Function({bool parentId, bool bookmarksRefs})
+    >;
 typedef $$BookmarksTableCreateCompanionBuilder =
     BookmarksCompanion Function({
       required String id,
+      Value<String?> folderId,
       required String url,
       Value<String?> title,
       required DateTime createdAt,
@@ -3296,11 +3979,31 @@ typedef $$BookmarksTableCreateCompanionBuilder =
 typedef $$BookmarksTableUpdateCompanionBuilder =
     BookmarksCompanion Function({
       Value<String> id,
+      Value<String?> folderId,
       Value<String> url,
       Value<String?> title,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
+
+final class $$BookmarksTableReferences extends BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark> {
+  $$BookmarksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $BookmarkFoldersTable _folderIdTable(_$AppDatabase db) =>
+      db.bookmarkFolders.createAlias($_aliasNameGenerator(db.bookmarks.folderId, db.bookmarkFolders.id));
+
+  $$BookmarkFoldersTableProcessedTableManager? get folderId {
+    final $_column = $_itemColumn<String>('folder_id');
+    if ($_column == null) return null;
+    final manager = $$BookmarkFoldersTableTableManager(
+      $_db,
+      $_db.bookmarkFolders,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_folderIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
 
 class $$BookmarksTableFilterComposer extends Composer<_$AppDatabase, $BookmarksTable> {
   $$BookmarksTableFilterComposer({
@@ -3319,6 +4022,24 @@ class $$BookmarksTableFilterComposer extends Composer<_$AppDatabase, $BookmarksT
 
   ColumnFilters<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  $$BookmarkFoldersTableFilterComposer get folderId {
+    final $$BookmarkFoldersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.bookmarkFolders,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$BookmarkFoldersTableFilterComposer(
+            $db: $db,
+            $table: $db.bookmarkFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$BookmarksTableOrderingComposer extends Composer<_$AppDatabase, $BookmarksTable> {
@@ -3339,6 +4060,24 @@ class $$BookmarksTableOrderingComposer extends Composer<_$AppDatabase, $Bookmark
 
   ColumnOrderings<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  $$BookmarkFoldersTableOrderingComposer get folderId {
+    final $$BookmarkFoldersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.bookmarkFolders,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$BookmarkFoldersTableOrderingComposer(
+            $db: $db,
+            $table: $db.bookmarkFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$BookmarksTableAnnotationComposer extends Composer<_$AppDatabase, $BookmarksTable> {
@@ -3356,6 +4095,24 @@ class $$BookmarksTableAnnotationComposer extends Composer<_$AppDatabase, $Bookma
   GeneratedColumn<String> get title => $composableBuilder(column: $table.title, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt => $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$BookmarkFoldersTableAnnotationComposer get folderId {
+    final $$BookmarkFoldersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.folderId,
+      referencedTable: $db.bookmarkFolders,
+      getReferencedColumn: (t) => t.id,
+      builder: (joinBuilder, {$addJoinBuilderToRootComposer, $removeJoinBuilderFromRootComposer}) =>
+          $$BookmarkFoldersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.bookmarkFolders,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer: $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$BookmarksTableTableManager
@@ -3369,9 +4126,9 @@ class $$BookmarksTableTableManager
           $$BookmarksTableAnnotationComposer,
           $$BookmarksTableCreateCompanionBuilder,
           $$BookmarksTableUpdateCompanionBuilder,
-          (Bookmark, BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark>),
+          (Bookmark, $$BookmarksTableReferences),
           Bookmark,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool folderId})
         > {
   $$BookmarksTableTableManager(_$AppDatabase db, $BookmarksTable table)
     : super(
@@ -3384,21 +4141,75 @@ class $$BookmarksTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<String?> folderId = const Value.absent(),
                 Value<String> url = const Value.absent(),
                 Value<String?> title = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => BookmarksCompanion(id: id, url: url, title: title, createdAt: createdAt, rowid: rowid),
+              }) => BookmarksCompanion(
+                id: id,
+                folderId: folderId,
+                url: url,
+                title: title,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
           createCompanionCallback:
               ({
                 required String id,
+                Value<String?> folderId = const Value.absent(),
                 required String url,
                 Value<String?> title = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
-              }) => BookmarksCompanion.insert(id: id, url: url, title: title, createdAt: createdAt, rowid: rowid),
-          withReferenceMapper: (p0) => p0.map((e) => (e.readTable(table), BaseReferences(db, table, e))).toList(),
-          prefetchHooksCallback: null,
+              }) => BookmarksCompanion.insert(
+                id: id,
+                folderId: folderId,
+                url: url,
+                title: title,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) =>
+              p0.map((e) => (e.readTable(table), $$BookmarksTableReferences(db, table, e))).toList(),
+          prefetchHooksCallback: ({folderId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (folderId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.folderId,
+                                referencedTable: $$BookmarksTableReferences._folderIdTable(db),
+                                referencedColumn: $$BookmarksTableReferences._folderIdTable(db).id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -3413,9 +4224,9 @@ typedef $$BookmarksTableProcessedTableManager =
       $$BookmarksTableAnnotationComposer,
       $$BookmarksTableCreateCompanionBuilder,
       $$BookmarksTableUpdateCompanionBuilder,
-      (Bookmark, BaseReferences<_$AppDatabase, $BookmarksTable, Bookmark>),
+      (Bookmark, $$BookmarksTableReferences),
       Bookmark,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool folderId})
     >;
 typedef $$BrowserHistoryEntriesTableCreateCompanionBuilder =
     BrowserHistoryEntriesCompanion Function({
@@ -3708,6 +4519,8 @@ class $AppDatabaseManager {
       $$AnnotationTargetsTableTableManager(_db, _db.annotationTargets);
   $$AnnotationBodiesTableTableManager get annotationBodies =>
       $$AnnotationBodiesTableTableManager(_db, _db.annotationBodies);
+  $$BookmarkFoldersTableTableManager get bookmarkFolders =>
+      $$BookmarkFoldersTableTableManager(_db, _db.bookmarkFolders);
   $$BookmarksTableTableManager get bookmarks => $$BookmarksTableTableManager(_db, _db.bookmarks);
   $$BrowserHistoryEntriesTableTableManager get browserHistoryEntries =>
       $$BrowserHistoryEntriesTableTableManager(_db, _db.browserHistoryEntries);

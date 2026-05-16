@@ -11,7 +11,7 @@ updated: 2026-05-13
 
 ### Bookmarks
 
-- Bookmark folders with a top-level `/bookmarks` route for listing and managing them.
+- [x] Bookmark folders with a top-level `/bookmarks` route for listing and managing them.
   - /bookmarks/:id -> folder or bookmark details
   - /bookmarks/:id/edit -> edit bookmark or folder (sheet)
   - /bookmarks/export?selected=[] -> Export to Netscape bookmarks format (selected is

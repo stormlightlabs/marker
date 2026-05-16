@@ -49,9 +49,21 @@ class AnnotationBodies extends Table {
 
 class Bookmarks extends Table {
   TextColumn get id => text()();
+  TextColumn get folderId => text().nullable().references(BookmarkFolders, #id)();
   TextColumn get url => text().unique()();
   TextColumn get title => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class BookmarkFolders extends Table {
+  TextColumn get id => text()();
+  TextColumn get parentId => text().nullable().references(BookmarkFolders, #id)();
+  TextColumn get title => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -78,13 +90,22 @@ class AppSettings extends Table {
 }
 
 @DriftDatabase(
-  tables: [Pages, Annotations, AnnotationTargets, AnnotationBodies, Bookmarks, BrowserHistoryEntries, AppSettings],
+  tables: [
+    Pages,
+    Annotations,
+    AnnotationTargets,
+    AnnotationBodies,
+    BookmarkFolders,
+    Bookmarks,
+    BrowserHistoryEntries,
+    AppSettings,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -98,6 +119,10 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 4) {
         await m.createTable(appSettings);
+      }
+      if (from < 5) {
+        await m.createTable(bookmarkFolders);
+        await m.addColumn(bookmarks, bookmarks.folderId);
       }
     },
     beforeOpen: (details) async {

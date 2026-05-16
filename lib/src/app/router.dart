@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:marker/src/app/app_transitions.dart';
 import 'package:marker/src/app/routes.dart';
 import 'package:marker/src/features/annotations/presentation/annotation_detail_screen.dart';
+import 'package:marker/src/features/bookmarks/presentation/bookmarks_screen.dart';
 import 'package:marker/src/features/browser/presentation/browser_screen.dart';
 import 'package:marker/src/features/library/presentation/library_screen.dart';
 import 'package:marker/src/features/settings/presentation/browser_history_screen.dart';
@@ -23,6 +24,55 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoute.browser.path,
         name: AppRoute.browser.routeName,
         pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const BrowserScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.bookmarks.path,
+        name: AppRoute.bookmarks.routeName,
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const BookmarksScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.bookmarksExport.path,
+        name: AppRoute.bookmarksExport.routeName,
+        pageBuilder: (context, state) {
+          final selected = state.uri.queryParametersAll['selected'];
+          return MarkerTransitionPage<void>(
+            key: state.pageKey,
+            child: BookmarksExportScreen(selectedIds: selected?.isEmpty == true ? null : selected),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoute.bookmarksFolder.path,
+        name: AppRoute.bookmarksFolder.routeName,
+        pageBuilder: (context, state) {
+          final folderId = state.pathParameters['id'] ?? '';
+          return MarkerTransitionPage<void>(
+            key: state.pageKey,
+            child: BookmarksScreen(folderId: folderId),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoute.bookmarkEdit.path,
+        name: AppRoute.bookmarkEdit.routeName,
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return MarkerTransitionPage<void>(
+            key: state.pageKey,
+            child: BookmarkEditScreen(id: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoute.bookmarkDetail.path,
+        name: AppRoute.bookmarkDetail.routeName,
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return MarkerTransitionPage<void>(
+            key: state.pageKey,
+            child: BookmarkDetailScreen(id: id),
+          );
+        },
       ),
       GoRoute(
         path: AppRoute.settings.path,
