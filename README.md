@@ -1,3 +1,6 @@
+<!-- markdownlint-disable MD041 -->
+![Marker banner](./assets/images/hero.png)
+
 # Marker
 
 A reading and annotation browser for iOS and Android. Open any webpage,
@@ -67,6 +70,16 @@ The schema follows the W3C Web Annotation data model with four motivations:
 flutter pub get
 dart run build_runner build
 flutter run
+```
+
+### Regenerating native assets
+
+After changing `assets/images/icon.png` or `assets/images/splash.png`, regenerate the native launcher icons and splash screens:
+
+```sh
+flutter pub get
+dart run flutter_launcher_icons
+dart run flutter_native_splash:create
 ```
 
 ### Running tests
