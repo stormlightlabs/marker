@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:marker/src/app/marker_app.dart';
-import 'package:marker/src/core/logging/app_logger.dart';
+import 'package:marker/app/marker_app.dart';
+import 'package:marker/core/logging/app_logger.dart';
 
 void main() {
   AppLogger? logger;

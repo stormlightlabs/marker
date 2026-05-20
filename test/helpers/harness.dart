@@ -6,14 +6,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marker/src/app/marker_app.dart';
-import 'package:marker/src/core/database/app_database.dart';
-import 'package:marker/src/core/database/database_provider.dart';
-import 'package:marker/src/features/browser/ad_block/ad_block_providers.dart';
-import 'package:marker/src/features/browser/ad_block/ad_block_rules.dart';
-import 'package:marker/src/features/browser/application/native_share_controller.dart';
-import 'package:marker/src/features/browser/webview/browser_webview.dart';
-import 'package:marker/src/features/browser/webview/reader_webview_bridge.dart';
+import 'package:marker/app/marker_app.dart';
+import 'package:marker/core/database/app_database.dart';
+import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/features/browser/ad_block/ad_block_providers.dart';
+import 'package:marker/features/browser/ad_block/ad_block_rules.dart';
+import 'package:marker/features/browser/application/native_share_controller.dart';
+import 'package:marker/features/browser/webview/browser_webview.dart';
+import 'package:marker/features/browser/webview/reader_webview_bridge.dart';
 
 FakeWebViewPlatform? _activeFakeWebViewPlatform;
 
