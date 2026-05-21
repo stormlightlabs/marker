@@ -391,21 +391,17 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                 Navigator.of(sheetContext).pop();
                 unawaited(_openLinkInCurrentTab(link));
               },
-              child: const _ActionSheetRow(
-                icon: CupertinoIcons.arrow_right_circle,
-                title: 'Open',
-                subtitle: 'Open in the current tab',
-              ),
+              child: _ActionSheetRow.create(CupertinoIcons.arrow_right_circle, 'Open', 'Open in the current tab'),
             ),
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.of(sheetContext).pop();
                 unawaited(_openLinkInNewTab(link));
               },
-              child: const _ActionSheetRow(
-                icon: CupertinoIcons.plus_square,
-                title: 'Open in New Tab',
-                subtitle: 'Switch to a new browser tab',
+              child: _ActionSheetRow.create(
+                CupertinoIcons.plus_square,
+                'Open in New Tab',
+                'Switch to a new browser tab',
               ),
             ),
             CupertinoActionSheetAction(
@@ -413,22 +409,14 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                 Navigator.of(sheetContext).pop();
                 unawaited(_copyText(link.href.toString()));
               },
-              child: const _ActionSheetRow(
-                icon: CupertinoIcons.doc_on_doc,
-                title: 'Copy Link',
-                subtitle: 'Copy URL to clipboard',
-              ),
+              child: _ActionSheetRow.create(CupertinoIcons.doc_on_doc, 'Copy Link', 'Copy URL to clipboard'),
             ),
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.of(sheetContext).pop();
                 unawaited(ref.read(readerControllerProvider.notifier).bookmarkUrl(link.href, title: link.text));
               },
-              child: const _ActionSheetRow(
-                icon: CupertinoIcons.bookmark,
-                title: 'Add Bookmark',
-                subtitle: 'Save link to Library',
-              ),
+              child: _ActionSheetRow.create(CupertinoIcons.bookmark, 'Add Bookmark', 'Save link to Library'),
             ),
           ],
           cancelButton: CupertinoActionSheetAction(
@@ -462,33 +450,21 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                   Navigator.of(sheetContext).pop();
                   unawaited(_loadUri(currentUrl));
                 },
-                child: const _ActionSheetRow(
-                  icon: CupertinoIcons.refresh,
-                  title: 'Reload',
-                  subtitle: 'Reload this page',
-                ),
+                child: _ActionSheetRow.create(CupertinoIcons.refresh, 'Reload', 'Reload this page'),
               ),
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.of(sheetContext).pop();
                   unawaited(_copyText(currentUrl.toString()));
                 },
-                child: const _ActionSheetRow(
-                  icon: CupertinoIcons.doc_on_doc,
-                  title: 'Copy URL',
-                  subtitle: 'Copy page URL',
-                ),
+                child: _ActionSheetRow.create(CupertinoIcons.doc_on_doc, 'Copy URL', 'Copy page URL'),
               ),
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.of(sheetContext).pop();
                   unawaited(_shareUrl(sheetContext, currentUrl, session.title ?? currentUrl.host));
                 },
-                child: const _ActionSheetRow(
-                  icon: CupertinoIcons.share,
-                  title: 'Share',
-                  subtitle: 'Open the native share sheet',
-                ),
+                child: _ActionSheetRow.create(CupertinoIcons.share, 'Share', 'Open the native share sheet'),
               ),
             ],
             CupertinoActionSheetAction(
@@ -496,10 +472,10 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                 Navigator.of(sheetContext).pop();
                 _toggleBookmark();
               },
-              child: _ActionSheetRow(
-                icon: session.isCurrentPageBookmarked ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
-                title: session.isCurrentPageBookmarked ? 'Unbookmark' : 'Bookmark',
-                subtitle: session.isCurrentPageBookmarked ? 'Remove page from Library' : 'Save page to Library',
+              child: _ActionSheetRow.create(
+                session.isCurrentPageBookmarked ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
+                session.isCurrentPageBookmarked ? 'Unbookmark' : 'Bookmark',
+                session.isCurrentPageBookmarked ? 'Remove page from Library' : 'Save page to Library',
               ),
             ),
             CupertinoActionSheetAction(
@@ -507,44 +483,33 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                 Navigator.of(sheetContext).pop();
                 unawaited(_newTab());
               },
-              child: const _ActionSheetRow(
-                icon: CupertinoIcons.plus_square,
-                title: 'New Tab',
-                subtitle: defaultBrowserUrl,
-              ),
+              child: _ActionSheetRow.create(CupertinoIcons.plus_square, 'New Tab', defaultBrowserUrl),
             ),
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.of(sheetContext).pop();
                 _showTabs(context, session);
               },
-              child: _ActionSheetRow(
-                icon: CupertinoIcons.square_on_square,
-                title: 'Show Tabs',
-                subtitle: '${session.tabs.length} open',
+              child: _ActionSheetRow.create(
+                CupertinoIcons.square_on_square,
+                'Show Tabs',
+                '${session.tabs.length} open',
               ),
             ),
+
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.of(sheetContext).pop();
                 context.pushNamed(AppRoute.history.routeName);
               },
-              child: const _ActionSheetRow(
-                icon: CupertinoIcons.clock,
-                title: 'History',
-                subtitle: 'View recent page visits',
-              ),
+              child: _ActionSheetRow.create(CupertinoIcons.clock, 'History', 'View recent page visits'),
             ),
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.of(sheetContext).pop();
                 context.pushNamed(AppRoute.settings.routeName);
               },
-              child: const _ActionSheetRow(
-                icon: CupertinoIcons.settings,
-                title: 'Settings',
-                subtitle: 'Open app settings',
-              ),
+              child: _ActionSheetRow.create(CupertinoIcons.settings, 'Settings', 'Open app settings'),
             ),
             if (hasAnnotations)
               CupertinoActionSheetAction(
@@ -552,10 +517,10 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                   Navigator.of(sheetContext).pop();
                   ref.read(annotationSidebarOpenProvider.notifier).open();
                 },
-                child: const _ActionSheetRow(
-                  icon: CupertinoIcons.text_bubble,
-                  title: 'Open Annotations',
-                  subtitle: 'Show annotations for this page',
+                child: _ActionSheetRow.create(
+                  CupertinoIcons.text_bubble,
+                  'Open Annotations',
+                  'Show annotations for this page',
                 ),
               ),
             if (currentUrl != null)
@@ -564,11 +529,9 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                   Navigator.of(sheetContext).pop();
                   unawaited(_toggleRenderedHighlights(currentUrl));
                 },
-                child: _ActionSheetRow(
-                  icon: _areHighlightsVisible ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
-                  title: _areHighlightsVisible ? 'Hide Highlights' : 'Show Highlights',
-                  subtitle: _areHighlightsVisible ? 'Temporarily hide page highlights' : 'Render saved highlights',
-                ),
+                child: _areHighlightsVisible
+                    ? _ActionSheetRow.create(CupertinoIcons.eye_slash, 'Hide Highlights', 'Temporarily hide highlights')
+                    : _ActionSheetRow.create(CupertinoIcons.eye, 'Show Highlights', 'Show saved highlights'),
               ),
           ],
           cancelButton: CupertinoActionSheetAction(
@@ -604,7 +567,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                 Navigator.of(sheetContext).pop();
                 _newTab();
               },
-              child: const _ActionSheetRow(icon: CupertinoIcons.add, title: 'New Tab', subtitle: defaultBrowserUrl),
+              child: _ActionSheetRow.create(CupertinoIcons.add, 'New Tab', defaultBrowserUrl),
             ),
             if (session.tabs.length > 1)
               CupertinoActionSheetAction(
@@ -613,10 +576,10 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                   Navigator.of(sheetContext).pop();
                   _closeTab(session.activeTabId);
                 },
-                child: const _ActionSheetRow(
-                  icon: CupertinoIcons.xmark,
-                  title: 'Close Current Tab',
-                  subtitle: 'Switches to the previous tab',
+                child: _ActionSheetRow.create(
+                  CupertinoIcons.xmark,
+                  'Close Current Tab',
+                  'Close & switch to the prev. tab',
                 ),
               ),
           ],
@@ -643,10 +606,10 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                   Navigator.of(sheetContext).pop();
                   _openBookmark(bookmark.url);
                 },
-                child: _ActionSheetRow(
-                  icon: CupertinoIcons.bookmark_fill,
-                  title: bookmark.title ?? bookmark.url.host,
-                  subtitle: bookmark.url.toString(),
+                child: _ActionSheetRow.create(
+                  CupertinoIcons.bookmark_fill,
+                  bookmark.title ?? bookmark.url.host,
+                  bookmark.url.toString(),
                 ),
               ),
           ],
@@ -725,7 +688,6 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               onSubmitted: (_) => _loadFromAddressBar(),
               onGoPressed: _loadFromAddressBar,
             ),
-            if (session.isLoading) _ReaderProgressBar(progress: session.progress) else const SizedBox(height: 2),
             Expanded(
               child: EdgeSwipeNavigator(
                 canGoBack: session.canGoBack,
@@ -748,7 +710,6 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                         onDelete: _deleteSidebarAnnotation,
                       ),
                     ),
-                    if (session.isLoading) const Positioned(top: 12, right: 12, child: _ReaderLoadingBadge()),
                     if (selection.capture != null)
                       Positioned(
                         left: 14,
@@ -768,6 +729,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                 ),
               ),
             ),
+            if (session.isLoading) _ReaderProgressBar(progress: session.progress) else const SizedBox(height: 2),
             const MarkerTabBar(activeRoute: AppRoute.browser),
           ],
         ),
@@ -793,71 +755,69 @@ class AnnotationToolbar extends StatelessWidget {
   final VoidCallback onRemovePressed;
 
   @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xF21A1A1F),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF33333A), width: 0.5),
-          boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 24, offset: Offset(0, 12))],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-                child: Text(
-                  capture.exact,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12, letterSpacing: 0),
-                ),
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.bottomCenter,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xF21A1A1F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF33333A), width: 0.5),
+        boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 24, offset: Offset(0, 12))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+              child: Text(
+                capture.exact,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12, letterSpacing: 0),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 3, 4, 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _AnnotationToolbarButton(
-                      icon: CupertinoIcons.pencil,
-                      label: 'Highlight',
-                      color: CupertinoColors.systemYellow,
-                      onPressed: onHighlightPressed,
-                    ),
-                    const _ToolbarDivider(),
-                    _AnnotationToolbarButton(
-                      icon: CupertinoIcons.chat_bubble_text,
-                      label: 'Note',
-                      color: CupertinoColors.white,
-                      onPressed: onNotePressed,
-                    ),
-                    const _ToolbarDivider(),
-                    _AnnotationToolbarButton(
-                      icon: CupertinoIcons.underline,
-                      label: 'Underline',
-                      color: CupertinoColors.systemTeal,
-                      onPressed: onUnderlinePressed,
-                    ),
-                    const _ToolbarDivider(),
-                    _AnnotationToolbarButton(
-                      icon: CupertinoIcons.trash,
-                      label: 'Remove',
-                      color: CupertinoColors.systemRed,
-                      onPressed: onRemovePressed,
-                    ),
-                  ],
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 3, 4, 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _AnnotationToolbarButton(
+                    icon: CupertinoIcons.pencil,
+                    label: 'Highlight',
+                    color: CupertinoColors.systemYellow,
+                    onPressed: onHighlightPressed,
+                  ),
+                  const _ToolbarDivider(),
+                  _AnnotationToolbarButton(
+                    icon: CupertinoIcons.chat_bubble_text,
+                    label: 'Note',
+                    color: CupertinoColors.white,
+                    onPressed: onNotePressed,
+                  ),
+                  const _ToolbarDivider(),
+                  _AnnotationToolbarButton(
+                    icon: CupertinoIcons.underline,
+                    label: 'Underline',
+                    color: CupertinoColors.systemTeal,
+                    onPressed: onUnderlinePressed,
+                  ),
+                  const _ToolbarDivider(),
+                  _AnnotationToolbarButton(
+                    icon: CupertinoIcons.trash,
+                    label: 'Remove',
+                    color: CupertinoColors.systemRed,
+                    onPressed: onRemovePressed,
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _AnnotationToolbarButton extends StatelessWidget {
@@ -899,49 +859,49 @@ class _ToolbarDivider extends StatelessWidget {
   const _ToolbarDivider();
 
   @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 42,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(left: BorderSide(color: Color(0xFF33333A))),
-        ),
+  Widget build(BuildContext context) => const SizedBox(
+    height: 42,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xFF33333A))),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _ActionSheetRow extends StatelessWidget {
   const _ActionSheetRow({required this.icon, required this.title, required this.subtitle});
+
+  factory _ActionSheetRow.create(IconData icon, String title, String subtitle) {
+    return _ActionSheetRow(icon: icon, title: title, subtitle: subtitle);
+  }
 
   final IconData icon;
   final String title;
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: CupertinoColors.activeBlue),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
-              ),
-            ],
-          ),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 18, color: CupertinoColors.activeBlue),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: CupertinoColors.systemGrey),
+            ),
+          ],
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }
 
 class _BrowserAddressBar extends StatelessWidget {
@@ -1075,21 +1035,17 @@ class _BrowserIconButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    final color = isEnabled ? CupertinoColors.activeBlue : CupertinoColors.inactiveGray;
-
-    return Semantics(
-      button: true,
-      enabled: isEnabled,
-      label: label,
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(34, 34),
-        onPressed: isEnabled ? onPressed : null,
-        child: Icon(icon, color: color, size: 22),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: isEnabled,
+    label: label,
+    child: CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(34, 34),
+      onPressed: isEnabled ? onPressed : null,
+      child: Icon(icon, color: isEnabled ? CupertinoColors.activeBlue : CupertinoColors.inactiveGray, size: 22),
+    ),
+  );
 }
 
 class _BrowserChromeChip extends StatelessWidget {
@@ -1130,39 +1086,17 @@ class _ReaderProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final clampedProgress = progress.clamp(0, 100);
+    final widthFactor = clampedProgress == 0 ? 0.08 : clampedProgress / 100;
+
     return SizedBox(
-      height: 2,
+      key: const ValueKey('reader-progress-bar'),
+      height: 3,
       child: Align(
         alignment: Alignment.centerLeft,
         child: FractionallySizedBox(
-          widthFactor: progress.clamp(0, 100) / 100,
+          widthFactor: widthFactor,
           child: const ColoredBox(color: CupertinoColors.activeBlue),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReaderLoadingBadge extends StatelessWidget {
-  const _ReaderLoadingBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xE61C1C20),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 14, offset: Offset(0, 6))],
-      ),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CupertinoActivityIndicator(radius: 7),
-            SizedBox(width: 8),
-            Text('Loading', style: TextStyle(color: CupertinoColors.white, fontSize: 12, letterSpacing: 0)),
-          ],
         ),
       ),
     );
@@ -1175,16 +1109,14 @@ class _ReaderErrorBanner extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemRed.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Text(message, style: const TextStyle(color: CupertinoColors.white, fontSize: 13, letterSpacing: 0)),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: CupertinoColors.systemRed.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Text(message, style: const TextStyle(color: CupertinoColors.white, fontSize: 13, letterSpacing: 0)),
+    ),
+  );
 }

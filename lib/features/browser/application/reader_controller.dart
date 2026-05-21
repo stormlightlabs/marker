@@ -35,7 +35,11 @@ class ReaderController extends Notifier<ReaderSessionState> {
   }
 
   void updateProgress(int progress) {
-    state = state.copyWith(progress: progress.clamp(0, 100), isLoading: progress < 100);
+    final clampedProgress = progress.clamp(0, 100);
+    state = state.copyWith(
+      progress: clampedProgress,
+      isLoading: clampedProgress < 100 ? true : state.isLoading,
+    );
   }
 
   Future<void> finishLoad({required Uri url, Uri? canonicalUrl, String? title}) async {

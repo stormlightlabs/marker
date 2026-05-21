@@ -42,9 +42,16 @@ updated: 2026-05-13
 
 ### WebView
 
-- Loading shouldn't be a spinner on top of the WebView -> we should show a progress bar
-  at the bottom of the screen
 - Recent pages in the "Home" screen should be changed:
-  - Show the favicon if available, otherwise show a placeholder with the first letter of
+  - Show the favicon if available (should be cached!), otherwise show a placeholder with the first letter of
     the domain name.
   - Should be "Recently Annotated" instead of "Recently Visited"
+  - Instead of "highlighting" or "annotating" as the label, it should be a preview of
+    the annotation or highlighted text.
+- Make bookmarks & annotated pages bookmark folder aware
+
+### Address Bar
+
+- We need a refresh button in the address bar
+- Text input: resets when focus is lost, should retain the URL until the user starts typing a new one.
+- Fuzzy history search -> rely on favicon cache

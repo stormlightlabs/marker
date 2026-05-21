@@ -72,6 +72,23 @@ void main() {
     expect(state.isLoading, isTrue);
   });
 
+  test('keeps loading visible until the page finish callback resolves', () async {
+    final controller = container.read(readerControllerProvider.notifier);
+
+    final url = controller.beginLoad();
+    controller.updateProgress(100);
+
+    var state = container.read(readerControllerProvider);
+    expect(state.progress, 100);
+    expect(state.isLoading, isTrue);
+
+    await controller.finishLoad(url: url!, title: 'Hacker News');
+
+    state = container.read(readerControllerProvider);
+    expect(state.progress, 100);
+    expect(state.isLoading, isFalse);
+  });
+
   test('toggles bookmark for current page', () async {
     final controller = container.read(readerControllerProvider.notifier);
     final url = controller.beginLoad();
