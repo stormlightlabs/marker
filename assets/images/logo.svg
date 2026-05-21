@@ -1,0 +1,51 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img"
+    aria-labelledby="title desc">
+    <title id="title">Marker bookmark highlight icon</title>
+    <desc id="desc">
+        A document-shaped bookmark icon with a folded corner, yellow highlight stroke,
+        and black underline.
+    </desc>
+
+    <!-- <rect width="1024" height="1024" fill="white" /> -->
+
+    <!-- Document / bookmark outline -->
+    <path d="
+      M 308 196
+      H 610
+      Q 624 196 634 206
+      L 730 302
+      Q 740 312 740 326
+      V 739
+      Q 740 760 722 770
+      Q 711 776 699 769
+      L 512 656
+      L 325 769
+      Q 313 776 302 770
+      Q 284 760 284 739
+      V 220
+      A 24 24 0 0 1 308 196
+      Z
+    " stroke="#111111" stroke-width="28" stroke-linejoin="round" stroke-linecap="round" fill="none" />
+
+    <!-- Folded page corner -->
+    <path d="
+      M 610 200
+      V 318
+      Q 610 334 626 334
+      H 736
+    " stroke="#111111" stroke-width="28" stroke-linejoin="round" stroke-linecap="round" fill="none" />
+
+    <!-- Yellow highlight stroke -->
+    <path d="
+      M 360 465
+      C 430 450, 530 440, 660 438
+      M 362 482
+      C 440 466, 540 459, 664 458
+      M 360 500
+      C 440 486, 545 478, 665 475
+    " stroke="#FFD85A" stroke-width="38" stroke-linecap="round" stroke-linejoin="round" opacity="0.95" fill="none" />
+
+    <!-- Black underline -->
+    <path d="M 384 562 C 470 552, 557 548, 650 548" stroke="#111111" stroke-width="18" stroke-linecap="round"
+        fill="none" />
+</svg>

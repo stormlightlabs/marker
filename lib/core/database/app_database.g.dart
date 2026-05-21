@@ -47,6 +47,28 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _faviconUrlMeta = const VerificationMeta(
+    'faviconUrl',
+  );
+  @override
+  late final GeneratedColumn<String> faviconUrl = GeneratedColumn<String>(
+    'favicon_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _faviconFilePathMeta = const VerificationMeta(
+    'faviconFilePath',
+  );
+  @override
+  late final GeneratedColumn<String> faviconFilePath = GeneratedColumn<String>(
+    'favicon_file_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -76,6 +98,8 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
     url,
     canonicalUrl,
     title,
+    faviconUrl,
+    faviconFilePath,
     createdAt,
     lastVisitedAt,
   ];
@@ -117,6 +141,21 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
       context.handle(
         _titleMeta,
         title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('favicon_url')) {
+      context.handle(
+        _faviconUrlMeta,
+        faviconUrl.isAcceptableOrUnknown(data['favicon_url']!, _faviconUrlMeta),
+      );
+    }
+    if (data.containsKey('favicon_file_path')) {
+      context.handle(
+        _faviconFilePathMeta,
+        faviconFilePath.isAcceptableOrUnknown(
+          data['favicon_file_path']!,
+          _faviconFilePathMeta,
+        ),
       );
     }
     if (data.containsKey('created_at')) {
@@ -163,6 +202,14 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       ),
+      faviconUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}favicon_url'],
+      ),
+      faviconFilePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}favicon_file_path'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -185,6 +232,8 @@ class Page extends DataClass implements Insertable<Page> {
   final String url;
   final String? canonicalUrl;
   final String? title;
+  final String? faviconUrl;
+  final String? faviconFilePath;
   final DateTime createdAt;
   final DateTime lastVisitedAt;
   const Page({
@@ -192,6 +241,8 @@ class Page extends DataClass implements Insertable<Page> {
     required this.url,
     this.canonicalUrl,
     this.title,
+    this.faviconUrl,
+    this.faviconFilePath,
     required this.createdAt,
     required this.lastVisitedAt,
   });
@@ -205,6 +256,12 @@ class Page extends DataClass implements Insertable<Page> {
     }
     if (!nullToAbsent || title != null) {
       map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || faviconUrl != null) {
+      map['favicon_url'] = Variable<String>(faviconUrl);
+    }
+    if (!nullToAbsent || faviconFilePath != null) {
+      map['favicon_file_path'] = Variable<String>(faviconFilePath);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['last_visited_at'] = Variable<DateTime>(lastVisitedAt);
@@ -221,6 +278,12 @@ class Page extends DataClass implements Insertable<Page> {
       title: title == null && nullToAbsent
           ? const Value.absent()
           : Value(title),
+      faviconUrl: faviconUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(faviconUrl),
+      faviconFilePath: faviconFilePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(faviconFilePath),
       createdAt: Value(createdAt),
       lastVisitedAt: Value(lastVisitedAt),
     );
@@ -236,6 +299,8 @@ class Page extends DataClass implements Insertable<Page> {
       url: serializer.fromJson<String>(json['url']),
       canonicalUrl: serializer.fromJson<String?>(json['canonicalUrl']),
       title: serializer.fromJson<String?>(json['title']),
+      faviconUrl: serializer.fromJson<String?>(json['faviconUrl']),
+      faviconFilePath: serializer.fromJson<String?>(json['faviconFilePath']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       lastVisitedAt: serializer.fromJson<DateTime>(json['lastVisitedAt']),
     );
@@ -248,6 +313,8 @@ class Page extends DataClass implements Insertable<Page> {
       'url': serializer.toJson<String>(url),
       'canonicalUrl': serializer.toJson<String?>(canonicalUrl),
       'title': serializer.toJson<String?>(title),
+      'faviconUrl': serializer.toJson<String?>(faviconUrl),
+      'faviconFilePath': serializer.toJson<String?>(faviconFilePath),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'lastVisitedAt': serializer.toJson<DateTime>(lastVisitedAt),
     };
@@ -258,6 +325,8 @@ class Page extends DataClass implements Insertable<Page> {
     String? url,
     Value<String?> canonicalUrl = const Value.absent(),
     Value<String?> title = const Value.absent(),
+    Value<String?> faviconUrl = const Value.absent(),
+    Value<String?> faviconFilePath = const Value.absent(),
     DateTime? createdAt,
     DateTime? lastVisitedAt,
   }) => Page(
@@ -265,6 +334,10 @@ class Page extends DataClass implements Insertable<Page> {
     url: url ?? this.url,
     canonicalUrl: canonicalUrl.present ? canonicalUrl.value : this.canonicalUrl,
     title: title.present ? title.value : this.title,
+    faviconUrl: faviconUrl.present ? faviconUrl.value : this.faviconUrl,
+    faviconFilePath: faviconFilePath.present
+        ? faviconFilePath.value
+        : this.faviconFilePath,
     createdAt: createdAt ?? this.createdAt,
     lastVisitedAt: lastVisitedAt ?? this.lastVisitedAt,
   );
@@ -276,6 +349,12 @@ class Page extends DataClass implements Insertable<Page> {
           ? data.canonicalUrl.value
           : this.canonicalUrl,
       title: data.title.present ? data.title.value : this.title,
+      faviconUrl: data.faviconUrl.present
+          ? data.faviconUrl.value
+          : this.faviconUrl,
+      faviconFilePath: data.faviconFilePath.present
+          ? data.faviconFilePath.value
+          : this.faviconFilePath,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       lastVisitedAt: data.lastVisitedAt.present
           ? data.lastVisitedAt.value
@@ -290,6 +369,8 @@ class Page extends DataClass implements Insertable<Page> {
           ..write('url: $url, ')
           ..write('canonicalUrl: $canonicalUrl, ')
           ..write('title: $title, ')
+          ..write('faviconUrl: $faviconUrl, ')
+          ..write('faviconFilePath: $faviconFilePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('lastVisitedAt: $lastVisitedAt')
           ..write(')'))
@@ -297,8 +378,16 @@ class Page extends DataClass implements Insertable<Page> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, url, canonicalUrl, title, createdAt, lastVisitedAt);
+  int get hashCode => Object.hash(
+    id,
+    url,
+    canonicalUrl,
+    title,
+    faviconUrl,
+    faviconFilePath,
+    createdAt,
+    lastVisitedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -307,6 +396,8 @@ class Page extends DataClass implements Insertable<Page> {
           other.url == this.url &&
           other.canonicalUrl == this.canonicalUrl &&
           other.title == this.title &&
+          other.faviconUrl == this.faviconUrl &&
+          other.faviconFilePath == this.faviconFilePath &&
           other.createdAt == this.createdAt &&
           other.lastVisitedAt == this.lastVisitedAt);
 }
@@ -316,6 +407,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
   final Value<String> url;
   final Value<String?> canonicalUrl;
   final Value<String?> title;
+  final Value<String?> faviconUrl;
+  final Value<String?> faviconFilePath;
   final Value<DateTime> createdAt;
   final Value<DateTime> lastVisitedAt;
   final Value<int> rowid;
@@ -324,6 +417,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
     this.url = const Value.absent(),
     this.canonicalUrl = const Value.absent(),
     this.title = const Value.absent(),
+    this.faviconUrl = const Value.absent(),
+    this.faviconFilePath = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.lastVisitedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -333,6 +428,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
     required String url,
     this.canonicalUrl = const Value.absent(),
     this.title = const Value.absent(),
+    this.faviconUrl = const Value.absent(),
+    this.faviconFilePath = const Value.absent(),
     required DateTime createdAt,
     required DateTime lastVisitedAt,
     this.rowid = const Value.absent(),
@@ -345,6 +442,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
     Expression<String>? url,
     Expression<String>? canonicalUrl,
     Expression<String>? title,
+    Expression<String>? faviconUrl,
+    Expression<String>? faviconFilePath,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? lastVisitedAt,
     Expression<int>? rowid,
@@ -354,6 +453,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
       if (url != null) 'url': url,
       if (canonicalUrl != null) 'canonical_url': canonicalUrl,
       if (title != null) 'title': title,
+      if (faviconUrl != null) 'favicon_url': faviconUrl,
+      if (faviconFilePath != null) 'favicon_file_path': faviconFilePath,
       if (createdAt != null) 'created_at': createdAt,
       if (lastVisitedAt != null) 'last_visited_at': lastVisitedAt,
       if (rowid != null) 'rowid': rowid,
@@ -365,6 +466,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
     Value<String>? url,
     Value<String?>? canonicalUrl,
     Value<String?>? title,
+    Value<String?>? faviconUrl,
+    Value<String?>? faviconFilePath,
     Value<DateTime>? createdAt,
     Value<DateTime>? lastVisitedAt,
     Value<int>? rowid,
@@ -374,6 +477,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
       url: url ?? this.url,
       canonicalUrl: canonicalUrl ?? this.canonicalUrl,
       title: title ?? this.title,
+      faviconUrl: faviconUrl ?? this.faviconUrl,
+      faviconFilePath: faviconFilePath ?? this.faviconFilePath,
       createdAt: createdAt ?? this.createdAt,
       lastVisitedAt: lastVisitedAt ?? this.lastVisitedAt,
       rowid: rowid ?? this.rowid,
@@ -395,6 +500,12 @@ class PagesCompanion extends UpdateCompanion<Page> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
+    if (faviconUrl.present) {
+      map['favicon_url'] = Variable<String>(faviconUrl.value);
+    }
+    if (faviconFilePath.present) {
+      map['favicon_file_path'] = Variable<String>(faviconFilePath.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -414,6 +525,8 @@ class PagesCompanion extends UpdateCompanion<Page> {
           ..write('url: $url, ')
           ..write('canonicalUrl: $canonicalUrl, ')
           ..write('title: $title, ')
+          ..write('faviconUrl: $faviconUrl, ')
+          ..write('faviconFilePath: $faviconFilePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('lastVisitedAt: $lastVisitedAt, ')
           ..write('rowid: $rowid')
@@ -3014,6 +3127,8 @@ typedef $$PagesTableCreateCompanionBuilder =
       required String url,
       Value<String?> canonicalUrl,
       Value<String?> title,
+      Value<String?> faviconUrl,
+      Value<String?> faviconFilePath,
       required DateTime createdAt,
       required DateTime lastVisitedAt,
       Value<int> rowid,
@@ -3024,6 +3139,8 @@ typedef $$PagesTableUpdateCompanionBuilder =
       Value<String> url,
       Value<String?> canonicalUrl,
       Value<String?> title,
+      Value<String?> faviconUrl,
+      Value<String?> faviconFilePath,
       Value<DateTime> createdAt,
       Value<DateTime> lastVisitedAt,
       Value<int> rowid,
@@ -3077,6 +3194,16 @@ class $$PagesTableFilterComposer extends Composer<_$AppDatabase, $PagesTable> {
 
   ColumnFilters<String> get title => $composableBuilder(
     column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get faviconUrl => $composableBuilder(
+    column: $table.faviconUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get faviconFilePath => $composableBuilder(
+    column: $table.faviconFilePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3145,6 +3272,16 @@ class $$PagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get faviconUrl => $composableBuilder(
+    column: $table.faviconUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get faviconFilePath => $composableBuilder(
+    column: $table.faviconFilePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3178,6 +3315,16 @@ class $$PagesTableAnnotationComposer
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get faviconUrl => $composableBuilder(
+    column: $table.faviconUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get faviconFilePath => $composableBuilder(
+    column: $table.faviconFilePath,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3245,6 +3392,8 @@ class $$PagesTableTableManager
                 Value<String> url = const Value.absent(),
                 Value<String?> canonicalUrl = const Value.absent(),
                 Value<String?> title = const Value.absent(),
+                Value<String?> faviconUrl = const Value.absent(),
+                Value<String?> faviconFilePath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> lastVisitedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3253,6 +3402,8 @@ class $$PagesTableTableManager
                 url: url,
                 canonicalUrl: canonicalUrl,
                 title: title,
+                faviconUrl: faviconUrl,
+                faviconFilePath: faviconFilePath,
                 createdAt: createdAt,
                 lastVisitedAt: lastVisitedAt,
                 rowid: rowid,
@@ -3263,6 +3414,8 @@ class $$PagesTableTableManager
                 required String url,
                 Value<String?> canonicalUrl = const Value.absent(),
                 Value<String?> title = const Value.absent(),
+                Value<String?> faviconUrl = const Value.absent(),
+                Value<String?> faviconFilePath = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime lastVisitedAt,
                 Value<int> rowid = const Value.absent(),
@@ -3271,6 +3424,8 @@ class $$PagesTableTableManager
                 url: url,
                 canonicalUrl: canonicalUrl,
                 title: title,
+                faviconUrl: faviconUrl,
+                faviconFilePath: faviconFilePath,
                 createdAt: createdAt,
                 lastVisitedAt: lastVisitedAt,
                 rowid: rowid,

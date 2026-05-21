@@ -91,6 +91,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const LogsScreen()),
       ),
       GoRoute(
+        path: AppRoute.annotations.path,
+        name: AppRoute.annotations.routeName,
+        pageBuilder: (context, state) =>
+            MarkerTransitionPage<void>(key: state.pageKey, child: const AllAnnotationsScreen()),
+      ),
+      GoRoute(
         path: AppRoute.annotation.path,
         name: AppRoute.annotation.routeName,
         pageBuilder: (context, state) {

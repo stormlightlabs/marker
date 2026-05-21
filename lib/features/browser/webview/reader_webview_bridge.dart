@@ -75,6 +75,69 @@ class ReaderWebViewBridge {
     final uri = Uri.tryParse(raw);
     return uri != null && uri.hasScheme && uri.hasAuthority ? uri : null;
   }
+
+  Future<Uri?> readFaviconUrl(BrowserWebViewController controller, Uri pageUrl) async {
+    final Object? result;
+    try {
+      result = await controller.runJavaScriptReturningResult('''
+(function () {
+  try {
+    var candidates = Array.prototype.slice.call(document.querySelectorAll(
+      'link[rel~="icon" i], link[rel="shortcut icon" i], link[rel="apple-touch-icon" i]'
+    ));
+    candidates.sort(function (left, right) {
+      var leftRel = (left.getAttribute('rel') || '').toLowerCase();
+      var rightRel = (right.getAttribute('rel') || '').toLowerCase();
+      var leftType = (left.getAttribute('type') || '').toLowerCase();
+      var rightType = (right.getAttribute('type') || '').toLowerCase();
+      var leftHref = (left.getAttribute('href') || '').toLowerCase();
+      var rightHref = (right.getAttribute('href') || '').toLowerCase();
+      var leftIsSvg = leftType === 'image/svg+xml' || leftHref.indexOf('.svg') !== -1;
+      var rightIsSvg = rightType === 'image/svg+xml' || rightHref.indexOf('.svg') !== -1;
+      if (leftIsSvg && !rightIsSvg) {
+        return -1;
+      }
+      if (rightIsSvg && !leftIsSvg) {
+        return 1;
+      }
+      if (leftRel.indexOf('apple-touch-icon') !== -1 && rightRel.indexOf('apple-touch-icon') === -1) {
+        return -1;
+      }
+      if (rightRel.indexOf('apple-touch-icon') !== -1 && leftRel.indexOf('apple-touch-icon') === -1) {
+        return 1;
+      }
+      return 0;
+    });
+    for (var index = 0; index < candidates.length; index += 1) {
+      if (candidates[index].href) {
+        return candidates[index].href;
+      }
+    }
+    return '';
+  } catch (error) {
+    console.debug('Marker ignored favicon URL lookup failure', error);
+    return '';
+  }
+})();
+''');
+    } on Object catch (error) {
+      debugPrint('Ignoring failed favicon URL lookup: $error');
+      return null;
+    }
+    final raw = result.toString().replaceAll('"', '').trim();
+    if (raw.isEmpty || raw == 'null') {
+      return pageUrl.hasScheme && pageUrl.hasAuthority
+          ? Uri(
+              scheme: pageUrl.scheme,
+              host: pageUrl.host,
+              port: pageUrl.hasPort ? pageUrl.port : null,
+              path: '/favicon.ico',
+            )
+          : null;
+    }
+    final uri = Uri.tryParse(raw);
+    return uri != null && uri.hasScheme && uri.hasAuthority ? uri : null;
+  }
 }
 
 const String _channelCompatibilityScript = '''

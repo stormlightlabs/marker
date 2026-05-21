@@ -9,6 +9,7 @@ enum AppRoute {
   settings(path: '/settings', routeName: 'settings'),
   history(path: '/settings/history', routeName: 'history'),
   logs(path: '/settings/logs', routeName: 'logs'),
+  annotations(path: '/annotations', routeName: 'annotations'),
   annotation(path: '/annotations/:annotationId', routeName: 'annotation');
 
   const AppRoute({required this.path, required this.routeName});

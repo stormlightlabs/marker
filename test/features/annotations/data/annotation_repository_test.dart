@@ -23,11 +23,15 @@ void main() {
       url: Uri.parse('https://example.com/article'),
       canonicalUrl: Uri.parse('https://example.com/canonical'),
       title: 'Example Article',
+      faviconUrl: Uri.parse('https://example.com/favicon.svg'),
+      faviconFilePath: '/cache/favicons/example.svg',
     );
 
     expect(page.url, 'https://example.com/article');
     expect(page.canonicalUrl, 'https://example.com/canonical');
     expect(page.title, 'Example Article');
+    expect(page.faviconUrl, 'https://example.com/favicon.svg');
+    expect(page.faviconFilePath, '/cache/favicons/example.svg');
     expect(page.createdAt, page.lastVisitedAt);
 
     final history = await database.select(database.browserHistoryEntries).get();

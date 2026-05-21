@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/features/browser/data/favicon_cache.dart';
 import 'package:marker/features/library/data/library_repository.dart';
 
 void main() {
@@ -24,15 +27,28 @@ void main() {
 
     expect(snapshot.bookmarkedPages, hasLength(1));
     expect(snapshot.bookmarkedPages.single.title, 'Saved Article');
+    expect(snapshot.bookmarkedPages.single.bookmarkFolderPath, 'Research / Reading');
     expect(snapshot.bookmarkedPages.single.annotationCount, 1);
 
-    expect(snapshot.recentPages, hasLength(1));
-    expect(snapshot.recentPages.single.title, 'Recent Article');
-    expect(snapshot.recentPages.single.annotationCount, 1);
+    expect(snapshot.recentPages, hasLength(2));
+    expect(snapshot.recentPages.first.title, 'Recent Article');
+    expect(snapshot.recentPages.first.annotationCount, 1);
+    expect(snapshot.recentPages.first.faviconUrl, Uri.parse('https://example.com/favicon.ico'));
+    expect(snapshot.recentPages.first.faviconFilePath, '/cache/favicons/example.ico');
+    expect(snapshot.recentPages.first.annotationPreview, 'quote from selector');
+    expect(snapshot.recentPages.last.title, 'Saved Article');
+    expect(snapshot.recentPages.last.bookmarkFolderPath, 'Research / Reading');
 
     expect(snapshot.recentAnnotations, hasLength(2));
     expect(snapshot.recentAnnotations.first.pageTitle, 'Recent Article');
     expect(snapshot.recentAnnotations.first.excerpt, 'quote from selector');
+
+    final groups = await repository.loadAnnotationGroups();
+    expect(groups, hasLength(2));
+    expect(groups.first.title, 'Recent Article');
+    expect(groups.first.annotations.single.excerpt, 'quote from selector');
+    expect(groups.last.title, 'Saved Article');
+    expect(groups.last.bookmarkFolderPath, 'Research / Reading');
   });
 
   test('ignores deleted annotations in counts and recent annotations', () async {
@@ -63,8 +79,32 @@ void main() {
 
     final snapshot = await repository.loadSnapshot();
 
-    expect(snapshot.recentPages.single.annotationCount, 0);
+    expect(snapshot.recentPages, isEmpty);
     expect(snapshot.recentAnnotations, isEmpty);
+  });
+
+  test('recaches favicon files when the stored cache path is missing', () async {
+    final directory = await Directory.systemTemp.createTemp('marker_library_favicon_test_');
+    addTearDown(() async {
+      if (directory.existsSync()) {
+        await directory.delete(recursive: true);
+      }
+    });
+    await _seedLibrary(database);
+    repository = LibraryRepository(
+      database,
+      faviconCache: FaviconCache(
+        cacheDirectory: () async => directory,
+        fetcher: (url) async => FaviconFetchResult(bytes: Uint8List.fromList([7, 8, 9]), contentType: 'image/x-icon'),
+      ),
+    );
+
+    final snapshot = await repository.loadSnapshot();
+    final page = await (database.select(database.pages)..where((row) => row.id.equals('recent-page'))).getSingle();
+
+    expect(snapshot.recentPages.first.faviconFilePath, isNot('/cache/favicons/example.ico'));
+    expect(snapshot.recentPages.first.faviconFilePath, page.faviconFilePath);
+    expect(await File(page.faviconFilePath!).readAsBytes(), [7, 8, 9]);
   });
 }
 
@@ -89,8 +129,31 @@ Future<void> _seedLibrary(AppDatabase database) async {
           id: 'recent-page',
           url: 'https://example.com/recent',
           title: const Value('Recent Article'),
+          faviconUrl: const Value('https://example.com/favicon.ico'),
+          faviconFilePath: const Value('/cache/favicons/example.ico'),
           createdAt: recentAt,
           lastVisitedAt: recentAt,
+        ),
+      );
+  await database
+      .into(database.bookmarkFolders)
+      .insert(
+        BookmarkFoldersCompanion.insert(
+          id: 'research-folder',
+          title: 'Research',
+          createdAt: savedAt,
+          updatedAt: savedAt,
+        ),
+      );
+  await database
+      .into(database.bookmarkFolders)
+      .insert(
+        BookmarkFoldersCompanion.insert(
+          id: 'reading-folder',
+          parentId: const Value('research-folder'),
+          title: 'Reading',
+          createdAt: savedAt,
+          updatedAt: savedAt,
         ),
       );
   await database
@@ -98,6 +161,7 @@ Future<void> _seedLibrary(AppDatabase database) async {
       .insert(
         BookmarksCompanion.insert(
           id: 'bookmark',
+          folderId: const Value('reading-folder'),
           url: 'https://example.com/saved',
           title: const Value('Saved Article'),
           createdAt: savedAt,

@@ -12,6 +12,7 @@ import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/features/browser/ad_block/ad_block_providers.dart';
 import 'package:marker/features/browser/ad_block/ad_block_rules.dart';
 import 'package:marker/features/browser/application/native_share_controller.dart';
+import 'package:marker/features/browser/data/favicon_cache.dart';
 import 'package:marker/features/browser/webview/browser_webview.dart';
 import 'package:marker/features/browser/webview/reader_webview_bridge.dart';
 
@@ -20,6 +21,7 @@ FakeWebViewPlatform? _activeFakeWebViewPlatform;
 Widget markerTestApp({
   required AppDatabase database,
   NativeUrlShare? nativeUrlShare,
+  FaviconCache? faviconCache,
   CompiledAdBlockRules? compiledAdBlockRules,
   List<dynamic> additionalOverrides = const [],
 }) {
@@ -43,6 +45,7 @@ Widget markerTestApp({
     databaseProvider.overrideWithValue(database),
     compiledAdBlockRulesProvider.overrideWith((ref) => effectiveAdBlockRules),
     readerWebViewBridgeProvider.overrideWithValue(testReaderBridge()),
+    faviconCacheProvider.overrideWithValue(faviconCache ?? FaviconCache(fetcher: (_) async => null)),
     browserWebViewControllerFactoryProvider.overrideWithValue(() => fakeWebViewController),
     browserWebViewBuilderProvider.overrideWithValue((context, controller) => const Center(child: Text('Fake WebView'))),
     if (nativeUrlShare != null) nativeUrlShareProvider.overrideWithValue(nativeUrlShare),
@@ -292,6 +295,8 @@ class FakeWebViewPlatform {
   set throwOnCanonicalUrlRead(bool value) => controller.throwOnCanonicalUrlRead = value;
   Object get canonicalUrlResult => controller.canonicalUrlResult;
   set canonicalUrlResult(Object value) => controller.canonicalUrlResult = value;
+  Object get faviconUrlResult => controller.faviconUrlResult;
+  set faviconUrlResult(Object value) => controller.faviconUrlResult = value;
   Object get renderAnnotationsResult => controller.renderAnnotationsResult;
   set renderAnnotationsResult(Object value) => controller.renderAnnotationsResult = value;
 }
@@ -304,6 +309,7 @@ class FakeBrowserWebViewController implements BrowserWebViewController {
   BrowserNavigationDelegate? navigationDelegate;
   bool throwOnCanonicalUrlRead = false;
   Object canonicalUrlResult = '"https://news.ycombinator.com/news"';
+  Object faviconUrlResult = '"https://news.ycombinator.com/favicon.ico"';
   Object renderAnnotationsResult = 1;
   CompiledAdBlockRules? adBlockRules;
   int reloadCount = 0;
@@ -346,6 +352,9 @@ class FakeBrowserWebViewController implements BrowserWebViewController {
         throw PlatformException(code: 'javaScript-error', message: 'canonical lookup failed');
       }
       return canonicalUrlResult;
+    }
+    if (javaScript.contains('link[rel~="icon"')) {
+      return faviconUrlResult;
     }
     return canonicalUrlResult;
   }

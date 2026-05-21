@@ -24,7 +24,7 @@ void main() {
 
     await tester.pump();
     await tester.pump();
-    await tester.tap(find.text('highlighting'));
+    await tester.tap(find.text('important quote'));
     await tester.pumpAndSettle();
 
     expect(find.text('Annotation'), findsOneWidget);

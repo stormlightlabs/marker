@@ -42,12 +42,6 @@ updated: 2026-05-13
 
 ### WebView
 
-- Recent pages in the "Home" screen should be changed:
-  - Show the favicon if available (should be cached!), otherwise show a placeholder with the first letter of
-    the domain name.
-  - Should be "Recently Annotated" instead of "Recently Visited"
-  - Instead of "highlighting" or "annotating" as the label, it should be a preview of
-    the annotation or highlighted text.
 - Make bookmarks & annotated pages bookmark folder aware
 
 ### Address Bar

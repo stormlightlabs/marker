@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +27,7 @@ class LibraryScreen extends ConsumerWidget {
                   snapshot: library,
                   onOpenUrl: (url) => _openInBrowser(context, ref, url),
                   onOpenAnnotation: (annotationId) => _openAnnotation(context, annotationId),
+                  onOpenAnnotations: () => context.pushNamed(AppRoute.annotations.routeName),
                 ),
                 loading: () => const Center(child: CupertinoActivityIndicator()),
                 error: (error, stackTrace) => _LibraryError(message: error.toString()),
@@ -49,11 +52,17 @@ class LibraryScreen extends ConsumerWidget {
 }
 
 class _LibraryContent extends StatelessWidget {
-  const _LibraryContent({required this.snapshot, required this.onOpenUrl, required this.onOpenAnnotation});
+  const _LibraryContent({
+    required this.snapshot,
+    required this.onOpenUrl,
+    required this.onOpenAnnotation,
+    required this.onOpenAnnotations,
+  });
 
   final LibrarySnapshot snapshot;
   final ValueChanged<Uri> onOpenUrl;
   final ValueChanged<String> onOpenAnnotation;
+  final VoidCallback onOpenAnnotations;
 
   @override
   Widget build(BuildContext context) {
@@ -87,13 +96,17 @@ class _LibraryContent extends StatelessWidget {
             onOpenUrl: onOpenUrl,
           ),
           _LibraryPageSection(
-            title: 'Recent Pages',
+            title: 'Recently Annotated',
             pages: snapshot.recentPages,
             icon: CupertinoIcons.globe,
             accentColor: CupertinoColors.systemTeal,
             onOpenUrl: onOpenUrl,
           ),
-          _AnnotationSection(annotations: snapshot.recentAnnotations, onOpenAnnotation: onOpenAnnotation),
+          _AnnotationSection(
+            annotations: snapshot.recentAnnotations,
+            onOpenAnnotation: onOpenAnnotation,
+            onOpenAnnotations: onOpenAnnotations,
+          ),
           const SliverToBoxAdapter(child: SizedBox(height: 18)),
         ],
       ],
@@ -135,10 +148,15 @@ class _LibraryPageSection extends StatelessWidget {
 }
 
 class _AnnotationSection extends StatelessWidget {
-  const _AnnotationSection({required this.annotations, required this.onOpenAnnotation});
+  const _AnnotationSection({
+    required this.annotations,
+    required this.onOpenAnnotation,
+    required this.onOpenAnnotations,
+  });
 
   final List<LibraryAnnotationItem> annotations;
   final ValueChanged<String> onOpenAnnotation;
+  final VoidCallback onOpenAnnotations;
 
   @override
   Widget build(BuildContext context) {
@@ -150,9 +168,103 @@ class _AnnotationSection extends StatelessWidget {
       child: _SectionFrame(
         title: 'Recent Annotations',
         children: [
+          _AllAnnotationsRow(onPressed: onOpenAnnotations),
           for (final annotation in annotations)
             _AnnotationRow(annotation: annotation, onPressed: () => onOpenAnnotation(annotation.id)),
         ],
+      ),
+    );
+  }
+}
+
+class AllAnnotationsScreen extends ConsumerWidget {
+  const AllAnnotationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groups = ref.watch(allAnnotationGroupsProvider);
+
+    return CupertinoPageScaffold(
+      backgroundColor: CupertinoColors.black,
+      child: SafeArea(
+        bottom: false,
+        child: groups.when(
+          data: (items) => _AllAnnotationsContent(
+            groups: items,
+            onOpenUrl: (url) => _openInBrowser(context, ref, url),
+            onOpenAnnotation: (annotationId) => _openAnnotation(context, annotationId),
+          ),
+          loading: () => const Center(child: CupertinoActivityIndicator()),
+          error: (error, stackTrace) => _LibraryError(message: error.toString()),
+        ),
+      ),
+    );
+  }
+
+  void _openInBrowser(BuildContext context, WidgetRef ref, Uri url) {
+    final controller = ref.read(readerControllerProvider.notifier);
+    controller.setUrlText(url.toString());
+    context.goNamed(AppRoute.browser.routeName);
+  }
+
+  void _openAnnotation(BuildContext context, String annotationId) {
+    context.goNamed(AppRoute.annotation.routeName, pathParameters: {'annotationId': annotationId});
+  }
+}
+
+class _AllAnnotationsContent extends StatelessWidget {
+  const _AllAnnotationsContent({required this.groups, required this.onOpenUrl, required this.onOpenAnnotation});
+
+  final List<LibraryAnnotationGroup> groups;
+  final ValueChanged<Uri> onOpenUrl;
+  final ValueChanged<String> onOpenAnnotation;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      slivers: [
+        const CupertinoSliverNavigationBar(
+          largeTitle: Text('Annotations'),
+          backgroundColor: CupertinoColors.black,
+          border: null,
+          previousPageTitle: 'Library',
+        ),
+        if (groups.isEmpty)
+          const SliverFillRemaining(hasScrollBody: false, child: _EmptyAnnotations())
+        else ...[
+          for (final group in groups)
+            SliverToBoxAdapter(
+              child: _LibraryGroupFrame(
+                children: [
+                  _AnnotationPageRow(group: group, onPressed: () => onOpenUrl(group.url)),
+                  for (final annotation in group.annotations)
+                    _AnnotationRow(annotation: annotation, onPressed: () => onOpenAnnotation(annotation.id)),
+                ],
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 18)),
+        ],
+      ],
+    );
+  }
+}
+
+class _LibraryGroupFrame extends StatelessWidget {
+  const _LibraryGroupFrame({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFF151519),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
+        ),
+        child: Column(children: children),
       ),
     );
   }
@@ -208,12 +320,53 @@ class _PageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final annotationText = page.annotationCount == 1 ? '1 annotation' : '${page.annotationCount} annotations';
+    final preview = page.annotationPreview;
+    final bookmarkFolderPath = page.bookmarkFolderPath;
 
     return _LibraryRowButton(
       onPressed: onPressed,
-      leading: _LibraryIcon(icon: icon, color: accentColor),
-      title: page.title,
-      subtitle: '${page.subtitle} · $annotationText',
+      leading: _PageFavicon(page: page, fallbackIcon: icon, fallbackColor: accentColor),
+      title: _titleWithBookmarkFolder(page.title, bookmarkFolderPath),
+      subtitle: preview == null
+          ? '${page.subtitle} · $annotationText'
+          : '${page.subtitle} · $annotationText · "$preview"',
+    );
+  }
+}
+
+class _AllAnnotationsRow extends StatelessWidget {
+  const _AllAnnotationsRow({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LibraryRowButton(
+      onPressed: onPressed,
+      leading: const _LibraryIcon(icon: CupertinoIcons.book, color: CupertinoColors.systemPurple),
+      title: 'All Annotations',
+      subtitle: 'Browse every highlight and note',
+    );
+  }
+}
+
+class _AnnotationPageRow extends StatelessWidget {
+  const _AnnotationPageRow({required this.group, required this.onPressed});
+
+  final LibraryAnnotationGroup group;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final annotationCount = group.annotations.length;
+    final annotationText = annotationCount == 1 ? '1 annotation' : '$annotationCount annotations';
+    final bookmarkFolderPath = group.bookmarkFolderPath;
+
+    return _LibraryRowButton(
+      onPressed: onPressed,
+      leading: _AnnotationGroupFavicon(group: group),
+      title: _titleWithBookmarkFolder(group.title, bookmarkFolderPath),
+      subtitle: '${group.subtitle} · $annotationText',
     );
   }
 }
@@ -226,16 +379,49 @@ class _AnnotationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNote = annotation.motivation == 'commenting';
-
     return _LibraryRowButton(
       onPressed: onPressed,
       leading: _LibraryIcon(
-        icon: isNote ? CupertinoIcons.chat_bubble_text : CupertinoIcons.pencil,
-        color: isNote ? CupertinoColors.activeBlue : CupertinoColors.systemYellow,
+        icon: annotation.motivation == 'commenting' ? CupertinoIcons.chat_bubble_text : CupertinoIcons.pencil,
+        color: annotation.motivation == 'commenting' ? CupertinoColors.activeBlue : CupertinoColors.systemYellow,
       ),
-      title: annotation.motivation,
-      subtitle: '${annotation.pageTitle} · "${annotation.excerpt}"',
+      title: annotation.excerpt,
+      subtitle: annotation.pageTitle,
+    );
+  }
+}
+
+class _AnnotationGroupFavicon extends StatelessWidget {
+  const _AnnotationGroupFavicon({required this.group});
+
+  final LibraryAnnotationGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    final faviconFilePath = group.faviconFilePath;
+    if (faviconFilePath != null) {
+      return _FaviconFrame(
+        child: Image.file(
+          File(faviconFilePath),
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal),
+        ),
+      );
+    }
+
+    final faviconUrl = group.faviconUrl;
+    if (faviconUrl == null) {
+      return _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal);
+    }
+
+    return _FaviconFrame(
+      child: Image.network(
+        faviconUrl.toString(),
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) =>
+            _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal),
+      ),
     );
   }
 }
@@ -321,6 +507,98 @@ class _LibraryIcon extends StatelessWidget {
   }
 }
 
+class _PageFavicon extends StatelessWidget {
+  const _PageFavicon({required this.page, required this.fallbackIcon, required this.fallbackColor});
+
+  final LibraryPageItem page;
+  final IconData fallbackIcon;
+  final Color fallbackColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final faviconFilePath = page.faviconFilePath;
+    if (faviconFilePath != null) {
+      return _FaviconFrame(
+        child: Image.file(
+          File(faviconFilePath),
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              _DomainPlaceholder(host: page.subtitle, icon: fallbackIcon, color: fallbackColor),
+        ),
+      );
+    }
+
+    final faviconUrl = page.faviconUrl;
+    if (faviconUrl == null) {
+      return _DomainPlaceholder(host: page.subtitle, icon: fallbackIcon, color: fallbackColor);
+    }
+
+    return _FaviconFrame(
+      child: Image.network(
+        faviconUrl.toString(),
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) =>
+            _DomainPlaceholder(host: page.subtitle, icon: fallbackIcon, color: fallbackColor),
+      ),
+    );
+  }
+}
+
+class _FaviconFrame extends StatelessWidget {
+  const _FaviconFrame({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 36,
+      height: 36,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(color: const Color(0xFF24242A), borderRadius: BorderRadius.circular(8)),
+      child: child,
+    );
+  }
+}
+
+class _DomainPlaceholder extends StatelessWidget {
+  const _DomainPlaceholder({required this.host, required this.icon, required this.color});
+
+  final String host;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = _domainInitial(host);
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+      alignment: Alignment.center,
+      child: initial == null
+          ? Icon(icon, color: color, size: 19)
+          : Text(
+              initial,
+              style: TextStyle(color: color, fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0),
+            ),
+    );
+  }
+}
+
+String? _domainInitial(String host) {
+  final normalizedHost = host.trim();
+  if (normalizedHost.isEmpty) {
+    return null;
+  }
+  final domain = normalizedHost.startsWith('www.') ? normalizedHost.substring(4) : normalizedHost;
+  return domain.substring(0, 1).toUpperCase();
+}
+
+String _titleWithBookmarkFolder(String title, String? bookmarkFolderPath) {
+  return bookmarkFolderPath == null ? title : '$title · $bookmarkFolderPath';
+}
+
 class _EmptyLibrary extends StatelessWidget {
   const _EmptyLibrary();
 
@@ -341,6 +619,35 @@ class _EmptyLibrary extends StatelessWidget {
           SizedBox(height: 8),
           Text(
             'Open a webpage in the browser tab to start reading and annotating.',
+            style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 15, letterSpacing: 0, height: 1.25),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyAnnotations extends StatelessWidget {
+  const _EmptyAnnotations();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 42),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(CupertinoIcons.pencil, size: 42, color: CupertinoColors.systemGrey),
+          SizedBox(height: 14),
+          Text(
+            'No Annotations',
+            style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Annotations you add in the browser will appear here grouped by page.',
             style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 15, letterSpacing: 0, height: 1.25),
             textAlign: TextAlign.center,
           ),

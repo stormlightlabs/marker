@@ -12,6 +12,7 @@ import 'package:marker/features/browser/application/link_context_controller.dart
 import 'package:marker/features/browser/application/native_share_controller.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/browser/application/selection_capture_controller.dart';
+import 'package:marker/features/browser/data/favicon_cache.dart';
 import 'package:marker/features/browser/domain/reader_session_state.dart';
 import 'package:marker/features/browser/presentation/annotation_sidebar_widget.dart';
 import 'package:marker/features/browser/presentation/edge_swipe_navigator.dart';
@@ -58,11 +59,19 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               ref.read(readerControllerProvider.notifier).failLoad('The loaded page did not report a valid URL.');
               return;
             }
+            final faviconUrl = await bridge.readFaviconUrl(_webViewController, uri);
+            final faviconFilePath = await ref.read(faviconCacheProvider).cacheFavicon(faviconUrl);
             final generation = _loadGeneration;
             await _injectAdBlockCosmetics(uri);
             await ref
                 .read(readerControllerProvider.notifier)
-                .finishLoad(url: uri, canonicalUrl: canonicalUrl, title: title);
+                .finishLoad(
+                  url: uri,
+                  canonicalUrl: canonicalUrl,
+                  title: title,
+                  faviconUrl: faviconUrl,
+                  faviconFilePath: faviconFilePath,
+                );
             await _renderSavedAnnotations(uri, generation: generation, retry: true);
           },
           onWebResourceError: (description) {

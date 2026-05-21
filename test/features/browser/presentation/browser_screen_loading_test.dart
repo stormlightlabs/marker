@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/browser/ad_block/ad_block_rules.dart';
+import 'package:marker/features/browser/data/favicon_cache.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
 
 import '../../../helpers/harness.dart';
@@ -22,7 +23,7 @@ void main() {
   });
 
   testWidgets('loads the default URL and records the page', (tester) async {
-    await tester.pumpWidget(markerTestApp(database: database));
+    await tester.pumpWidget(markerTestApp(database: database, faviconCache: _FakeFaviconCache()));
 
     await tester.pump();
     await tester.pump();
@@ -43,6 +44,8 @@ void main() {
     expect(pages, hasLength(1));
     expect(pages.single.url, 'https://news.ycombinator.com');
     expect(pages.single.canonicalUrl, 'https://news.ycombinator.com/news');
+    expect(pages.single.faviconUrl, 'https://news.ycombinator.com/favicon.ico');
+    expect(pages.single.faviconFilePath, '/cache/favicons/hacker-news.ico');
     expect(pages.single.title, 'Example Domain');
   });
 
@@ -134,4 +137,11 @@ void main() {
     expect(platform.controller.adBlockRules, isNull);
     expect(platform.controller.injectedScripts.any((script) => script.contains('MarkerAdBlock')), isFalse);
   });
+}
+
+class _FakeFaviconCache extends FaviconCache {
+  @override
+  Future<String?> cacheFavicon(Uri? faviconUrl) async {
+    return faviconUrl == null ? null : '/cache/favicons/hacker-news.ico';
+  }
 }

@@ -65,6 +65,22 @@ void main() {
     expect(canonicalUrl, isNull);
     expect(platform.controller.injectedScripts.single, contains('link[rel="canonical"'));
   });
+
+  test('reads favicon URL from the loaded page and falls back to favicon ico', () async {
+    final platform = FakeWebViewPlatform();
+    final bridge = testReaderBridge();
+    final controller = platform.controller;
+
+    final faviconUrl = await bridge.readFaviconUrl(controller, Uri.parse('https://example.com/article'));
+    platform.controller.faviconUrlResult = '""';
+    final fallbackUrl = await bridge.readFaviconUrl(controller, Uri.parse('https://example.com/article'));
+
+    expect(faviconUrl, Uri.parse('https://news.ycombinator.com/favicon.ico'));
+    expect(fallbackUrl, Uri.parse('https://example.com/favicon.ico'));
+    expect(platform.controller.injectedScripts.first, contains('link[rel~="icon"'));
+    expect(platform.controller.injectedScripts.first, contains("leftType === 'image/svg+xml'"));
+    expect(platform.controller.injectedScripts.first, contains("leftHref.indexOf('.svg')"));
+  });
 }
 
 class _CountingAssetBundle extends CachingAssetBundle {

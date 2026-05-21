@@ -28,14 +28,29 @@ class AnnotationRepository {
   final Uuid _uuid;
   final DateTime Function() _now;
 
-  Future<Page> recordPageVisit({required Uri url, Uri? canonicalUrl, String? title}) async {
-    return _recordPage(url: url, canonicalUrl: canonicalUrl, title: title, recordHistory: true);
+  Future<Page> recordPageVisit({
+    required Uri url,
+    Uri? canonicalUrl,
+    String? title,
+    Uri? faviconUrl,
+    String? faviconFilePath,
+  }) async {
+    return _recordPage(
+      url: url,
+      canonicalUrl: canonicalUrl,
+      title: title,
+      faviconUrl: faviconUrl,
+      faviconFilePath: faviconFilePath,
+      recordHistory: true,
+    );
   }
 
   Future<Page> _recordPage({
     required Uri url,
     Uri? canonicalUrl,
     String? title,
+    Uri? faviconUrl,
+    String? faviconFilePath,
     required bool recordHistory,
     bool preserveExistingCanonicalUrl = false,
   }) async {
@@ -55,6 +70,8 @@ class AnnotationRepository {
               ? const Value.absent()
               : Value(canonicalUrl?.toString()),
           title: normalizedTitle == null || normalizedTitle.isEmpty ? const Value.absent() : Value(normalizedTitle),
+          faviconUrl: faviconUrl == null ? const Value.absent() : Value(faviconUrl.toString()),
+          faviconFilePath: faviconFilePath == null ? const Value.absent() : Value(faviconFilePath),
           lastVisitedAt: Value(now),
         ),
       );
@@ -70,6 +87,8 @@ class AnnotationRepository {
               url: normalizedUrl,
               canonicalUrl: Value(canonicalUrl?.toString()),
               title: Value(normalizedTitle == null || normalizedTitle.isEmpty ? null : normalizedTitle),
+              faviconUrl: Value(faviconUrl?.toString()),
+              faviconFilePath: Value(faviconFilePath),
               createdAt: now,
               lastVisitedAt: now,
             ),
@@ -110,6 +129,8 @@ class AnnotationRepository {
     final page = await _recordPage(
       url: sourceUrl,
       title: pageTitle,
+      faviconUrl: null,
+      faviconFilePath: null,
       recordHistory: false,
       preserveExistingCanonicalUrl: true,
     );
