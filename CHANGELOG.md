@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-05-20
+
+- Fuzzy searchable browsing history with searchable title, url, & description
+- Grouped annotations by page with quick access to view and edit.
+- Favicon support in browsing history and bookmarks, with accompanying cache management.
+- Added app icons and native splash screens.
+
 ### 2026-05-16
 
 - Bookmark management screen with folder support, reordering, and renaming.
