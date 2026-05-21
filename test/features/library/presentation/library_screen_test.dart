@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
 
@@ -56,11 +57,39 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    expect(find.text('Open source page'), findsOneWidget);
+    await tester.tap(find.text('Open source page'));
+    await tester.pump();
+    await tester.pump();
+
     expect(find.text('Fake WebView'), findsOneWidget);
     expect(platform.controller.loadedUri, Uri.parse('https://example.com/recent'));
   });
 
-  testWidgets('opens recent annotated page from the library', (tester) async {
+  testWidgets('searches library and opens recent annotated page detail', (tester) async {
+    await seedLibrary(database);
+
+    await tester.pumpWidget(markerTestApp(database: database));
+
+    await tester.pump();
+    await tester.pump();
+
+    await tester.enterText(find.byType(CupertinoSearchTextField), 'important');
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('SEARCH RESULTS'), findsOneWidget);
+    expect(find.text('important quote'), findsWidgets);
+
+    await tester.tap(find.text('Recent Article').first);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Open source page'), findsOneWidget);
+    expect(find.text('important quote'), findsWidgets);
+  });
+
+  testWidgets('page detail filters and bulk deletes annotations', (tester) async {
     await seedLibrary(database);
 
     await tester.pumpWidget(markerTestApp(database: database));
@@ -69,10 +98,22 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('Recent Article').first);
-    await tester.pump();
-    await tester.pump();
+    await pumpRouteTransition(tester);
 
-    expect(find.text('Fake WebView'), findsOneWidget);
-    expect(platform.controller.loadedUri, Uri.parse('https://example.com/recent'));
+    await tester.tap(find.widgetWithText(CupertinoButton, 'Edit').last, warnIfMissed: false);
+    await tester.pump();
+    await tester.tap(find.text('important quote').first);
+    await tester.pump();
+    expect(find.text('1 selected'), findsOneWidget);
+
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+
+    final annotation = await (database.select(
+      database.annotations,
+    )..where((row) => row.id.equals('annotation'))).getSingle();
+    expect(annotation.deletedAt, isNotNull);
   });
 }

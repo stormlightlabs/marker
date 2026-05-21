@@ -111,11 +111,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (Migrator m) => m.createAll(),
+    onCreate: (Migrator m) async {
+      await m.createAll();
+      await createLibrarySearchIndex();
+    },
     onUpgrade: (Migrator m, int from, int to) async {
       if (from < 2) {
         await m.createTable(bookmarks);
@@ -142,9 +145,30 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(pages, pages.description);
         await m.addColumn(browserHistoryEntries, browserHistoryEntries.description);
       }
+      if (from < 9) {
+        await createLibrarySearchIndex();
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      await createLibrarySearchIndex();
     },
   );
+
+  Future<void> createLibrarySearchIndex() {
+    return customStatement('''
+CREATE VIRTUAL TABLE IF NOT EXISTS library_search_fts USING fts5(
+  document_type UNINDEXED,
+  document_id UNINDEXED,
+  page_id UNINDEXED,
+  title,
+  url,
+  description,
+  folder_path,
+  annotation_text,
+  note_text,
+  tokenize = 'unicode61'
+)
+''');
+  }
 }

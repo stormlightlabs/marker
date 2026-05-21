@@ -10,6 +10,8 @@ enum AppRoute {
   history(path: '/settings/history', routeName: 'history'),
   logs(path: '/settings/logs', routeName: 'logs'),
   annotations(path: '/annotations', routeName: 'annotations'),
+  libraryPage(path: '/library/pages/:pageId', routeName: 'library-page'),
+  annotationExport(path: '/annotations/export', routeName: 'annotation-export'),
   annotation(path: '/annotations/:annotationId', routeName: 'annotation');
 
   const AppRoute({required this.path, required this.routeName});

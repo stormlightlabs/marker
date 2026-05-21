@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
+import 'package:marker/features/annotations/data/annotation_repository.dart';
 import 'package:marker/features/browser/data/favicon_cache.dart';
 
 final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
@@ -18,6 +19,10 @@ final librarySnapshotProvider = FutureProvider.autoDispose<LibrarySnapshot>((ref
 
 final allAnnotationGroupsProvider = FutureProvider.autoDispose<List<LibraryAnnotationGroup>>((ref) {
   return ref.watch(libraryRepositoryProvider).loadAnnotationGroups();
+});
+
+final libraryPageDetailProvider = FutureProvider.autoDispose.family<LibraryPageDetail?, String>((ref, id) {
+  return ref.watch(libraryRepositoryProvider).loadPageDetail(id);
 });
 
 class LibraryRepository {
@@ -134,6 +139,7 @@ class LibraryRepository {
           url: Uri.parse(target?.sourceUrl ?? page.url),
           pageTitle: _fallbackTitle(page.title, page.url),
           motivation: annotation.motivation,
+          visualStyle: await _visualStyleForAnnotation(annotation.id),
           excerpt: await _excerptForAnnotation(annotation.id),
           modifiedAt: annotation.modifiedAt,
         ),
@@ -183,6 +189,7 @@ class LibraryRepository {
           url: url,
           pageTitle: _fallbackTitle(page.title, page.url),
           motivation: annotation.motivation,
+          visualStyle: await _visualStyleForAnnotation(annotation.id),
           excerpt: await _excerptForAnnotation(annotation.id),
           modifiedAt: annotation.modifiedAt,
         ),
@@ -190,6 +197,70 @@ class LibraryRepository {
     }
 
     return builders.values.map((builder) => builder.build()).toList(growable: false);
+  }
+
+  Future<LibraryPageDetail?> loadPageDetail(String id) async {
+    Page? page = await (_database.select(_database.pages)..where((page) => page.id.equals(id))).getSingleOrNull();
+    Bookmark? bookmark;
+    if (page == null) {
+      bookmark = await (_database.select(
+        _database.bookmarks,
+      )..where((bookmark) => bookmark.id.equals(id))).getSingleOrNull();
+      if (bookmark == null) {
+        return null;
+      }
+      page = await _pageForUrl(bookmark.url);
+    } else {
+      bookmark = await (_database.select(
+        _database.bookmarks,
+      )..where((bookmark) => bookmark.url.equals(page!.url))).getSingleOrNull();
+    }
+
+    final urlText = page?.url ?? bookmark!.url;
+    final annotations = page == null ? <LibraryAnnotationItem>[] : await _annotationsForPage(page.id);
+    return LibraryPageDetail(
+      id: id,
+      pageId: page?.id,
+      url: Uri.parse(urlText),
+      title: _fallbackTitle(bookmark?.title ?? page?.title, urlText),
+      subtitle: _hostFor(page?.canonicalUrl ?? urlText),
+      description: page?.description,
+      faviconUrl: _parseOptionalUri(page?.faviconUrl),
+      faviconFilePath: page == null ? null : await _faviconFilePathForPage(page),
+      bookmarkFolderPath: await _bookmarkFolderPath(bookmark?.folderId),
+      annotations: annotations,
+    );
+  }
+
+  Future<List<LibraryAnnotationItem>> _annotationsForPage(String pageId) async {
+    final page = await (_database.select(_database.pages)..where((page) => page.id.equals(pageId))).getSingleOrNull();
+    final rows =
+        await (_database.select(_database.annotations)
+              ..where((annotation) => annotation.pageId.equals(pageId) & annotation.deletedAt.isNull())
+              ..orderBy([(annotation) => OrderingTerm.desc(annotation.modifiedAt)]))
+            .get();
+    final items = <LibraryAnnotationItem>[];
+    for (final annotation in rows) {
+      final target = await (_database.select(
+        _database.annotationTargets,
+      )..where((target) => target.annotationId.equals(annotation.id))).getSingleOrNull();
+      final sourceUrl = target?.sourceUrl ?? page?.url;
+      if (sourceUrl == null) {
+        continue;
+      }
+      items.add(
+        LibraryAnnotationItem(
+          id: annotation.id,
+          url: Uri.parse(sourceUrl),
+          pageTitle: _fallbackTitle(page?.title, sourceUrl),
+          motivation: annotation.motivation,
+          visualStyle: await _visualStyleForAnnotation(annotation.id),
+          excerpt: await _excerptForAnnotation(annotation.id),
+          modifiedAt: annotation.modifiedAt,
+        ),
+      );
+    }
+    return items;
   }
 
   Future<Map<String, Bookmark>> _bookmarksByUrl() async {
@@ -249,6 +320,26 @@ class LibraryRepository {
     }
 
     return _annotationExcerpt(textualBody?.value, target?.selectorJson);
+  }
+
+  Future<AnnotationVisualStyle> _visualStyleForAnnotation(String annotationId) async {
+    final bodies = await (_database.select(
+      _database.annotationBodies,
+    )..where((body) => body.annotationId.equals(annotationId))).get();
+    for (final body in bodies) {
+      if (body.type != 'StyleHint') {
+        continue;
+      }
+      try {
+        final decoded = jsonDecode(body.value);
+        if (decoded is Map<String, Object?> && decoded['style'] == AnnotationVisualStyle.underline.name) {
+          return AnnotationVisualStyle.underline;
+        }
+      } on FormatException {
+        return AnnotationVisualStyle.highlight;
+      }
+    }
+    return AnnotationVisualStyle.highlight;
   }
 
   String _annotationExcerpt(String? bodyValue, String? selectorJson) {
@@ -352,6 +443,32 @@ class LibrarySnapshot {
   bool get isEmpty => bookmarkedPages.isEmpty && recentPages.isEmpty && recentAnnotations.isEmpty;
 }
 
+class LibraryPageDetail {
+  const LibraryPageDetail({
+    required this.id,
+    required this.pageId,
+    required this.url,
+    required this.title,
+    required this.subtitle,
+    required this.description,
+    required this.faviconUrl,
+    required this.faviconFilePath,
+    required this.bookmarkFolderPath,
+    required this.annotations,
+  });
+
+  final String id;
+  final String? pageId;
+  final Uri url;
+  final String title;
+  final String subtitle;
+  final String? description;
+  final Uri? faviconUrl;
+  final String? faviconFilePath;
+  final String? bookmarkFolderPath;
+  final List<LibraryAnnotationItem> annotations;
+}
+
 class LibraryPageItem {
   const LibraryPageItem({
     required this.id,
@@ -438,6 +555,7 @@ class LibraryAnnotationItem {
     required this.url,
     required this.pageTitle,
     required this.motivation,
+    required this.visualStyle,
     required this.excerpt,
     required this.modifiedAt,
   });
@@ -446,6 +564,11 @@ class LibraryAnnotationItem {
   final Uri url;
   final String pageTitle;
   final String motivation;
+  final AnnotationVisualStyle visualStyle;
   final String excerpt;
   final DateTime modifiedAt;
+
+  bool get isNote => motivation == 'commenting';
+  String get typeLabel =>
+      isNote ? 'Note' : (visualStyle == AnnotationVisualStyle.underline ? 'Underline' : 'Highlight');
 }

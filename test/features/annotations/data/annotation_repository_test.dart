@@ -177,6 +177,44 @@ void main() {
     expect(deleted.deletedAt, isNotNull);
   });
 
+  test('bulk deletes annotations and exports markdown and w3c json', () async {
+    final first = await repository.createAnnotation(
+      sourceUrl: Uri.parse('https://example.com/article'),
+      exact: 'first quote',
+      motivation: 'commenting',
+      textPositionStart: 0,
+      textPositionEnd: 11,
+      pageTitle: 'Example Article',
+      bodies: [
+        AnnotationBodyInput.markdownNote('First note'),
+        AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00'),
+      ],
+    );
+    final second = await repository.createAnnotation(
+      sourceUrl: Uri.parse('https://example.com/article'),
+      exact: 'second quote',
+      motivation: 'highlighting',
+      textPositionStart: 12,
+      textPositionEnd: 24,
+      pageTitle: 'Example Article',
+      bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.underline, colorHex: '#64D2FF')],
+    );
+
+    final markdown = await repository.exportAnnotationsMarkdown(annotationIds: [first.id]);
+    final json = await repository.exportAnnotationsJson(annotationIds: [first.id]);
+    await repository.deleteAnnotations([first.id, second.id]);
+
+    expect(markdown, contains('# Marker Annotations'));
+    expect(markdown, contains('first quote'));
+    expect(markdown, contains('First note'));
+    final decoded = jsonDecode(json) as List<Object?>;
+    expect((decoded.single as Map<String, Object?>)['type'], 'Annotation');
+    expect(json, contains('http://www.w3.org/ns/anno.jsonld'));
+
+    final annotations = await repository.listAnnotationsForPage(sourceUrl: Uri.parse('https://example.com/article'));
+    expect(annotations, isEmpty);
+  });
+
   test('loads annotation detail and edits markdown body', () async {
     final annotation = await repository.createAnnotation(
       sourceUrl: Uri.parse('https://example.com/article'),

@@ -97,6 +97,32 @@ final routerProvider = Provider<GoRouter>((ref) {
             MarkerTransitionPage<void>(key: state.pageKey, child: const AllAnnotationsScreen()),
       ),
       GoRoute(
+        path: AppRoute.libraryPage.path,
+        name: AppRoute.libraryPage.routeName,
+        pageBuilder: (context, state) {
+          final pageId = state.pathParameters['pageId'] ?? '';
+          return MarkerTransitionPage<void>(
+            key: state.pageKey,
+            child: LibraryPageDetailScreen(pageId: pageId),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoute.annotationExport.path,
+        name: AppRoute.annotationExport.routeName,
+        pageBuilder: (context, state) {
+          final selected = state.uri.queryParameters['selected'];
+          final format = state.uri.queryParameters['format'] ?? 'markdown';
+          return MarkerTransitionPage<void>(
+            key: state.pageKey,
+            child: AnnotationExportScreen(
+              selectedIds: selected == null || selected.isEmpty ? null : selected.split(','),
+              format: format,
+            ),
+          );
+        },
+      ),
+      GoRoute(
         path: AppRoute.annotation.path,
         name: AppRoute.annotation.routeName,
         pageBuilder: (context, state) {

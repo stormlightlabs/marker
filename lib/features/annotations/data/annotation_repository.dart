@@ -251,6 +251,17 @@ class AnnotationRepository {
     );
   }
 
+  Future<void> deleteAnnotations(Iterable<String> annotationIds) async {
+    final ids = annotationIds.toSet();
+    if (ids.isEmpty) {
+      return;
+    }
+    final now = _now();
+    await (_database.update(_database.annotations)..where((annotation) => annotation.id.isIn(ids))).write(
+      AnnotationsCompanion(deletedAt: Value(now), modifiedAt: Value(now)),
+    );
+  }
+
   Future<AnnotationDetail?> getAnnotationDetail(String annotationId) async {
     final annotation = await (_database.select(
       _database.annotations,
@@ -319,6 +330,84 @@ class AnnotationRepository {
         ),
       );
     });
+  }
+
+  Future<String> exportAnnotationsMarkdown({Iterable<String>? annotationIds}) async {
+    final details = await _exportDetails(annotationIds: annotationIds);
+    final buffer = StringBuffer()
+      ..writeln('# Marker Annotations')
+      ..writeln();
+    String? currentPageId;
+    for (final detail in details) {
+      if (currentPageId != detail.page.id) {
+        currentPageId = detail.page.id;
+        buffer
+          ..writeln('## ${detail.pageTitle}')
+          ..writeln()
+          ..writeln(detail.sourceUrl)
+          ..writeln();
+      }
+      final annotation = detail.annotation;
+      buffer
+        ..writeln('- Type: ${annotation.typeLabel}')
+        ..writeln('  Quote: ${annotation.exact ?? 'Untitled annotation'}');
+      final note = annotation.note;
+      if (note != null) {
+        buffer.writeln('  Note: $note');
+      }
+      buffer
+        ..writeln('  Created: ${annotation.annotation.createdAt.toIso8601String()}')
+        ..writeln('  Modified: ${annotation.annotation.modifiedAt.toIso8601String()}')
+        ..writeln();
+    }
+    return buffer.toString();
+  }
+
+  Future<String> exportAnnotationsJson({Iterable<String>? annotationIds}) async {
+    final details = await _exportDetails(annotationIds: annotationIds);
+    final payload = [
+      for (final detail in details)
+        {
+          '@context': 'http://www.w3.org/ns/anno.jsonld',
+          'id': detail.annotation.annotation.id,
+          'type': 'Annotation',
+          'motivation': detail.annotation.annotation.motivation,
+          'created': detail.annotation.annotation.createdAt.toIso8601String(),
+          'modified': detail.annotation.annotation.modifiedAt.toIso8601String(),
+          'target': {'source': detail.annotation.target.sourceUrl, 'selector': detail.annotation.selectors},
+          'body': [
+            for (final body in detail.annotation.bodies)
+              {'type': body.type, if (body.format != null) 'format': body.format, 'value': body.value},
+          ],
+          'page': {
+            'id': detail.page.id,
+            'url': detail.page.url,
+            if (detail.page.canonicalUrl != null) 'canonicalUrl': detail.page.canonicalUrl,
+            if (detail.page.title != null) 'title': detail.page.title,
+            if (detail.page.description != null) 'description': detail.page.description,
+          },
+        },
+    ];
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  Future<List<AnnotationDetail>> _exportDetails({Iterable<String>? annotationIds}) async {
+    final selectedIds = annotationIds?.toSet();
+    final query = _database.select(_database.annotations)
+      ..where((annotation) => annotation.deletedAt.isNull())
+      ..orderBy([(annotation) => OrderingTerm.desc(annotation.modifiedAt)]);
+    if (selectedIds != null && selectedIds.isNotEmpty) {
+      query.where((annotation) => annotation.id.isIn(selectedIds));
+    }
+    final rows = await query.get();
+    final details = <AnnotationDetail>[];
+    for (final annotation in rows) {
+      final detail = await getAnnotationDetail(annotation.id);
+      if (detail != null) {
+        details.add(detail);
+      }
+    }
+    return details;
   }
 
   Future<AnnotationTarget?> _targetForAnnotation(
@@ -444,6 +533,13 @@ class PageAnnotation {
     }
 
     return visualStyle == AnnotationVisualStyle.underline ? '#64D2FF' : '#FFCC00';
+  }
+
+  String get typeLabel {
+    if (note != null || annotation.motivation == 'commenting') {
+      return 'Note';
+    }
+    return visualStyle == AnnotationVisualStyle.underline ? 'Underline' : 'Highlight';
   }
 
   List<Map<String, Object?>> get selectors {
