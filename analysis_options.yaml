@@ -1,6 +1,8 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  exclude:
+    - vendor/code_forge/**
   plugins:
     - custom_lint
   errors:

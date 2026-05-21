@@ -249,7 +249,7 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
                     child: child,
                   ),
                   itemCount: contents.items.length,
-                  onReorder: (oldIndex, newIndex) => _reorder(ref, oldIndex, newIndex),
+                  onReorderItem: (oldIndex, newIndex) => _reorder(ref, oldIndex, newIndex),
                   itemBuilder: (context, index) {
                     final item = contents.items[index];
                     return _BookmarkItemBlock(
@@ -309,9 +309,6 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
 
   Future<void> _reorder(WidgetRef ref, int oldIndex, int newIndex) async {
     final items = widget.contents.items.toList();
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
     final moved = items.removeAt(oldIndex);
     items.insert(newIndex, moved);
     await ref

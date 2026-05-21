@@ -108,6 +108,28 @@ void main() {
     expect(find.text('Example Article'), findsNothing);
   });
 
+  testWidgets('reorders bookmarks using adjusted destination index', (tester) async {
+    await _seedBookmarkManager(database);
+
+    await tester.pumpWidget(markerTestApp(database: database));
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Bookmarks'));
+    await pumpRouteTransition(tester);
+
+    final list = tester.widget<ReorderableList>(find.byType(ReorderableList));
+    list.onReorderItem!(0, 1);
+    await tester.pump();
+    await tester.pump();
+
+    final rootBookmarks = await database.select(database.bookmarks).get();
+    final rootFolders = await database.select(database.bookmarkFolders).get();
+    final bookmark = rootBookmarks.singleWhere((row) => row.id == 'bookmark');
+    final folder = rootFolders.singleWhere((row) => row.id == 'folder');
+    expect(bookmark.sortOrder, lessThan(folder.sortOrder));
+  });
+
   testWidgets('shows bookmark edit screen', (tester) async {
     await _seedBookmarkManager(database);
 
