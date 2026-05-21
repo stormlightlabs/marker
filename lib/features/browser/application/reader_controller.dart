@@ -43,6 +43,7 @@ class ReaderController extends Notifier<ReaderSessionState> {
     required Uri url,
     Uri? canonicalUrl,
     String? title,
+    String? description,
     Uri? faviconUrl,
     String? faviconFilePath,
   }) async {
@@ -56,6 +57,7 @@ class ReaderController extends Notifier<ReaderSessionState> {
           url: url,
           canonicalUrl: canonicalUrl,
           title: title,
+          description: description,
           faviconUrl: faviconUrl,
           faviconFilePath: faviconFilePath,
         );
@@ -63,6 +65,10 @@ class ReaderController extends Notifier<ReaderSessionState> {
 
   void failLoad(String description) {
     state = state.copyWith(isLoading: false, lastError: description);
+  }
+
+  void stopLoad() {
+    state = state.copyWith(isLoading: false, progress: 0);
   }
 
   Uri? goBack() {

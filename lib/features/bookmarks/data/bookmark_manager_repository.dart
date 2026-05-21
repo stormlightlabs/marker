@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:uuid/uuid.dart';
 
 final bookmarkManagerRepositoryProvider = Provider<BookmarkManagerRepository>((ref) {
@@ -144,7 +145,7 @@ class BookmarkManagerRepository {
   Future<void> updateBookmark({required String id, required String title}) async {
     await (_database.update(
       _database.bookmarks,
-    )..where((bookmark) => bookmark.id.equals(id))).write(BookmarksCompanion(title: Value(_normalize(title))));
+    )..where((bookmark) => bookmark.id.equals(id))).write(BookmarksCompanion(title: Value(normalize(title))));
   }
 
   Future<void> moveBookmark({required String bookmarkId, required String? folderId}) async {
@@ -287,7 +288,7 @@ class BookmarkManagerRepository {
     for (final bookmark in childBookmarks) {
       final indent = '  ' * depth;
       final addDate = _unixSeconds(bookmark.createdAt);
-      final title = _normalize(bookmark.title) ?? Uri.tryParse(bookmark.url)?.host ?? bookmark.url;
+      final title = normalize(bookmark.title) ?? Uri.tryParse(bookmark.url)?.host ?? bookmark.url;
       buffer.writeln('$indent<DT><A HREF="${_escape(bookmark.url)}" ADD_DATE="$addDate">${_escape(title)}</A>');
     }
   }
@@ -369,12 +370,7 @@ class BookmarkManagerRepository {
   String _escape(String value) => _htmlEscape.convert(value);
 
   String _normalizeRequiredTitle(String title) {
-    return _normalize(title) ?? 'Untitled Folder';
-  }
-
-  String? _normalize(String? value) {
-    final trimmed = value?.trim();
-    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+    return normalize(title) ?? 'Untitled Folder';
   }
 }
 

@@ -12,11 +12,14 @@ import 'package:marker/features/browser/application/link_context_controller.dart
 import 'package:marker/features/browser/application/native_share_controller.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/browser/application/selection_capture_controller.dart';
+import 'package:marker/features/browser/data/browser_history_search_repository.dart';
 import 'package:marker/features/browser/data/favicon_cache.dart';
 import 'package:marker/features/browser/domain/reader_session_state.dart';
 import 'package:marker/features/browser/presentation/annotation_sidebar_widget.dart';
 import 'package:marker/features/browser/presentation/edge_swipe_navigator.dart';
 import 'package:marker/features/browser/presentation/note_editor_sheet.dart';
+import 'package:marker/features/browser/presentation/widgets/annotation_toolbar.dart';
+import 'package:marker/features/browser/presentation/widgets/history_overlay.dart';
 import 'package:marker/features/browser/webview/browser_webview.dart';
 import 'package:marker/features/browser/webview/reader_webview_bridge.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
@@ -30,9 +33,11 @@ class BrowserScreen extends ConsumerStatefulWidget {
 
 class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   late final TextEditingController _urlController;
+  late final FocusNode _addressFocusNode;
   late final BrowserWebViewController _webViewController;
   final List<Timer> _renderRetryTimers = [];
   bool _areHighlightsVisible = true;
+  String _addressSearchQuery = '';
   int _loadGeneration = 0;
 
   @override
@@ -40,6 +45,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     super.initState();
     final initialUrl = ref.read(readerControllerProvider).urlText;
     _urlController = TextEditingController(text: initialUrl);
+    _addressFocusNode = FocusNode()..addListener(_handleAddressFocusChanged);
     _webViewController = ref.read(browserWebViewControllerFactoryProvider)();
     unawaited(_webViewController.setJavaScriptModeUnrestricted());
     unawaited(
@@ -52,6 +58,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
             final bridge = ref.read(readerWebViewBridgeProvider);
             await bridge.inject(_webViewController);
             final canonicalUrl = await bridge.readCanonicalUrl(_webViewController);
+            final description = await bridge.readMetaDescription(_webViewController);
             final title = await _webViewController.getTitle();
             final loadedUrl = await _webViewController.currentUrl();
             final uri = Uri.tryParse(loadedUrl ?? url);
@@ -69,6 +76,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                   url: uri,
                   canonicalUrl: canonicalUrl,
                   title: title,
+                  description: description,
                   faviconUrl: faviconUrl,
                   faviconFilePath: faviconFilePath,
                 );
@@ -105,6 +113,9 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
   @override
   void dispose() {
     _cancelRenderRetries();
+    _addressFocusNode
+      ..removeListener(_handleAddressFocusChanged)
+      ..dispose();
     _urlController.dispose();
     super.dispose();
   }
@@ -115,7 +126,21 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     if (target == null) {
       return;
     }
+    _addressFocusNode.unfocus();
+    setState(() {
+      _addressSearchQuery = '';
+    });
     await _loadUri(target);
+  }
+
+  Future<void> _reloadCurrentPage() async {
+    _addressFocusNode.unfocus();
+    await _webViewController.reload();
+  }
+
+  Future<void> _stopLoadingCurrentPage() async {
+    await _webViewController.stopLoading();
+    ref.read(readerControllerProvider.notifier).stopLoad();
   }
 
   Future<void> _loadUri(Uri target) {
@@ -181,6 +206,55 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     if (target != null) {
       await _loadUri(target);
     }
+  }
+
+  void _handleAddressFocusChanged() {
+    if (_addressFocusNode.hasFocus) {
+      _urlController.selection = TextSelection(baseOffset: 0, extentOffset: _urlController.text.length);
+      setState(() {
+        _addressSearchQuery = '';
+      });
+      return;
+    }
+
+    final committedUrl = ref.read(readerControllerProvider).urlText;
+    if (_urlController.text != committedUrl) {
+      _urlController.text = committedUrl;
+    }
+    setState(() {
+      _addressSearchQuery = '';
+    });
+  }
+
+  void _handleAddressChanged(String value) {
+    if (!_addressFocusNode.hasFocus) {
+      return;
+    }
+    setState(() {
+      _addressSearchQuery = value;
+    });
+  }
+
+  void _clearAddressInput() {
+    _urlController.clear();
+    setState(() {
+      _addressSearchQuery = '';
+    });
+  }
+
+  Future<void> _openHistorySearchMatch(BrowserHistorySearchMatch match) async {
+    _urlController.text = match.url.toString();
+    await _loadFromAddressBar();
+  }
+
+  Future<void> _pasteAndGo() async {
+    final data = await Clipboard.getData('text/plain');
+    final text = data?.text?.trim();
+    if (text == null || text.isEmpty) {
+      return;
+    }
+    _urlController.text = text;
+    await _loadFromAddressBar();
   }
 
   Future<void> _openLinkInCurrentTab(LinkContext link) async {
@@ -636,6 +710,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     final session = ref.watch(readerControllerProvider);
     final selection = ref.watch(selectionCaptureControllerProvider);
     final webViewBuilder = ref.watch(browserWebViewBuilderProvider);
+    final historyMatches = ref.watch(browserHistorySearchProvider(_addressSearchQuery));
 
     ref.listen(adBlockEnabledProvider, (previous, next) {
       if (next is! AsyncData<bool>) {
@@ -664,7 +739,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
       );
     });
     ref.listen(readerControllerProvider.select((value) => value.urlText), (previous, next) {
-      if (_urlController.text != next) {
+      if (!_addressFocusNode.hasFocus && _urlController.text != next) {
         _urlController.text = next;
       }
     });
@@ -674,6 +749,8 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
       }
     });
 
+    final capture = selection.capture;
+
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
       child: SafeArea(
@@ -682,18 +759,24 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
           children: [
             _BrowserAddressBar(
               controller: _urlController,
+              focusNode: _addressFocusNode,
               canGoBack: session.canGoBack,
               canGoForward: session.canGoForward,
               isBookmarked: session.isCurrentPageBookmarked,
               isLoading: session.isLoading,
+              isTypingAddress: _addressFocusNode.hasFocus && _addressSearchQuery.isNotEmpty,
               tabCount: session.tabs.length,
               bookmarkCount: session.bookmarks.length,
               onBackPressed: _goBack,
               onForwardPressed: _goForward,
+              onRefreshPressed: _reloadCurrentPage,
+              onStopLoadingPressed: _stopLoadingCurrentPage,
+              onClearAddressPressed: _clearAddressInput,
               onBookmarkPressed: _toggleBookmark,
               onBookmarksPressed: () => _showBookmarks(context, session),
               onTabsPressed: () => _showTabs(context, session),
               onMenuPressed: () => unawaited(_showBrowserMenu(context, session)),
+              onChanged: _handleAddressChanged,
               onSubmitted: (_) => _loadFromAddressBar(),
               onGoPressed: _loadFromAddressBar,
             ),
@@ -719,163 +802,56 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                         onDelete: _deleteSidebarAnnotation,
                       ),
                     ),
-                    if (selection.capture != null)
+                    if (capture != null)
                       Positioned(
                         left: 14,
                         right: 14,
                         bottom: 16,
                         child: AnnotationToolbar(
-                          capture: selection.capture!,
-                          onHighlightPressed: () => unawaited(_saveHighlight(selection.capture!)),
-                          onNotePressed: () => unawaited(_openNoteEditor(selection.capture!)),
-                          onUnderlinePressed: () => unawaited(_saveUnderline(selection.capture!)),
+                          capture: capture,
+                          onHighlightPressed: () => unawaited(_saveHighlight(capture)),
+                          onNotePressed: () => unawaited(_openNoteEditor(capture)),
+                          onUnderlinePressed: () => unawaited(_saveUnderline(capture)),
                           onRemovePressed: _dismissSelection,
                         ),
                       ),
+                    if (_addressFocusNode.hasFocus)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        top: 8,
+                        child: HistorySearchMatches(
+                          query: _addressSearchQuery,
+                          matches: historyMatches,
+                          currentMatch: session.currentUrl == null
+                              ? null
+                              : BrowserHistorySearchMatch(
+                                  url: session.currentUrl!,
+                                  title: session.title ?? session.currentUrl!.host,
+                                  description: null,
+                                  faviconUrl: null,
+                                  faviconFilePath: null,
+                                  score: 0,
+                                ),
+                          onMatchPressed: (match) => unawaited(_openHistorySearchMatch(match)),
+                          onCopyPressed: (match) => unawaited(_copyText(match.url.toString())),
+                          onSharePressed: (context, match) => unawaited(_shareUrl(context, match.url, match.title)),
+                          onPasteAndGoPressed: () => unawaited(_pasteAndGo()),
+                        ),
+                      ),
                     if (session.lastError != null)
-                      Positioned(left: 12, right: 12, top: 12, child: _ReaderErrorBanner(message: session.lastError!)),
+                      Positioned(left: 12, right: 12, top: 12, child: _BrowserErrorBanner(message: session.lastError!)),
                   ],
                 ),
               ),
             ),
-            if (session.isLoading) _ReaderProgressBar(progress: session.progress) else const SizedBox(height: 2),
+            if (session.isLoading) _BrowserProgressBar(progress: session.progress) else const SizedBox(height: 2),
             const MarkerTabBar(activeRoute: AppRoute.browser),
           ],
         ),
       ),
     );
   }
-}
-
-class AnnotationToolbar extends StatelessWidget {
-  const AnnotationToolbar({
-    required this.capture,
-    required this.onHighlightPressed,
-    required this.onNotePressed,
-    required this.onUnderlinePressed,
-    required this.onRemovePressed,
-    super.key,
-  });
-
-  final SelectionCapture capture;
-  final VoidCallback onHighlightPressed;
-  final VoidCallback onNotePressed;
-  final VoidCallback onUnderlinePressed;
-  final VoidCallback onRemovePressed;
-
-  @override
-  Widget build(BuildContext context) => Align(
-    alignment: Alignment.bottomCenter,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xF21A1A1F),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF33333A), width: 0.5),
-        boxShadow: const [BoxShadow(color: Color(0x99000000), blurRadius: 24, offset: Offset(0, 12))],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              child: Text(
-                capture.exact,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12, letterSpacing: 0),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 3, 4, 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _AnnotationToolbarButton(
-                    icon: CupertinoIcons.pencil,
-                    label: 'Highlight',
-                    color: CupertinoColors.systemYellow,
-                    onPressed: onHighlightPressed,
-                  ),
-                  const _ToolbarDivider(),
-                  _AnnotationToolbarButton(
-                    icon: CupertinoIcons.chat_bubble_text,
-                    label: 'Note',
-                    color: CupertinoColors.white,
-                    onPressed: onNotePressed,
-                  ),
-                  const _ToolbarDivider(),
-                  _AnnotationToolbarButton(
-                    icon: CupertinoIcons.underline,
-                    label: 'Underline',
-                    color: CupertinoColors.systemTeal,
-                    onPressed: onUnderlinePressed,
-                  ),
-                  const _ToolbarDivider(),
-                  _AnnotationToolbarButton(
-                    icon: CupertinoIcons.trash,
-                    label: 'Remove',
-                    color: CupertinoColors.systemRed,
-                    onPressed: onRemovePressed,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _AnnotationToolbarButton extends StatelessWidget {
-  const _AnnotationToolbarButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-        minimumSize: const Size(62, 54),
-        onPressed: onPressed,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: CupertinoColors.white, fontSize: 11, letterSpacing: 0)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ToolbarDivider extends StatelessWidget {
-  const _ToolbarDivider();
-
-  @override
-  Widget build(BuildContext context) => const SizedBox(
-    height: 42,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF33333A))),
-      ),
-    ),
-  );
 }
 
 class _ActionSheetRow extends StatelessWidget {
@@ -916,35 +892,47 @@ class _ActionSheetRow extends StatelessWidget {
 class _BrowserAddressBar extends StatelessWidget {
   const _BrowserAddressBar({
     required this.controller,
+    required this.focusNode,
     required this.canGoBack,
     required this.canGoForward,
     required this.isBookmarked,
     required this.isLoading,
+    required this.isTypingAddress,
     required this.tabCount,
     required this.bookmarkCount,
     required this.onBackPressed,
     required this.onForwardPressed,
+    required this.onRefreshPressed,
+    required this.onStopLoadingPressed,
+    required this.onClearAddressPressed,
     required this.onBookmarkPressed,
     required this.onBookmarksPressed,
     required this.onTabsPressed,
     required this.onMenuPressed,
+    required this.onChanged,
     required this.onSubmitted,
     required this.onGoPressed,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool canGoBack;
   final bool canGoForward;
   final bool isBookmarked;
   final bool isLoading;
+  final bool isTypingAddress;
   final int tabCount;
   final int bookmarkCount;
   final VoidCallback onBackPressed;
   final VoidCallback onForwardPressed;
+  final VoidCallback onRefreshPressed;
+  final VoidCallback onStopLoadingPressed;
+  final VoidCallback onClearAddressPressed;
   final VoidCallback onBookmarkPressed;
   final VoidCallback onBookmarksPressed;
   final VoidCallback onTabsPressed;
   final VoidCallback onMenuPressed;
+  final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onGoPressed;
 
@@ -957,30 +945,43 @@ class _BrowserAddressBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              _BrowserIconButton(
-                icon: CupertinoIcons.back,
-                label: 'Back',
-                isEnabled: canGoBack,
-                onPressed: onBackPressed,
-              ),
-              _BrowserIconButton(
-                icon: CupertinoIcons.forward,
-                label: 'Forward',
-                isEnabled: canGoForward,
-                onPressed: onForwardPressed,
-              ),
+              _BrowserIconButton.create(CupertinoIcons.back, 'Back', canGoBack, onBackPressed),
+              _BrowserIconButton.create(CupertinoIcons.forward, 'Forward', canGoForward, onForwardPressed),
               Expanded(
                 child: CupertinoTextField(
                   controller: controller,
+                  focusNode: focusNode,
                   autocorrect: false,
-                  clearButtonMode: OverlayVisibilityMode.editing,
+                  clearButtonMode: OverlayVisibilityMode.never,
                   keyboardType: TextInputType.url,
+                  onChanged: onChanged,
                   onSubmitted: onSubmitted,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   placeholder: 'Enter URL',
                   prefix: const Padding(
                     padding: EdgeInsets.only(left: 10),
                     child: Icon(CupertinoIcons.lock_fill, color: CupertinoColors.systemGrey, size: 13),
+                  ),
+                  suffix: Padding(
+                    padding: const EdgeInsets.only(right: 3),
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(32, 30),
+                      onPressed: isTypingAddress
+                          ? onClearAddressPressed
+                          : isLoading
+                          ? onStopLoadingPressed
+                          : onRefreshPressed,
+                      child: Icon(
+                        isTypingAddress
+                            ? CupertinoIcons.xmark_circle_fill
+                            : isLoading
+                            ? CupertinoIcons.xmark
+                            : CupertinoIcons.refresh,
+                        color: isTypingAddress ? CupertinoColors.systemRed : CupertinoColors.systemGrey,
+                        size: 17,
+                      ),
+                    ),
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1C1C20),
@@ -997,36 +998,22 @@ class _BrowserAddressBar extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 10),
                 minimumSize: const Size(34, 34),
                 onPressed: onGoPressed,
-                child: const Text('Go', style: TextStyle(fontSize: 15)),
+                child: const Icon(CupertinoIcons.arrow_right, size: 21),
               ),
-              _BrowserIconButton(
-                icon: CupertinoIcons.ellipsis_circle,
-                label: 'Browser Menu',
-                isEnabled: true,
-                onPressed: onMenuPressed,
-              ),
+              _BrowserIconButton.create(CupertinoIcons.ellipsis_circle, 'Browser Menu', true, onMenuPressed),
             ],
           ),
           const SizedBox(height: 6),
           Row(
             children: [
-              _BrowserChromeChip(
-                icon: isBookmarked ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark,
-                label: isBookmarked ? 'Saved' : 'Save',
-                onPressed: onBookmarkPressed,
-              ),
+              if (isBookmarked)
+                _BrowserChromeChip.create(CupertinoIcons.bookmark_fill, 'Saved', onBookmarkPressed)
+              else
+                _BrowserChromeChip.create(CupertinoIcons.bookmark, 'Save', onBookmarkPressed),
               const SizedBox(width: 8),
-              _BrowserChromeChip(
-                icon: CupertinoIcons.book,
-                label: 'Bookmarks $bookmarkCount',
-                onPressed: onBookmarksPressed,
-              ),
+              _BrowserChromeChip.create(CupertinoIcons.book, 'Bookmarks $bookmarkCount', onBookmarksPressed),
               const Spacer(),
-              _BrowserChromeChip(
-                icon: CupertinoIcons.square_on_square,
-                label: 'Tabs $tabCount',
-                onPressed: onTabsPressed,
-              ),
+              _BrowserChromeChip.create(CupertinoIcons.square_on_square, 'Tabs $tabCount', onTabsPressed),
             ],
           ),
         ],
@@ -1037,6 +1024,10 @@ class _BrowserAddressBar extends StatelessWidget {
 
 class _BrowserIconButton extends StatelessWidget {
   const _BrowserIconButton({required this.icon, required this.label, required this.isEnabled, required this.onPressed});
+
+  factory _BrowserIconButton.create(IconData icon, String label, bool isEnabled, VoidCallback onPressed) {
+    return _BrowserIconButton(icon: icon, label: label, isEnabled: isEnabled, onPressed: onPressed);
+  }
 
   final IconData icon;
   final String label;
@@ -1060,36 +1051,38 @@ class _BrowserIconButton extends StatelessWidget {
 class _BrowserChromeChip extends StatelessWidget {
   const _BrowserChromeChip({required this.icon, required this.label, required this.onPressed});
 
+  factory _BrowserChromeChip.create(IconData icon, String label, VoidCallback onPressed) {
+    return _BrowserChromeChip(icon: icon, label: label, onPressed: onPressed);
+  }
+
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        minimumSize: const Size(0, 30),
-        color: const Color(0xFF1C1C20),
-        borderRadius: BorderRadius.circular(8),
-        onPressed: onPressed,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 15, color: CupertinoColors.activeBlue),
-            const SizedBox(width: 5),
-            Text(label, style: const TextStyle(fontSize: 12, color: CupertinoColors.white, letterSpacing: 0)),
-          ],
-        ),
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: label,
+    child: CupertinoButton(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      minimumSize: const Size(0, 30),
+      color: const Color(0xFF1C1C20),
+      borderRadius: BorderRadius.circular(8),
+      onPressed: onPressed,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: CupertinoColors.activeBlue),
+          const SizedBox(width: 5),
+          Text(label, style: const TextStyle(fontSize: 12, color: CupertinoColors.white, letterSpacing: 0)),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
-class _ReaderProgressBar extends StatelessWidget {
-  const _ReaderProgressBar({required this.progress});
+class _BrowserProgressBar extends StatelessWidget {
+  const _BrowserProgressBar({required this.progress});
 
   final int progress;
 
@@ -1112,8 +1105,8 @@ class _ReaderProgressBar extends StatelessWidget {
   }
 }
 
-class _ReaderErrorBanner extends StatelessWidget {
-  const _ReaderErrorBanner({required this.message});
+class _BrowserErrorBanner extends StatelessWidget {
+  const _BrowserErrorBanner({required this.message});
 
   final String message;
 

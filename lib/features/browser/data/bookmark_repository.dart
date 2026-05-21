@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/browser/domain/reader_session_state.dart';
 import 'package:uuid/uuid.dart';
 
@@ -36,14 +37,14 @@ class BookmarkRepository {
             BookmarksCompanion.insert(
               id: _uuid.v4(),
               url: url.toString(),
-              title: Value(_normalizeTitle(title)),
+              title: Value(normalize(title)),
               sortOrder: Value(await _nextRootSortOrder()),
               createdAt: _now(),
             ),
           );
     } else {
       await (_database.update(_database.bookmarks)..where((bookmark) => bookmark.id.equals(existing.id))).write(
-        BookmarksCompanion(title: Value(_normalizeTitle(title) ?? existing.title)),
+        BookmarksCompanion(title: Value(normalize(title) ?? existing.title)),
       );
     }
 
@@ -55,19 +56,12 @@ class BookmarkRepository {
     return getBookmarks();
   }
 
-  BrowserBookmark _toDomain(Bookmark bookmark) {
-    return BrowserBookmark(
-      id: bookmark.id,
-      url: Uri.parse(bookmark.url),
-      title: bookmark.title,
-      createdAt: bookmark.createdAt,
-    );
-  }
-
-  String? _normalizeTitle(String? title) {
-    final trimmed = title?.trim();
-    return trimmed == null || trimmed.isEmpty ? null : trimmed;
-  }
+  BrowserBookmark _toDomain(Bookmark bookmark) => BrowserBookmark(
+    id: bookmark.id,
+    url: Uri.parse(bookmark.url),
+    title: bookmark.title,
+    createdAt: bookmark.createdAt,
+  );
 
   Future<int> _nextRootSortOrder() async {
     final rows = await (_database.select(_database.bookmarks)..where((bookmark) => bookmark.folderId.isNull())).get();

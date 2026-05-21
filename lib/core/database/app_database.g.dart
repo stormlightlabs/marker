@@ -47,6 +47,17 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _faviconUrlMeta = const VerificationMeta(
     'faviconUrl',
   );
@@ -98,6 +109,7 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
     url,
     canonicalUrl,
     title,
+    description,
     faviconUrl,
     faviconFilePath,
     createdAt,
@@ -141,6 +153,15 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
       context.handle(
         _titleMeta,
         title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
       );
     }
     if (data.containsKey('favicon_url')) {
@@ -202,6 +223,10 @@ class $PagesTable extends Pages with TableInfo<$PagesTable, Page> {
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
       faviconUrl: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}favicon_url'],
@@ -232,6 +257,7 @@ class Page extends DataClass implements Insertable<Page> {
   final String url;
   final String? canonicalUrl;
   final String? title;
+  final String? description;
   final String? faviconUrl;
   final String? faviconFilePath;
   final DateTime createdAt;
@@ -241,6 +267,7 @@ class Page extends DataClass implements Insertable<Page> {
     required this.url,
     this.canonicalUrl,
     this.title,
+    this.description,
     this.faviconUrl,
     this.faviconFilePath,
     required this.createdAt,
@@ -256,6 +283,9 @@ class Page extends DataClass implements Insertable<Page> {
     }
     if (!nullToAbsent || title != null) {
       map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
     }
     if (!nullToAbsent || faviconUrl != null) {
       map['favicon_url'] = Variable<String>(faviconUrl);
@@ -278,6 +308,9 @@ class Page extends DataClass implements Insertable<Page> {
       title: title == null && nullToAbsent
           ? const Value.absent()
           : Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
       faviconUrl: faviconUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(faviconUrl),
@@ -299,6 +332,7 @@ class Page extends DataClass implements Insertable<Page> {
       url: serializer.fromJson<String>(json['url']),
       canonicalUrl: serializer.fromJson<String?>(json['canonicalUrl']),
       title: serializer.fromJson<String?>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
       faviconUrl: serializer.fromJson<String?>(json['faviconUrl']),
       faviconFilePath: serializer.fromJson<String?>(json['faviconFilePath']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -313,6 +347,7 @@ class Page extends DataClass implements Insertable<Page> {
       'url': serializer.toJson<String>(url),
       'canonicalUrl': serializer.toJson<String?>(canonicalUrl),
       'title': serializer.toJson<String?>(title),
+      'description': serializer.toJson<String?>(description),
       'faviconUrl': serializer.toJson<String?>(faviconUrl),
       'faviconFilePath': serializer.toJson<String?>(faviconFilePath),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -325,6 +360,7 @@ class Page extends DataClass implements Insertable<Page> {
     String? url,
     Value<String?> canonicalUrl = const Value.absent(),
     Value<String?> title = const Value.absent(),
+    Value<String?> description = const Value.absent(),
     Value<String?> faviconUrl = const Value.absent(),
     Value<String?> faviconFilePath = const Value.absent(),
     DateTime? createdAt,
@@ -334,6 +370,7 @@ class Page extends DataClass implements Insertable<Page> {
     url: url ?? this.url,
     canonicalUrl: canonicalUrl.present ? canonicalUrl.value : this.canonicalUrl,
     title: title.present ? title.value : this.title,
+    description: description.present ? description.value : this.description,
     faviconUrl: faviconUrl.present ? faviconUrl.value : this.faviconUrl,
     faviconFilePath: faviconFilePath.present
         ? faviconFilePath.value
@@ -349,6 +386,9 @@ class Page extends DataClass implements Insertable<Page> {
           ? data.canonicalUrl.value
           : this.canonicalUrl,
       title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       faviconUrl: data.faviconUrl.present
           ? data.faviconUrl.value
           : this.faviconUrl,
@@ -369,6 +409,7 @@ class Page extends DataClass implements Insertable<Page> {
           ..write('url: $url, ')
           ..write('canonicalUrl: $canonicalUrl, ')
           ..write('title: $title, ')
+          ..write('description: $description, ')
           ..write('faviconUrl: $faviconUrl, ')
           ..write('faviconFilePath: $faviconFilePath, ')
           ..write('createdAt: $createdAt, ')
@@ -383,6 +424,7 @@ class Page extends DataClass implements Insertable<Page> {
     url,
     canonicalUrl,
     title,
+    description,
     faviconUrl,
     faviconFilePath,
     createdAt,
@@ -396,6 +438,7 @@ class Page extends DataClass implements Insertable<Page> {
           other.url == this.url &&
           other.canonicalUrl == this.canonicalUrl &&
           other.title == this.title &&
+          other.description == this.description &&
           other.faviconUrl == this.faviconUrl &&
           other.faviconFilePath == this.faviconFilePath &&
           other.createdAt == this.createdAt &&
@@ -407,6 +450,7 @@ class PagesCompanion extends UpdateCompanion<Page> {
   final Value<String> url;
   final Value<String?> canonicalUrl;
   final Value<String?> title;
+  final Value<String?> description;
   final Value<String?> faviconUrl;
   final Value<String?> faviconFilePath;
   final Value<DateTime> createdAt;
@@ -417,6 +461,7 @@ class PagesCompanion extends UpdateCompanion<Page> {
     this.url = const Value.absent(),
     this.canonicalUrl = const Value.absent(),
     this.title = const Value.absent(),
+    this.description = const Value.absent(),
     this.faviconUrl = const Value.absent(),
     this.faviconFilePath = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -428,6 +473,7 @@ class PagesCompanion extends UpdateCompanion<Page> {
     required String url,
     this.canonicalUrl = const Value.absent(),
     this.title = const Value.absent(),
+    this.description = const Value.absent(),
     this.faviconUrl = const Value.absent(),
     this.faviconFilePath = const Value.absent(),
     required DateTime createdAt,
@@ -442,6 +488,7 @@ class PagesCompanion extends UpdateCompanion<Page> {
     Expression<String>? url,
     Expression<String>? canonicalUrl,
     Expression<String>? title,
+    Expression<String>? description,
     Expression<String>? faviconUrl,
     Expression<String>? faviconFilePath,
     Expression<DateTime>? createdAt,
@@ -453,6 +500,7 @@ class PagesCompanion extends UpdateCompanion<Page> {
       if (url != null) 'url': url,
       if (canonicalUrl != null) 'canonical_url': canonicalUrl,
       if (title != null) 'title': title,
+      if (description != null) 'description': description,
       if (faviconUrl != null) 'favicon_url': faviconUrl,
       if (faviconFilePath != null) 'favicon_file_path': faviconFilePath,
       if (createdAt != null) 'created_at': createdAt,
@@ -466,6 +514,7 @@ class PagesCompanion extends UpdateCompanion<Page> {
     Value<String>? url,
     Value<String?>? canonicalUrl,
     Value<String?>? title,
+    Value<String?>? description,
     Value<String?>? faviconUrl,
     Value<String?>? faviconFilePath,
     Value<DateTime>? createdAt,
@@ -477,6 +526,7 @@ class PagesCompanion extends UpdateCompanion<Page> {
       url: url ?? this.url,
       canonicalUrl: canonicalUrl ?? this.canonicalUrl,
       title: title ?? this.title,
+      description: description ?? this.description,
       faviconUrl: faviconUrl ?? this.faviconUrl,
       faviconFilePath: faviconFilePath ?? this.faviconFilePath,
       createdAt: createdAt ?? this.createdAt,
@@ -499,6 +549,9 @@ class PagesCompanion extends UpdateCompanion<Page> {
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
     }
     if (faviconUrl.present) {
       map['favicon_url'] = Variable<String>(faviconUrl.value);
@@ -525,6 +578,7 @@ class PagesCompanion extends UpdateCompanion<Page> {
           ..write('url: $url, ')
           ..write('canonicalUrl: $canonicalUrl, ')
           ..write('title: $title, ')
+          ..write('description: $description, ')
           ..write('faviconUrl: $faviconUrl, ')
           ..write('faviconFilePath: $faviconFilePath, ')
           ..write('createdAt: $createdAt, ')
@@ -2503,6 +2557,17 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _visitedAtMeta = const VerificationMeta(
     'visitedAt',
   );
@@ -2520,6 +2585,7 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
     url,
     canonicalUrl,
     title,
+    description,
     visitedAt,
   ];
   @override
@@ -2562,6 +2628,15 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
         title.isAcceptableOrUnknown(data['title']!, _titleMeta),
       );
     }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
     if (data.containsKey('visited_at')) {
       context.handle(
         _visitedAtMeta,
@@ -2595,6 +2670,10 @@ class $BrowserHistoryEntriesTable extends BrowserHistoryEntries
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
       visitedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}visited_at'],
@@ -2614,12 +2693,14 @@ class BrowserHistoryEntry extends DataClass
   final String url;
   final String? canonicalUrl;
   final String? title;
+  final String? description;
   final DateTime visitedAt;
   const BrowserHistoryEntry({
     required this.id,
     required this.url,
     this.canonicalUrl,
     this.title,
+    this.description,
     required this.visitedAt,
   });
   @override
@@ -2632,6 +2713,9 @@ class BrowserHistoryEntry extends DataClass
     }
     if (!nullToAbsent || title != null) {
       map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
     }
     map['visited_at'] = Variable<DateTime>(visitedAt);
     return map;
@@ -2647,6 +2731,9 @@ class BrowserHistoryEntry extends DataClass
       title: title == null && nullToAbsent
           ? const Value.absent()
           : Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
       visitedAt: Value(visitedAt),
     );
   }
@@ -2661,6 +2748,7 @@ class BrowserHistoryEntry extends DataClass
       url: serializer.fromJson<String>(json['url']),
       canonicalUrl: serializer.fromJson<String?>(json['canonicalUrl']),
       title: serializer.fromJson<String?>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
       visitedAt: serializer.fromJson<DateTime>(json['visitedAt']),
     );
   }
@@ -2672,6 +2760,7 @@ class BrowserHistoryEntry extends DataClass
       'url': serializer.toJson<String>(url),
       'canonicalUrl': serializer.toJson<String?>(canonicalUrl),
       'title': serializer.toJson<String?>(title),
+      'description': serializer.toJson<String?>(description),
       'visitedAt': serializer.toJson<DateTime>(visitedAt),
     };
   }
@@ -2681,12 +2770,14 @@ class BrowserHistoryEntry extends DataClass
     String? url,
     Value<String?> canonicalUrl = const Value.absent(),
     Value<String?> title = const Value.absent(),
+    Value<String?> description = const Value.absent(),
     DateTime? visitedAt,
   }) => BrowserHistoryEntry(
     id: id ?? this.id,
     url: url ?? this.url,
     canonicalUrl: canonicalUrl.present ? canonicalUrl.value : this.canonicalUrl,
     title: title.present ? title.value : this.title,
+    description: description.present ? description.value : this.description,
     visitedAt: visitedAt ?? this.visitedAt,
   );
   BrowserHistoryEntry copyWithCompanion(BrowserHistoryEntriesCompanion data) {
@@ -2697,6 +2788,9 @@ class BrowserHistoryEntry extends DataClass
           ? data.canonicalUrl.value
           : this.canonicalUrl,
       title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       visitedAt: data.visitedAt.present ? data.visitedAt.value : this.visitedAt,
     );
   }
@@ -2708,13 +2802,15 @@ class BrowserHistoryEntry extends DataClass
           ..write('url: $url, ')
           ..write('canonicalUrl: $canonicalUrl, ')
           ..write('title: $title, ')
+          ..write('description: $description, ')
           ..write('visitedAt: $visitedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, url, canonicalUrl, title, visitedAt);
+  int get hashCode =>
+      Object.hash(id, url, canonicalUrl, title, description, visitedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2723,6 +2819,7 @@ class BrowserHistoryEntry extends DataClass
           other.url == this.url &&
           other.canonicalUrl == this.canonicalUrl &&
           other.title == this.title &&
+          other.description == this.description &&
           other.visitedAt == this.visitedAt);
 }
 
@@ -2732,6 +2829,7 @@ class BrowserHistoryEntriesCompanion
   final Value<String> url;
   final Value<String?> canonicalUrl;
   final Value<String?> title;
+  final Value<String?> description;
   final Value<DateTime> visitedAt;
   final Value<int> rowid;
   const BrowserHistoryEntriesCompanion({
@@ -2739,6 +2837,7 @@ class BrowserHistoryEntriesCompanion
     this.url = const Value.absent(),
     this.canonicalUrl = const Value.absent(),
     this.title = const Value.absent(),
+    this.description = const Value.absent(),
     this.visitedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -2747,6 +2846,7 @@ class BrowserHistoryEntriesCompanion
     required String url,
     this.canonicalUrl = const Value.absent(),
     this.title = const Value.absent(),
+    this.description = const Value.absent(),
     required DateTime visitedAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -2757,6 +2857,7 @@ class BrowserHistoryEntriesCompanion
     Expression<String>? url,
     Expression<String>? canonicalUrl,
     Expression<String>? title,
+    Expression<String>? description,
     Expression<DateTime>? visitedAt,
     Expression<int>? rowid,
   }) {
@@ -2765,6 +2866,7 @@ class BrowserHistoryEntriesCompanion
       if (url != null) 'url': url,
       if (canonicalUrl != null) 'canonical_url': canonicalUrl,
       if (title != null) 'title': title,
+      if (description != null) 'description': description,
       if (visitedAt != null) 'visited_at': visitedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2775,6 +2877,7 @@ class BrowserHistoryEntriesCompanion
     Value<String>? url,
     Value<String?>? canonicalUrl,
     Value<String?>? title,
+    Value<String?>? description,
     Value<DateTime>? visitedAt,
     Value<int>? rowid,
   }) {
@@ -2783,6 +2886,7 @@ class BrowserHistoryEntriesCompanion
       url: url ?? this.url,
       canonicalUrl: canonicalUrl ?? this.canonicalUrl,
       title: title ?? this.title,
+      description: description ?? this.description,
       visitedAt: visitedAt ?? this.visitedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -2803,6 +2907,9 @@ class BrowserHistoryEntriesCompanion
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
     if (visitedAt.present) {
       map['visited_at'] = Variable<DateTime>(visitedAt.value);
     }
@@ -2819,6 +2926,7 @@ class BrowserHistoryEntriesCompanion
           ..write('url: $url, ')
           ..write('canonicalUrl: $canonicalUrl, ')
           ..write('title: $title, ')
+          ..write('description: $description, ')
           ..write('visitedAt: $visitedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3127,6 +3235,7 @@ typedef $$PagesTableCreateCompanionBuilder =
       required String url,
       Value<String?> canonicalUrl,
       Value<String?> title,
+      Value<String?> description,
       Value<String?> faviconUrl,
       Value<String?> faviconFilePath,
       required DateTime createdAt,
@@ -3139,6 +3248,7 @@ typedef $$PagesTableUpdateCompanionBuilder =
       Value<String> url,
       Value<String?> canonicalUrl,
       Value<String?> title,
+      Value<String?> description,
       Value<String?> faviconUrl,
       Value<String?> faviconFilePath,
       Value<DateTime> createdAt,
@@ -3194,6 +3304,11 @@ class $$PagesTableFilterComposer extends Composer<_$AppDatabase, $PagesTable> {
 
   ColumnFilters<String> get title => $composableBuilder(
     column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3272,6 +3387,11 @@ class $$PagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get faviconUrl => $composableBuilder(
     column: $table.faviconUrl,
     builder: (column) => ColumnOrderings(column),
@@ -3315,6 +3435,11 @@ class $$PagesTableAnnotationComposer
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get faviconUrl => $composableBuilder(
     column: $table.faviconUrl,
@@ -3392,6 +3517,7 @@ class $$PagesTableTableManager
                 Value<String> url = const Value.absent(),
                 Value<String?> canonicalUrl = const Value.absent(),
                 Value<String?> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 Value<String?> faviconUrl = const Value.absent(),
                 Value<String?> faviconFilePath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -3402,6 +3528,7 @@ class $$PagesTableTableManager
                 url: url,
                 canonicalUrl: canonicalUrl,
                 title: title,
+                description: description,
                 faviconUrl: faviconUrl,
                 faviconFilePath: faviconFilePath,
                 createdAt: createdAt,
@@ -3414,6 +3541,7 @@ class $$PagesTableTableManager
                 required String url,
                 Value<String?> canonicalUrl = const Value.absent(),
                 Value<String?> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 Value<String?> faviconUrl = const Value.absent(),
                 Value<String?> faviconFilePath = const Value.absent(),
                 required DateTime createdAt,
@@ -3424,6 +3552,7 @@ class $$PagesTableTableManager
                 url: url,
                 canonicalUrl: canonicalUrl,
                 title: title,
+                description: description,
                 faviconUrl: faviconUrl,
                 faviconFilePath: faviconFilePath,
                 createdAt: createdAt,
@@ -5463,6 +5592,7 @@ typedef $$BrowserHistoryEntriesTableCreateCompanionBuilder =
       required String url,
       Value<String?> canonicalUrl,
       Value<String?> title,
+      Value<String?> description,
       required DateTime visitedAt,
       Value<int> rowid,
     });
@@ -5472,6 +5602,7 @@ typedef $$BrowserHistoryEntriesTableUpdateCompanionBuilder =
       Value<String> url,
       Value<String?> canonicalUrl,
       Value<String?> title,
+      Value<String?> description,
       Value<DateTime> visitedAt,
       Value<int> rowid,
     });
@@ -5502,6 +5633,11 @@ class $$BrowserHistoryEntriesTableFilterComposer
 
   ColumnFilters<String> get title => $composableBuilder(
     column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5540,6 +5676,11 @@ class $$BrowserHistoryEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get visitedAt => $composableBuilder(
     column: $table.visitedAt,
     builder: (column) => ColumnOrderings(column),
@@ -5568,6 +5709,11 @@ class $$BrowserHistoryEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get visitedAt =>
       $composableBuilder(column: $table.visitedAt, builder: (column) => column);
@@ -5623,6 +5769,7 @@ class $$BrowserHistoryEntriesTableTableManager
                 Value<String> url = const Value.absent(),
                 Value<String?> canonicalUrl = const Value.absent(),
                 Value<String?> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 Value<DateTime> visitedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BrowserHistoryEntriesCompanion(
@@ -5630,6 +5777,7 @@ class $$BrowserHistoryEntriesTableTableManager
                 url: url,
                 canonicalUrl: canonicalUrl,
                 title: title,
+                description: description,
                 visitedAt: visitedAt,
                 rowid: rowid,
               ),
@@ -5639,6 +5787,7 @@ class $$BrowserHistoryEntriesTableTableManager
                 required String url,
                 Value<String?> canonicalUrl = const Value.absent(),
                 Value<String?> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 required DateTime visitedAt,
                 Value<int> rowid = const Value.absent(),
               }) => BrowserHistoryEntriesCompanion.insert(
@@ -5646,6 +5795,7 @@ class $$BrowserHistoryEntriesTableTableManager
                 url: url,
                 canonicalUrl: canonicalUrl,
                 title: title,
+                description: description,
                 visitedAt: visitedAt,
                 rowid: rowid,
               ),

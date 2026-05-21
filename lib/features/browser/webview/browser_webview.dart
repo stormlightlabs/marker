@@ -36,6 +36,7 @@ abstract class BrowserWebViewController {
   Future<void> addJavaScriptChannel(String name, {required BrowserJavaScriptMessageHandler onMessageReceived});
   Future<void> loadRequest(Uri uri);
   Future<void> reload();
+  Future<void> stopLoading();
   Future<void> runJavaScript(String javaScript);
   Future<Object?> runJavaScriptReturningResult(String javaScript);
   Future<String?> getTitle();
@@ -172,6 +173,15 @@ class InAppBrowserWebViewController implements BrowserWebViewController {
       return;
     }
     await controller.reload();
+  }
+
+  @override
+  Future<void> stopLoading() async {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+    await controller.stopLoading();
   }
 
   @override

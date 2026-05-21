@@ -23,6 +23,7 @@ void main() {
       url: Uri.parse('https://example.com/article'),
       canonicalUrl: Uri.parse('https://example.com/canonical'),
       title: 'Example Article',
+      description: 'An article about examples',
       faviconUrl: Uri.parse('https://example.com/favicon.svg'),
       faviconFilePath: '/cache/favicons/example.svg',
     );
@@ -30,6 +31,7 @@ void main() {
     expect(page.url, 'https://example.com/article');
     expect(page.canonicalUrl, 'https://example.com/canonical');
     expect(page.title, 'Example Article');
+    expect(page.description, 'An article about examples');
     expect(page.faviconUrl, 'https://example.com/favicon.svg');
     expect(page.faviconFilePath, '/cache/favicons/example.svg');
     expect(page.createdAt, page.lastVisitedAt);
@@ -38,6 +40,7 @@ void main() {
     expect(history.single.url, 'https://example.com/article');
     expect(history.single.canonicalUrl, 'https://example.com/canonical');
     expect(history.single.title, 'Example Article');
+    expect(history.single.description, 'An article about examples');
   });
 
   test('updates title and visit time for an existing URL', () async {

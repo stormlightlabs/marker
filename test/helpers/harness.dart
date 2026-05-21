@@ -65,9 +65,7 @@ Future<void> pumpRouteTransition(WidgetTester tester) async {
   await tester.pump();
 }
 
-ReaderWebViewBridge testReaderBridge() {
-  return ReaderWebViewBridge(assetBundle: _StringAssetBundle());
-}
+ReaderWebViewBridge testReaderBridge() => ReaderWebViewBridge(assetBundle: _StringAssetBundle());
 
 Future<void> seedLibrary(AppDatabase database) async {
   final savedAt = DateTime.utc(2026, 5, 13, 10);
@@ -297,6 +295,8 @@ class FakeWebViewPlatform {
   set canonicalUrlResult(Object value) => controller.canonicalUrlResult = value;
   Object get faviconUrlResult => controller.faviconUrlResult;
   set faviconUrlResult(Object value) => controller.faviconUrlResult = value;
+  Object get metaDescriptionResult => controller.metaDescriptionResult;
+  set metaDescriptionResult(Object value) => controller.metaDescriptionResult = value;
   Object get renderAnnotationsResult => controller.renderAnnotationsResult;
   set renderAnnotationsResult(Object value) => controller.renderAnnotationsResult = value;
 }
@@ -310,9 +310,11 @@ class FakeBrowserWebViewController implements BrowserWebViewController {
   bool throwOnCanonicalUrlRead = false;
   Object canonicalUrlResult = '"https://news.ycombinator.com/news"';
   Object faviconUrlResult = '"https://news.ycombinator.com/favicon.ico"';
+  Object metaDescriptionResult = '"Front page links and discussions"';
   Object renderAnnotationsResult = 1;
   CompiledAdBlockRules? adBlockRules;
   int reloadCount = 0;
+  int stopLoadingCount = 0;
 
   @override
   Future<void> setJavaScriptModeUnrestricted() async {}
@@ -356,6 +358,9 @@ class FakeBrowserWebViewController implements BrowserWebViewController {
     if (javaScript.contains('link[rel~="icon"')) {
       return faviconUrlResult;
     }
+    if (javaScript.contains('meta[name="description"')) {
+      return metaDescriptionResult;
+    }
     return canonicalUrlResult;
   }
 
@@ -372,6 +377,11 @@ class FakeBrowserWebViewController implements BrowserWebViewController {
     if (uri != null) {
       await loadRequest(uri);
     }
+  }
+
+  @override
+  Future<void> stopLoading() async {
+    stopLoadingCount += 1;
   }
 
   @override

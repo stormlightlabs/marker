@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/browser/data/favicon_cache.dart';
 
 final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
@@ -210,7 +211,7 @@ class LibraryRepository {
   }
 
   Future<String?> _faviconFilePathForPage(Page page) async {
-    final storedPath = _normalize(page.faviconFilePath);
+    final storedPath = normalize(page.faviconFilePath);
     if (storedPath != null && await File(storedPath).exists()) {
       return storedPath;
     }
@@ -251,7 +252,7 @@ class LibraryRepository {
   }
 
   String _annotationExcerpt(String? bodyValue, String? selectorJson) {
-    final normalizedBody = _normalize(bodyValue);
+    final normalizedBody = normalize(bodyValue);
     if (normalizedBody != null) {
       return normalizedBody;
     }
@@ -284,13 +285,13 @@ class LibraryRepository {
 
   String? _exactSelectorValue(Object? selector) {
     if (selector is Map<String, Object?>) {
-      return _normalize(selector['exact']?.toString());
+      return normalize(selector['exact']?.toString());
     }
 
     if (selector is List<Object?>) {
       for (final value in selector) {
         if (value is Map<String, Object?>) {
-          final exact = _normalize(value['exact']?.toString());
+          final exact = normalize(value['exact']?.toString());
           if (exact != null) {
             return exact;
           }
@@ -302,7 +303,7 @@ class LibraryRepository {
   }
 
   String _fallbackTitle(String? title, String url) {
-    return _normalize(title) ?? Uri.tryParse(url)?.host ?? url;
+    return normalize(title) ?? Uri.tryParse(url)?.host ?? url;
   }
 
   String _hostFor(String url) {
@@ -310,7 +311,7 @@ class LibraryRepository {
   }
 
   Uri? _parseOptionalUri(String? value) {
-    final normalized = _normalize(value);
+    final normalized = normalize(value);
     return normalized == null ? null : Uri.tryParse(normalized);
   }
 
@@ -338,11 +339,6 @@ class LibraryRepository {
     }
 
     return names.isEmpty ? null : names.join(' / ');
-  }
-
-  String? _normalize(String? value) {
-    final trimmed = value?.trim();
-    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 }
 

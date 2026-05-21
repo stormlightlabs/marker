@@ -76,6 +76,29 @@ class ReaderWebViewBridge {
     return uri != null && uri.hasScheme && uri.hasAuthority ? uri : null;
   }
 
+  Future<String?> readMetaDescription(BrowserWebViewController controller) async {
+    final Object? result;
+    try {
+      result = await controller.runJavaScriptReturningResult('''
+(function () {
+  try {
+    var description = document.querySelector('meta[name="description" i], meta[property="og:description" i]');
+    var content = description && description.getAttribute('content') ? description.getAttribute('content') : '';
+    return content || '';
+  } catch (error) {
+    console.debug('Marker ignored meta description lookup failure', error);
+    return '';
+  }
+})();
+''');
+    } on Object catch (error) {
+      debugPrint('Ignoring failed meta description lookup: $error');
+      return null;
+    }
+    final raw = result.toString().replaceAll('"', '').trim();
+    return raw.isEmpty || raw == 'null' ? null : raw;
+  }
+
   Future<Uri?> readFaviconUrl(BrowserWebViewController controller, Uri pageUrl) async {
     final Object? result;
     try {

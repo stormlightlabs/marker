@@ -7,6 +7,7 @@ class Pages extends Table {
   TextColumn get url => text().unique()();
   TextColumn get canonicalUrl => text().nullable()();
   TextColumn get title => text().nullable()();
+  TextColumn get description => text().nullable()();
   TextColumn get faviconUrl => text().nullable()();
   TextColumn get faviconFilePath => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
@@ -78,6 +79,7 @@ class BrowserHistoryEntries extends Table {
   TextColumn get url => text()();
   TextColumn get canonicalUrl => text().nullable()();
   TextColumn get title => text().nullable()();
+  TextColumn get description => text().nullable()();
   DateTimeColumn get visitedAt => dateTime()();
 
   @override
@@ -109,7 +111,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -135,6 +137,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 7) {
         await m.addColumn(pages, pages.faviconUrl);
         await m.addColumn(pages, pages.faviconFilePath);
+      }
+      if (from < 8) {
+        await m.addColumn(pages, pages.description);
+        await m.addColumn(browserHistoryEntries, browserHistoryEntries.description);
       }
     },
     beforeOpen: (details) async {

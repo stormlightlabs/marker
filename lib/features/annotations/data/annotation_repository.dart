@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:uuid/uuid.dart';
 
 final annotationRepositoryProvider = Provider<AnnotationRepository>((ref) {
@@ -32,6 +33,7 @@ class AnnotationRepository {
     required Uri url,
     Uri? canonicalUrl,
     String? title,
+    String? description,
     Uri? faviconUrl,
     String? faviconFilePath,
   }) async {
@@ -39,6 +41,7 @@ class AnnotationRepository {
       url: url,
       canonicalUrl: canonicalUrl,
       title: title,
+      description: description,
       faviconUrl: faviconUrl,
       faviconFilePath: faviconFilePath,
       recordHistory: true,
@@ -49,6 +52,7 @@ class AnnotationRepository {
     required Uri url,
     Uri? canonicalUrl,
     String? title,
+    String? description,
     Uri? faviconUrl,
     String? faviconFilePath,
     required bool recordHistory,
@@ -57,6 +61,7 @@ class AnnotationRepository {
     final now = _now();
     final normalizedUrl = url.toString();
     final normalizedTitle = title?.trim();
+    final normalizedDescription = description?.trim();
     Page pageRow;
 
     final existing = await (_database.select(
@@ -70,6 +75,9 @@ class AnnotationRepository {
               ? const Value.absent()
               : Value(canonicalUrl?.toString()),
           title: normalizedTitle == null || normalizedTitle.isEmpty ? const Value.absent() : Value(normalizedTitle),
+          description: normalizedDescription == null || normalizedDescription.isEmpty
+              ? const Value.absent()
+              : Value(normalizedDescription),
           faviconUrl: faviconUrl == null ? const Value.absent() : Value(faviconUrl.toString()),
           faviconFilePath: faviconFilePath == null ? const Value.absent() : Value(faviconFilePath),
           lastVisitedAt: Value(now),
@@ -87,6 +95,9 @@ class AnnotationRepository {
               url: normalizedUrl,
               canonicalUrl: Value(canonicalUrl?.toString()),
               title: Value(normalizedTitle == null || normalizedTitle.isEmpty ? null : normalizedTitle),
+              description: Value(
+                normalizedDescription == null || normalizedDescription.isEmpty ? null : normalizedDescription,
+              ),
               faviconUrl: Value(faviconUrl?.toString()),
               faviconFilePath: Value(faviconFilePath),
               createdAt: now,
@@ -106,6 +117,9 @@ class AnnotationRepository {
               url: normalizedUrl,
               canonicalUrl: Value(canonicalUrl?.toString()),
               title: Value(normalizedTitle == null || normalizedTitle.isEmpty ? null : normalizedTitle),
+              description: Value(
+                normalizedDescription == null || normalizedDescription.isEmpty ? null : normalizedDescription,
+              ),
               visitedAt: now,
             ),
           );
@@ -160,7 +174,7 @@ class AnnotationRepository {
               selectorJson: jsonEncode([
                 {'type': 'TextQuoteSelector', 'exact': exact, 'prefix': prefix, 'suffix': suffix},
                 {'type': 'TextPositionSelector', 'start': textPositionStart, 'end': textPositionEnd},
-                if (_normalize(cssSelector) != null) {'type': 'CssSelector', 'value': cssSelector!.trim()},
+                if (normalize(cssSelector) != null) {'type': 'CssSelector', 'value': cssSelector!.trim()},
               ]),
             ),
           );
@@ -259,10 +273,7 @@ class AnnotationRepository {
       _database.annotationBodies,
     )..where((body) => body.annotationId.equals(annotation.id))).get();
 
-    return AnnotationDetail(
-      page: page,
-      annotation: PageAnnotation(annotation: annotation, target: target, bodies: bodies),
-    );
+    return AnnotationDetail.build(page, PageAnnotation(annotation: annotation, target: target, bodies: bodies));
   }
 
   Future<void> updateMarkdownBody({required String annotationId, required String value}) async {
@@ -310,11 +321,6 @@ class AnnotationRepository {
     });
   }
 
-  String? _normalize(String? value) {
-    final trimmed = value?.trim();
-    return trimmed == null || trimmed.isEmpty ? null : trimmed;
-  }
-
   Future<AnnotationTarget?> _targetForAnnotation(
     String annotationId, {
     required List<AnnotationTarget> fallbackTargets,
@@ -333,6 +339,10 @@ class AnnotationRepository {
 
 class AnnotationDetail {
   const AnnotationDetail({required this.page, required this.annotation});
+
+  factory AnnotationDetail.build(Page page, PageAnnotation annotation) {
+    return AnnotationDetail(page: page, annotation: annotation);
+  }
 
   final Page page;
   final PageAnnotation annotation;
@@ -380,7 +390,7 @@ class PageAnnotation {
   String? get exact {
     for (final selector in selectors) {
       if (selector['type'] == 'TextQuoteSelector') {
-        return _normalize(selector['exact']?.toString());
+        return normalize(selector['exact']?.toString());
       }
     }
     return null;
@@ -389,7 +399,7 @@ class PageAnnotation {
   String? get note {
     for (final body in bodies) {
       if (body.type == 'TextualBody') {
-        return _normalize(body.value);
+        return normalize(body.value);
       }
     }
     return null;
@@ -424,7 +434,7 @@ class PageAnnotation {
     try {
       final decoded = jsonDecode(styleBody.value);
       if (decoded is Map<String, Object?>) {
-        final color = _normalize(decoded['color']?.toString());
+        final color = normalize(decoded['color']?.toString());
         if (color != null) {
           return color;
         }
@@ -472,10 +482,5 @@ class PageAnnotation {
       }
     }
     return null;
-  }
-
-  static String? _normalize(String? value) {
-    final trimmed = value?.trim();
-    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 }

@@ -81,6 +81,15 @@ void main() {
     expect(platform.controller.injectedScripts.first, contains("leftType === 'image/svg+xml'"));
     expect(platform.controller.injectedScripts.first, contains("leftHref.indexOf('.svg')"));
   });
+
+  test('reads meta description from the loaded page', () async {
+    final platform = FakeWebViewPlatform();
+    final bridge = testReaderBridge();
+    final controller = platform.controller;
+    final description = await bridge.readMetaDescription(controller);
+    expect(description, 'Front page links and discussions');
+    expect(platform.controller.injectedScripts.single, contains('meta[name="description"'));
+  });
 }
 
 class _CountingAssetBundle extends CachingAssetBundle {
@@ -91,7 +100,8 @@ class _CountingAssetBundle extends CachingAssetBundle {
   Future<ByteData> load(String key) {
     loadCount += 1;
     loadedKeys.add(key);
-    final bytes = Uint8List.fromList(utf8.encode('window.__markerReaderInstalled = true;'));
-    return SynchronousFuture<ByteData>(ByteData.view(bytes.buffer));
+    return SynchronousFuture<ByteData>(
+      ByteData.view(Uint8List.fromList(utf8.encode('window.__markerReaderInstalled = true;')).buffer),
+    );
   }
 }

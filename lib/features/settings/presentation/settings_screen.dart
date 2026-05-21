@@ -100,27 +100,25 @@ class _SettingsLinkRow extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return _SettingsRowFrame(
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-          child: Row(
-            children: [
-              Icon(icon, color: CupertinoColors.activeBlue, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _SettingsRowText(title: title, subtitle: subtitle),
-              ),
-              const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey, size: 17),
-            ],
-          ),
+  Widget build(BuildContext context) => _SettingsRowFrame(
+    child: CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        child: Row(
+          children: [
+            Icon(icon, color: CupertinoColors.activeBlue, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SettingsRowText(title: title, subtitle: subtitle),
+            ),
+            const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey, size: 17),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _SettingsSwitchRow extends StatelessWidget {
@@ -139,23 +137,21 @@ class _SettingsSwitchRow extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    return _SettingsRowFrame(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        child: Row(
-          children: [
-            Icon(icon, color: CupertinoColors.activeBlue, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _SettingsRowText(title: title, subtitle: subtitle),
-            ),
-            CupertinoSwitch(value: value, onChanged: onChanged),
-          ],
-        ),
+  Widget build(BuildContext context) => _SettingsRowFrame(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      child: Row(
+        children: [
+          Icon(icon, color: CupertinoColors.activeBlue, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _SettingsRowText(title: title, subtitle: subtitle),
+          ),
+          CupertinoSwitch(value: value, onChanged: onChanged),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _SettingsRowText extends StatelessWidget {
@@ -165,16 +161,14 @@ class _SettingsRowText extends StatelessWidget {
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(color: CupertinoColors.white, fontSize: 16, letterSpacing: 0)),
-        const SizedBox(height: 3),
-        Text(subtitle, style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, letterSpacing: 0)),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(title, style: const TextStyle(color: CupertinoColors.white, fontSize: 16, letterSpacing: 0)),
+      const SizedBox(height: 3),
+      Text(subtitle, style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, letterSpacing: 0)),
+    ],
+  );
 }
 
 class _SettingsRowFrame extends StatelessWidget {
@@ -183,14 +177,12 @@ class _SettingsRowFrame extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF151519),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-      ),
-      child: child,
-    );
-  }
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xFF151519),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
+    ),
+    child: child,
+  );
 }
