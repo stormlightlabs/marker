@@ -1,0 +1,200 @@
+---
+const features = [
+  {
+    label: "Highlight",
+    title: "Mark what matters",
+    body: "Highlight, underline, or annotate any text on any page. Use highlights for key passages, comments for interpretation, and tags for retrieval.",
+    tone: "yellow",
+  },
+  {
+    label: "Notes",
+    title: "Write in Markdown",
+    body: "Attach rich notes with Markdown support. Your writing stays beside the source text and reappears when you return.",
+  },
+  {
+    label: "Resilient anchoring",
+    title: "Annotations survive page updates",
+    body: "Marker saves the quote, position, and element path so marks can re-attach when a page changes.",
+    tone: "accent",
+  },
+  {
+    label: "Library",
+    title: "Bookmarks and history",
+    body: "Bookmarks, browsing history, and every annotation live in one local library on your device.",
+  },
+];
+---
+
+<section class="features" id="features">
+  <div class="features__header">
+    <h2>Everything for markup.<br />Nothing for tracking.</h2>
+    <p>Built on the W3C Web Annotation data model. Works offline and keeps your reading data local.</p>
+  </div>
+
+  <div class="features__grid">
+    {
+      features.map((feature) => (
+        <article class:list={["feature-card", feature.tone && `feature-card--${feature.tone}`]}>
+          <div class="feature-card__header">
+            <div class="feature-card__icon" aria-hidden="true">
+              {feature.label === "Highlight" && (
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <rect x="6" y="16" width="28" height="10" rx="4" fill="#FFD85A" opacity="0.9" />
+                  <path d="M8 30 H32" stroke="#111" stroke-width="2.5" stroke-linecap="round" />
+                </svg>
+              )}
+              {feature.label === "Notes" && (
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <rect x="7" y="6" width="22" height="26" rx="4" stroke="#111" stroke-width="2" fill="none" />
+                  <path d="M12 14 H24 M12 19 H20 M12 24 H22" stroke="#111" stroke-width="1.8" stroke-linecap="round" />
+                  <circle cx="31" cy="31" r="7" fill="#FFD85A" />
+                  <path d="M31 27 V31 H35" stroke="#111" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+              )}
+              {feature.label === "Resilient anchoring" && (
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <ellipse
+                    cx="20"
+                    cy="30"
+                    rx="14"
+                    ry="4"
+                    stroke="rgba(255,255,255,0.25)"
+                    stroke-width="1.5"
+                    fill="none"
+                  />
+                  <ellipse
+                    cx="20"
+                    cy="24"
+                    rx="14"
+                    ry="4"
+                    stroke="rgba(255,255,255,0.5)"
+                    stroke-width="1.5"
+                    fill="none"
+                  />
+                  <ellipse
+                    cx="20"
+                    cy="18"
+                    rx="14"
+                    ry="4"
+                    stroke="rgba(255,255,255,0.85)"
+                    stroke-width="1.5"
+                    fill="none"
+                  />
+                </svg>
+              )}
+              {feature.label === "Library" && (
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <path
+                    d="M12 8 H28 Q31 8 31 11 V34 L20 27 L9 34 V11 Q9 8 12 8 Z"
+                    stroke="#111"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                    fill="none"
+                  />
+                </svg>
+              )}
+            </div>
+            <div class="feature-card__label">{feature.label}</div>
+          </div>
+          <h3>{feature.title}</h3>
+          <p>{feature.body}</p>
+        </article>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .features {
+    .features__header {
+      margin-bottom: 3.5rem;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 0.75rem;
+      font-family: "Lora Variable", ui-serif, Georgia, serif;
+      font-size: clamp(var(--size-3xl), 4vw, var(--size-5xl));
+      font-weight: 760;
+      line-height: var(--line-tight);
+      letter-spacing: 0;
+    }
+
+    .features__header p {
+      max-width: 450px;
+      margin: 0 auto;
+      color: var(--ink-muted);
+      font-size: var(--size-lg);
+    }
+
+    .features__grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+  }
+
+  .feature-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 16rem;
+    padding: 2rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface-raised);
+
+    &.feature-card--yellow {
+      border: 1.5px solid var(--highlight-mid);
+      background: var(--highlight-light);
+    }
+
+    &.feature-card--accent {
+      background: var(--ink);
+      color: var(--surface);
+
+      .feature-card__label {
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      p {
+        color: rgba(255, 255, 255, 0.76);
+      }
+    }
+
+    .feature-card__header {
+      margin-bottom: 1.15rem;
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr);
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .feature-card__icon {
+      width: 40px;
+      height: 40px;
+      opacity: 0.86;
+    }
+
+    .feature-card__label {
+      color: var(--ink-muted);
+      font-size: var(--size-xs);
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    h3 {
+      margin-bottom: 0.6rem;
+      font-family: "Lora Variable", ui-serif, Georgia, serif;
+      font-size: var(--size-xl);
+      font-weight: 760;
+      line-height: var(--line-snug);
+      letter-spacing: 0;
+    }
+
+    p {
+      color: var(--ink-soft);
+      font-size: var(--size-sm);
+      line-height: var(--line-loose);
+    }
+  }
+</style>

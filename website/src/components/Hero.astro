@@ -1,0 +1,95 @@
+---
+import Logo from "./Logo.astro";
+---
+
+<section class="hero">
+  <div class="hero__icon" aria-hidden="true">
+    <Logo size={88} weight="display" />
+  </div>
+
+  <p class="eyebrow">iOS &amp; Android</p>
+
+  <h1>
+    Read with<br />
+    <span>intention.</span>
+  </h1>
+
+  <p class="hero__copy">
+    Marker is a browser for readers who mark up the web. Select text on any page, highlight it, underline it, or attach
+    a note. Your annotations stay on your device.
+  </p>
+
+  <div class="hero__actions">
+    <span class="button button--primary button--large button--disabled" aria-label="Not yet available">
+      Coming Soon
+      <span class="button__badge button__badge--ios">iOS</span>
+      <span class="button__badge button__badge--android">Android</span>
+    </span>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+    padding-top: 6rem;
+    padding-bottom: 2rem;
+    text-align: center;
+
+    .hero__icon {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 1.5rem;
+
+      svg {
+        filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.1)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06));
+      }
+    }
+
+    .eyebrow {
+      margin-bottom: 0.75rem;
+    }
+
+    h1 {
+      margin-bottom: 1.25rem;
+      font-family: "Lora Variable", ui-serif, Georgia, serif;
+      font-size: clamp(var(--size-4xl), 6vw, var(--size-7xl));
+      font-weight: 760;
+      line-height: var(--line-tight);
+      letter-spacing: 0;
+
+      span {
+        position: relative;
+        display: inline-block;
+        white-space: nowrap;
+
+        &::after {
+          content: "";
+          position: absolute;
+          right: -0.03em;
+          bottom: 0.06em;
+          left: -0.03em;
+          z-index: -1;
+          height: 0.32em;
+          border-radius: 2px;
+          background: var(--highlight);
+          opacity: 0.65;
+        }
+      }
+    }
+
+    .hero__copy {
+      max-width: 500px;
+      margin: 0 auto 2.5rem;
+      color: var(--ink-soft);
+      font-size: var(--size-lg);
+      line-height: var(--line-loose);
+    }
+
+    .hero__actions {
+      display: flex;
+      justify-content: center;
+    }
+  }
+</style>

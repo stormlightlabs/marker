@@ -1,0 +1,65 @@
+---
+import Logo from "./Logo.astro";
+---
+
+<header class="site-header">
+  <a href="/" class="site-header__brand" aria-label="Marker home">
+    <Logo />
+    Marker
+  </a>
+  <nav class="site-header__nav" aria-label="Primary navigation">
+    <a href="/#features" class="button button--secondary">Features</a>
+    <a
+      href="https://github.com/stormlightlabs/marker"
+      class="button button--secondary"
+      target="_blank"
+      rel="noopener noreferrer">
+      Source
+    </a>
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: 52px;
+    padding: 0 max(1.25rem, (100% - var(--site-width)) / 2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.84);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: saturate(180%) blur(20px);
+
+    .site-header__brand {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: var(--size-sm);
+      font-weight: 700;
+    }
+
+    .site-header__nav {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .site-header__nav .button {
+      border-color: rgba(255, 255, 255, 0.12);
+      border-radius: 13px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)), rgba(17, 17, 17, 0.92);
+      color: var(--surface);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 1px 2px rgba(0, 0, 0, 0.12);
+      backdrop-filter: blur(18px);
+    }
+
+    .site-header__nav .button--secondary {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+  }
+</style>

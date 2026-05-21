@@ -1,0 +1,42 @@
+---
+import Logo from "./Logo.astro";
+---
+
+<footer class="site-footer">
+  <div class="site-footer__brand">
+    <Logo size={18} />
+    Marker
+  </div>
+  <p>© 2026 Stormlight Labs, LLC. Made with ⚡️ by <a href="https://desertthunder.dev">Owais</a></p>
+  <nav class="site-footer__links" aria-label="Footer links">
+    <a href="/privacy">Privacy</a>
+    <a href="https://github.com/stormlightlabs/marker">GitHub</a>
+  </nav>
+</footer>
+
+<style>
+  .site-footer {
+    padding: 3rem max(1.25rem, (100% - var(--site-width)) / 2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--ink-muted);
+    font-size: var(--size-xs);
+
+    .site-footer__brand {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .site-footer__links {
+      display: flex;
+      gap: 1.25rem;
+    }
+  }
+</style>

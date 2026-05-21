@@ -1,0 +1,167 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  effectiveDate?: string;
+}
+
+const { title, description, effectiveDate } = Astro.props;
+---
+
+<BaseLayout title={`${title} — Marker`} description={description}>
+  <section class="static-page">
+    <a href="/" class="static-page__back" aria-label="Back to Marker">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path
+          d="M 9 2 L 4 7 L 9 12"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"></path>
+      </svg>
+      Back to Marker
+    </a>
+
+    <header class="static-page__header">
+      <svg class="static-page__mark" width="220" height="12" viewBox="0 0 220 12" fill="none" aria-hidden="true">
+        <path
+          d="M 4 8 C 40 4, 100 9, 160 6 C 185 5, 205 6, 216 8"
+          stroke="#FFD85A"
+          stroke-width="5"
+          stroke-linecap="round"
+          fill="none"
+          opacity="0.7"></path>
+      </svg>
+      <h1><span>{title.split(" ")[0]}</span> {title.split(" ").slice(1).join(" ")}</h1>
+      {effectiveDate && <p>Effective {effectiveDate}</p>}
+    </header>
+
+    <article class="static-page__content">
+      <slot />
+    </article>
+  </section>
+</BaseLayout>
+
+<style>
+  .static-page {
+    --inner-width: 680px;
+
+    .static-page__back {
+      margin-bottom: 3rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      color: var(--ink-muted);
+      font-size: var(--size-sm);
+      transition: color 0.12s ease;
+
+      &:hover {
+        color: var(--ink);
+      }
+
+      svg {
+        display: inline;
+      }
+    }
+
+    .static-page__header {
+      position: relative;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .static-page__mark {
+      position: absolute;
+      top: 3.8rem;
+      left: 0;
+    }
+
+    h1 {
+      margin-bottom: 0.75rem;
+      font-family: "Lora Variable", ui-serif, Georgia, serif;
+      font-size: clamp(var(--size-3xl), 4vw, var(--size-5xl));
+      font-weight: 760;
+      line-height: var(--line-tight);
+      letter-spacing: 0;
+    }
+
+    h1 span {
+      position: relative;
+      display: inline-block;
+
+      &::before {
+        content: "";
+        position: absolute;
+        inset: 0.1em -0.15em;
+        z-index: -1;
+        border-radius: 3px;
+        background: var(--highlight);
+        opacity: 0.3;
+      }
+    }
+
+    .static-page__header p {
+      color: var(--ink-muted);
+      font-size: var(--size-sm);
+    }
+
+    .static-page__content {
+      color: var(--ink-soft);
+      font-size: var(--size-base);
+      line-height: var(--line-loose);
+    }
+
+    .static-page__content > * + * {
+      margin-top: 0.85rem;
+    }
+
+    .static-page__content > p:first-child {
+      margin-bottom: 3rem;
+      padding: 1.5rem 1.75rem;
+      border-left: 3px solid var(--highlight);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+      font-size: var(--size-lg);
+    }
+
+    .static-page__content h2 {
+      margin-top: 2.5rem;
+      color: var(--ink);
+      font-family: "Lora Variable", ui-serif, Georgia, serif;
+      font-size: var(--size-xl);
+      font-weight: 760;
+      line-height: var(--line-snug);
+      letter-spacing: 0;
+    }
+
+    .static-page__content ul {
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .static-page__content li {
+      position: relative;
+      padding-left: 1.25rem;
+
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0.7em;
+        left: 0;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--highlight);
+      }
+    }
+
+    .static-page__content a {
+      color: var(--ink);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+  }
+</style>

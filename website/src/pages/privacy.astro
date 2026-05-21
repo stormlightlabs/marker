@@ -1,0 +1,16 @@
+---
+import { getEntry, render } from "astro:content";
+import StaticPageLayout from "../layouts/StaticPageLayout.astro";
+
+const page = await getEntry("static", "privacy");
+
+if (!page) {
+  throw new Error("Missing static page content: privacy");
+}
+
+const { Content } = await render(page);
+---
+
+<StaticPageLayout {...page.data}>
+  <Content />
+</StaticPageLayout>

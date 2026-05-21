@@ -1,0 +1,278 @@
+---
+
+---
+
+<section class="annotations-demo">
+  <div class="annotations-demo__inner">
+    <div class="annotations-demo__copy">
+      <h2>Your annotations.<br />Your device.</h2>
+      <p>
+        No accounts. No sync subscriptions. Annotations live in a local SQLite database. Export them when you want a
+        copy.
+      </p>
+
+      <div class="spec-list">
+        <div class="spec-list__row">
+          <span aria-hidden="true"></span>
+          <p><strong>Exact match</strong> <span>finds your text by quote and context</span></p>
+        </div>
+        <div class="spec-list__row">
+          <span aria-hidden="true"></span>
+          <p><strong>Position fallback</strong> <span>uses character offsets when text shifts</span></p>
+        </div>
+        <div class="spec-list__row">
+          <span aria-hidden="true"></span>
+          <p><strong>Structural fallback</strong> <span>keeps an element path as a last resort</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="annotations-demo__visual">
+      <svg
+        class="sketch annotations-demo__bracket"
+        width="32"
+        height="100"
+        viewBox="0 0 32 100"
+        fill="none"
+        aria-hidden="true">
+        <path
+          d="M 28 5 L 10 5 Q 4 5 4 12 L 4 88 Q 4 95 10 95 L 28 95"
+          stroke="#2a9d5c"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          fill="none"></path>
+        <text
+          x="0"
+          y="55"
+          font-family="-apple-system, BlinkMacSystemFont, sans-serif"
+          font-size="8"
+          fill="#2a9d5c"
+          transform="rotate(-90, 0, 55)"
+          text-anchor="middle">annotations</text
+        >
+      </svg>
+
+      <div class="web-reader">
+        <div class="web-reader__bar" aria-hidden="true">
+          <div class="web-reader__dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="web-reader__url">en.wikipedia.org/wiki/Attention</div>
+        </div>
+
+        <div class="web-reader__body">
+          <div class="web-reader__heading">Attention</div>
+          <p>
+            Attention is the
+            <span class="highlight-pop" data-note="Core concept: return here"> behavioral and cognitive process </span>
+            of selectively concentrating on a discrete aspect of information.
+          </p>
+          <p>
+            William James wrote: "Everyone knows what attention is.
+            <span class="inline-underline">It is the taking possession by the mind, in clear and vivid form.</span>"
+          </p>
+          <p class="web-reader__metadata">Selective attention · Sustained attention · Executive attention</p>
+        </div>
+
+        <div class="web-reader__sidebar" aria-label="Annotations panel">
+          <div class="web-reader__sidebar-title">2 Annotations</div>
+
+          <div class="web-reader__sidebar-item">
+            <svg viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <rect x="1" y="4" width="12" height="6" rx="2" fill="#FFD85A"></rect>
+            </svg>
+            <span>"behavioral and cognitive process..."</span>
+          </div>
+
+          <div class="web-reader__sidebar-item">
+            <svg viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M2 10 H12" stroke="#333" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+            <span>"It is the taking possession by the mind..."</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .web-reader {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: white;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.06),
+      0 1px 3px rgba(0, 0, 0, 0.04);
+    font-size: 14px;
+
+    .web-reader__bar {
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-raised);
+    }
+
+    .web-reader__dots {
+      display: flex;
+      gap: 5px;
+
+      span {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #28c840;
+      }
+
+      span:first-child {
+        background: #ff5f57;
+      }
+
+      span:nth-child(2) {
+        background: #febc2e;
+      }
+    }
+
+    .web-reader__url {
+      flex: 1;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: white;
+      color: var(--ink-muted);
+      font-size: 11px;
+    }
+
+    .web-reader__body {
+      padding: 20px 20px 24px;
+      color: #555555;
+      line-height: 1.7;
+    }
+
+    .web-reader__heading {
+      margin-bottom: 8px;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 760;
+    }
+
+    .web-reader__body p {
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
+    .web-reader__metadata {
+      color: rgba(85, 85, 85, 0.58);
+      font-size: 12px;
+    }
+
+    .highlight-pop {
+      position: relative;
+      display: inline-block;
+      padding: 0 2px;
+      border-radius: 2px;
+      background: var(--highlight);
+      color: var(--ink);
+      cursor: default;
+
+      &::after {
+        content: attr(data-note);
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm);
+        background: var(--ink);
+        color: white;
+        font-size: 10px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-50%);
+        transition: opacity 0.15s ease;
+      }
+
+      &:hover::after {
+        opacity: 1;
+      }
+    }
+
+    .inline-underline {
+      padding-bottom: 1px;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .web-reader__sidebar {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--surface-raised);
+    }
+
+    .web-reader__sidebar-title {
+      margin-bottom: 8px;
+      color: var(--ink-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .web-reader__sidebar-item {
+      padding: 6px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      border-top: 1px solid var(--border);
+      color: var(--ink-soft);
+      font-size: 12px;
+
+      &:first-of-type {
+        border-top: 0;
+      }
+
+      svg {
+        width: 14px;
+        height: 14px;
+        margin-top: 1px;
+        flex-shrink: 0;
+        opacity: 0.55;
+      }
+    }
+  }
+
+  .spec-list {
+    display: grid;
+    gap: 0.75rem;
+
+    .spec-list__row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      font-size: var(--size-sm);
+    }
+
+    .spec-list__row > span {
+      position: relative;
+      top: -1px;
+      width: 6px;
+      height: 6px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: var(--highlight);
+    }
+
+    strong {
+      font-weight: 700;
+    }
+
+    p span {
+      color: var(--ink-muted);
+    }
+  }
+</style>
