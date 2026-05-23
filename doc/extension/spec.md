@@ -17,6 +17,7 @@ The extension is Chrome-first. Firefox support can be added later, but the MVP t
 - The library uses unified search with separate Bookmarks and Annotations sections.
 - Annotation import/export must remain compatible with the mobile app's W3C-inspired JSON shape.
 - Styling uses vanilla CSS with explicit reset, tokens, base, utilities, and component files.
+- Both minimal and retro themes use Righteous for the Marker logo/wordmark.
 
 ## MVP scope
 
@@ -130,6 +131,7 @@ extension/
 
 Install-time permissions should be small:
 
+- `activeTab`
 - `sidePanel`
 - `storage`
 
@@ -138,7 +140,7 @@ On-demand permissions:
 - Current-origin host permission for annotation capture/rendering.
 - `bookmarks` when the user chooses Chrome save/import.
 
-The extension should not request broad host permissions at install.
+The extension should not request broad host permissions at install. `activeTab` is used so the side panel can identify the user-invoked active tab without persistent host access.
 
 Current scaffold items to replace:
 
@@ -283,7 +285,7 @@ Required content:
 
 ## CSS architecture
 
-Use vanilla CSS. Avoid utility-first markup. Prefer semantic HTML and component CSS.
+Use vanilla CSS. Avoid utility-first markup. Prefer semantic HTML and component CSS. Use Righteous for the Marker wordmark in every theme, including minimal and retro.
 
 Main app styles:
 

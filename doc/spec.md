@@ -500,7 +500,19 @@ History and settings actions:
 - Keep destructive actions behind confirmation when they delete user data or close meaningful state.
 - Tests should cover menu visibility, state-dependent labels, and one representative action from each group.
 
-## 11. Toggleable Ad Blocking
+## 11. Branding Typography
+
+Use **Righteous** for the Marker app wordmark and explicit logo text in the mobile app. Bundle it as a Flutter font asset before applying it in production UI.
+
+Suggested usage:
+
+- App wordmark/logo lockups.
+- Splash or launch-adjacent branded screens.
+- Empty states where the Marker brand is the subject.
+
+Do not replace Cupertino/system text for ordinary controls, settings, browser chrome, annotation cards, or reading surfaces. Righteous should identify the product, not become the app's default UI font.
+
+## 12. Toggleable Ad Blocking
 
 Marker includes a local EasyList-based blocker for the embedded browser. The blocker is enabled by default and can be turned off from Settings when a page breaks.
 
@@ -543,7 +555,7 @@ Settings use a Drift-backed key/value table:
 
 The `ad_block_enabled` key stores `true` or `false`.
 
-## 12. Edge Swipe Navigation
+## 13. Edge Swipe Navigation
 
 The browser should support edge-swipe back and forward gestures around the WebView reading surface while avoiding conflict with normal webpage scrolling and text selection.
 

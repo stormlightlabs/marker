@@ -1,0 +1,38 @@
+.theme-minimal,
+.theme-minimal-light {
+  --surface: #ffffff;
+  --surface-raised: #fbfbfa;
+  --surface-card: #ffffff;
+  --text: #161616;
+  --text-soft: #4f4f4f;
+  --text-muted: #767676;
+  --border: #dedede;
+  --accent: #161616;
+  --accent-text: #ffffff;
+  --highlight: #fff1a8;
+  --shadow-color: rgb(15 23 42 / 12%);
+  --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-wordmark: Righteous, Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-label: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-reading: Georgia, 'Times New Roman', serif;
+  color-scheme: light;
+}
+
+.theme-minimal-dark {
+  --surface: #101113;
+  --surface-raised: #15171a;
+  --surface-card: #1b1d21;
+  --text: #f7f4ed;
+  --text-soft: #cbc5bb;
+  --text-muted: #918b82;
+  --border: #31343a;
+  --accent: #f7f4ed;
+  --accent-text: #101113;
+  --highlight: #6b5814;
+  --shadow-color: rgb(0 0 0 / 38%);
+  --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-wordmark: Righteous, Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-label: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-reading: Georgia, 'Times New Roman', serif;
+  color-scheme: dark;
+}

@@ -1,0 +1,41 @@
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text);
+}
+
+.wordmark {
+  font-family: var(--font-wordmark);
+  font-size: var(--size-xl);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.wordmark--large {
+  font-size: clamp(var(--size-2xl), 4vw, var(--size-4xl));
+}
+
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--accent-text);
+  background: var(--accent);
+  font-family: var(--font-wordmark);
+  line-height: 1;
+}
+
+.theme-retro .brand-mark {
+  border-color: color-mix(in srgb, var(--text) 54%, transparent);
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.theme-retro .wordmark {
+  color: #a33b2d;
+}

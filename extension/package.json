@@ -11,6 +11,10 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/libre-baskerville": "^5.2.10",
+    "@fontsource/oswald": "^5.2.8",
+    "@fontsource/righteous": "^5.2.7",
     "solid-js": "^1.9.11"
   },
   "devDependencies": {
@@ -21,6 +25,14 @@
     "vite": "^7.2.7",
     "vite-plugin-solid": "^2.11.11",
     "vite-plugin-zip-pack": "^1.2.4",
-    "vitest": "^4.0.14"
+    "vitest": "^4.0.14",
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint": "^10.0.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-solid": "^0.14.5",
+    "eslint-plugin-unicorn": "^63.0.0",
+    "globals": "^17.3.0",
+    "typescript-eslint": "^8.57.0"
   }
 }
