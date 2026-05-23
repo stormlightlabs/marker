@@ -1,3 +1,5 @@
+import { PageRepository } from '@/db/page-repository';
+import { createMarkerDb } from '@/db/schema';
 import { getActiveTabSummary, getTabSummary } from '@/background/active-tab';
 import { injectMarkerContentRuntime } from '@/background/content-injection';
 import { isMarkerMessage, MarkerMessageType, type MarkerMessageResponse } from '@/shared/messages';
@@ -5,6 +7,7 @@ import { isMarkerMessage, MarkerMessageType, type MarkerMessageResponse } from '
 const sidePanelPath = 'src/pages/sidepanel/index.html';
 const libraryPath = 'src/pages/library/index.html';
 const optionsPath = 'src/pages/options/index.html';
+const pages = new PageRepository(createMarkerDb());
 
 async function configureSidePanel(): Promise<void> {
   try {
@@ -64,43 +67,59 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     return false;
   }
 
-  if (message.type === MarkerMessageType.OpenLibrary) {
-    void openExtensionPage(libraryPath);
-    return false;
-  }
+  switch (message.type) {
+    case MarkerMessageType.OpenLibrary: {
+      void openExtensionPage(libraryPath);
+      return false;
+    }
 
-  if (message.type === MarkerMessageType.OpenOptions) {
-    void openExtensionPage(optionsPath);
-    return false;
-  }
+    case MarkerMessageType.OpenOptions: {
+      void openExtensionPage(optionsPath);
+      return false;
+    }
 
-  if (message.type === MarkerMessageType.GetActiveTabSummary) {
-    getActiveTabSummary()
-      .then((summary) => sendResponse(summary))
-      .catch((error: unknown) => {
-        console.debug('Marker could not summarize the active tab.', error);
-        sendResponse({
-          canAnnotate: false,
-          hasHostPermission: false,
-          hasScriptingPermission: false,
-          status: 'unsupported',
-          reason: 'Marker could not read the active tab.',
+    case MarkerMessageType.GetActiveTabSummary: {
+      getActiveTabSummary()
+        .then((summary) => sendResponse(summary))
+        .catch((error: unknown) => {
+          console.debug('Marker could not summarize the active tab.', error);
+          sendResponse({
+            canAnnotate: false,
+            hasHostPermission: false,
+            hasScriptingPermission: false,
+            status: 'unsupported',
+            reason: 'Marker could not read the active tab.',
+          });
         });
-      });
-    return true;
-  }
+      return true;
+    }
 
-  if (message.type === MarkerMessageType.EnableSite) {
-    enableSite(message.tabId)
-      .then((response) => sendResponse(response))
-      .catch((error: unknown) => {
-        console.debug('Marker could not enable the active site.', error);
-        sendResponse({ ok: false, reason: 'Marker could not inject the content runtime.' });
-      });
-    return true;
-  }
+    case MarkerMessageType.EnableSite: {
+      enableSite(message.tabId)
+        .then((response) => sendResponse(response))
+        .catch((error: unknown) => {
+          console.debug('Marker could not enable the active site.', error);
+          sendResponse({ ok: false, reason: 'Marker could not inject the content runtime.' });
+        });
+      return true;
+    }
 
-  return false;
+    case MarkerMessageType.PageVisited: {
+      pages
+        .recordPageVisit({
+          url: message.url,
+          canonicalUrl: message.metadata.canonicalUrl,
+          title: message.metadata.title,
+          description: message.metadata.description,
+          faviconUrl: message.metadata.faviconUrl,
+          metadata: message.metadata,
+        })
+        .catch((error: unknown) => {
+          console.debug('Marker could not record page metadata.', error);
+        });
+      return false;
+    }
+  }
 });
 
 void configureSidePanel();
