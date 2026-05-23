@@ -119,6 +119,8 @@ Acceptance:
 
 ## Milestone 7: selection capture
 
+Status: Complete.
+
 Deliverables:
 
 - Quote selector capture.
@@ -134,6 +136,8 @@ Acceptance:
 - Leading/trailing whitespace does not corrupt offsets.
 
 ## Milestone 8: annotation rendering
+
+Status: Complete.
 
 Deliverables:
 

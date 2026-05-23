@@ -1,6 +1,7 @@
 import type { BookmarkSaveBehavior } from '@/db/settings-repository';
 import type { BookmarkSaveDestination, SaveBookmarkResult } from '@/background/bookmark-save-service';
 import type { ImportChromeBookmarksResult } from '@/background/chrome-bookmarks';
+import type { AnnotationWithParts } from '@/db/annotation-repository';
 import type { PageMetadata } from '@/db/schema';
 import type { ActiveTabSummary } from './permissions';
 
@@ -59,15 +60,17 @@ export type EnableSiteResponse = { ok: true } | { ok: false; reason: string };
 
 export type MarkerMessageResponse<T extends MarkerMessage = MarkerMessage> = T extends GetActiveTabSummaryMessage
   ? ActiveTabSummary
-  : T extends EnableSiteMessage
-    ? EnableSiteResponse
-    : T extends SaveBookmarkMessage
-      ? SaveBookmarkResult
-      : T extends ImportChromeBookmarksMessage
-        ? ImportChromeBookmarksResult | { ok: false; reason: string }
-        : T extends GetBookmarkSaveBehaviorMessage
-          ? { behavior: BookmarkSaveBehavior }
-          : undefined;
+  : T extends PageVisitedMessage
+    ? { pageId: string; annotations: AnnotationWithParts[] }
+    : T extends EnableSiteMessage
+      ? EnableSiteResponse
+      : T extends SaveBookmarkMessage
+        ? SaveBookmarkResult
+        : T extends ImportChromeBookmarksMessage
+          ? ImportChromeBookmarksResult | { ok: false; reason: string }
+          : T extends GetBookmarkSaveBehaviorMessage
+            ? { behavior: BookmarkSaveBehavior }
+            : undefined;
 
 const markerMessageTypeValues = new Set<string>(Object.values(MarkerMessageType));
 

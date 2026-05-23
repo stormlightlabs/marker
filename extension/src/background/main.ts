@@ -3,6 +3,7 @@ import { BookmarkSaveService } from '@/background/bookmark-save-service';
 import { importChromeBookmarks } from '@/background/chrome-bookmarks';
 import { injectMarkerContentRuntime } from '@/background/content-injection';
 import { BookmarkFolderRepository, BookmarkRepository } from '@/db/bookmark-repository';
+import { AnnotationRepository } from '@/db/annotation-repository';
 import { PageRepository } from '@/db/page-repository';
 import { createMarkerDb } from '@/db/schema';
 import { SettingsRepository } from '@/db/settings-repository';
@@ -16,6 +17,7 @@ const db = createMarkerDb();
 const pages = new PageRepository(db);
 const bookmarkFolders = new BookmarkFolderRepository(db);
 const bookmarks = new BookmarkRepository(db);
+const annotations = new AnnotationRepository(db);
 const settings = new SettingsRepository(db);
 const bookmarkSaveService = new BookmarkSaveService(bookmarks, chrome.bookmarks);
 
@@ -128,10 +130,13 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
           faviconUrl: message.metadata.faviconUrl,
           metadata: message.metadata,
         })
+        .then(async (page) => ({ pageId: page.id, annotations: await annotations.listAnnotationsForPage(page.id) }))
+        .then((response) => sendResponse(response))
         .catch((error: unknown) => {
           console.debug('Marker could not record page metadata.', error);
+          sendResponse({ pageId: '', annotations: [] });
         });
-      return false;
+      return true;
     }
 
     case MarkerMessageType.SaveBookmark: {
