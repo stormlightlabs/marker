@@ -78,6 +78,8 @@ export type AnnotationBodyRecord = {
   value: string;
 };
 
+export type AppSettingRecord = { key: string; value: string; updatedAt: string };
+
 export class MarkerDb extends Dexie {
   pages!: EntityTable<PageRecord, 'id'>;
   bookmarkFolders!: EntityTable<BookmarkFolderRecord, 'id'>;
@@ -85,6 +87,7 @@ export class MarkerDb extends Dexie {
   annotations!: EntityTable<AnnotationRecord, 'id'>;
   annotationTargets!: EntityTable<AnnotationTargetRecord, 'id'>;
   annotationBodies!: EntityTable<AnnotationBodyRecord, 'id'>;
+  appSettings!: EntityTable<AppSettingRecord, 'key'>;
 
   constructor(databaseName = 'marker-extension') {
     super(databaseName);
@@ -95,6 +98,15 @@ export class MarkerDb extends Dexie {
       annotations: 'id, pageId, motivation, deletedAt, modifiedAt',
       annotationTargets: 'id, annotationId, sourceUrl',
       annotationBodies: 'id, annotationId, type, format',
+    });
+    this.version(2).stores({
+      pages: 'id, &url, canonicalUrl, lastVisitedAt, deletedAt',
+      bookmarkFolders: 'id, parentId, sortOrder, deletedAt, updatedAt',
+      bookmarks: 'id, folderId, pageId, chromeBookmarkId, url, sortOrder, deletedAt, updatedAt, *tags',
+      annotations: 'id, pageId, motivation, deletedAt, modifiedAt',
+      annotationTargets: 'id, annotationId, sourceUrl',
+      annotationBodies: 'id, annotationId, type, format',
+      appSettings: 'key, updatedAt',
     });
   }
 }

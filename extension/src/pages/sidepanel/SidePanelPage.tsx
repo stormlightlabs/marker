@@ -1,4 +1,5 @@
 import { createSignal, onMount, Show } from 'solid-js';
+import { type BookmarkSaveDestination } from '@/background/bookmark-save-service';
 import { MarkerMessageType, type MarkerMessageResponse } from '@/shared/messages';
 import type { ActiveTabSummary } from '@/shared/permissions';
 import '@/styles/index.css';
@@ -26,6 +27,10 @@ async function injectContentRuntime(
   return chrome.runtime.sendMessage({ type: MarkerMessageType.EnableSite, tabId });
 }
 
+async function requestBookmarkPermission(): Promise<boolean> {
+  return chrome.permissions.request({ permissions: ['bookmarks'] });
+}
+
 function permissionStatus(summary: ActiveTabSummary | undefined): string {
   if (summary == null) {
     return 'Checking this tab…';
@@ -46,6 +51,7 @@ function SidePanelPage() {
   const [summary, setSummary] = createSignal<ActiveTabSummary>();
   const [isEnabling, setIsEnabling] = createSignal(false);
   const [error, setError] = createSignal<string>();
+  const [saveStatus, setSaveStatus] = createSignal<string>();
 
   async function refreshSummary(): Promise<void> {
     setSummary(await fetchActiveTabSummary());
@@ -80,6 +86,46 @@ function SidePanelPage() {
       setError('Marker could not enable this site.');
     } finally {
       setIsEnabling(false);
+    }
+  }
+
+  async function saveBookmark(destination: BookmarkSaveDestination): Promise<void> {
+    const activeSummary = summary();
+    if (activeSummary?.url == null) {
+      setSaveStatus('Marker cannot save this page.');
+      return;
+    }
+
+    setSaveStatus(undefined);
+
+    try {
+      if ((destination === 'chrome' || destination === 'both') && !(await requestBookmarkPermission())) {
+        setSaveStatus(
+          destination === 'both'
+            ? 'Saved to Marker only because Chrome permission was denied.'
+            : 'Chrome permission was denied.',
+        );
+        if (destination === 'chrome') {
+          return;
+        }
+      }
+
+      const response = await chrome.runtime.sendMessage({
+        type: MarkerMessageType.SaveBookmark,
+        destination,
+        title: activeSummary.title,
+        url: activeSummary.url,
+      });
+
+      if (!response.ok) {
+        setSaveStatus(response.reason);
+        return;
+      }
+
+      setSaveStatus(response.chromeSkippedReason ?? 'Bookmark saved.');
+    } catch (caughtError) {
+      console.debug('Marker could not save a bookmark from the side panel.', caughtError);
+      setSaveStatus('Marker could not save this bookmark.');
     }
   }
 
@@ -128,6 +174,11 @@ function SidePanelPage() {
             {error()}
           </p>
         </Show>
+        <Show when={saveStatus()}>
+          <p class="card__body" role="status">
+            {saveStatus()}
+          </p>
+        </Show>
         <div class="side-panel-actions card__body">
           <button
             class="button button--primary"
@@ -144,8 +195,26 @@ function SidePanelPage() {
               Enabling…
             </Show>
           </button>
-          <button class="button" type="button" disabled={summary()?.status === 'unsupported'}>
-            Save bookmark
+          <button
+            class="button"
+            type="button"
+            disabled={summary()?.url == null}
+            onClick={() => void saveBookmark('marker')}>
+            Save Marker
+          </button>
+          <button
+            class="button"
+            type="button"
+            disabled={summary()?.url == null}
+            onClick={() => void saveBookmark('chrome')}>
+            Save Chrome
+          </button>
+          <button
+            class="button"
+            type="button"
+            disabled={summary()?.url == null}
+            onClick={() => void saveBookmark('both')}>
+            Save both
           </button>
         </div>
       </section>

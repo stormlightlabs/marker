@@ -1,13 +1,23 @@
+import { getActiveTabSummary, getTabSummary } from '@/background/active-tab';
+import { BookmarkSaveService } from '@/background/bookmark-save-service';
+import { importChromeBookmarks } from '@/background/chrome-bookmarks';
+import { injectMarkerContentRuntime } from '@/background/content-injection';
+import { BookmarkFolderRepository, BookmarkRepository } from '@/db/bookmark-repository';
 import { PageRepository } from '@/db/page-repository';
 import { createMarkerDb } from '@/db/schema';
-import { getActiveTabSummary, getTabSummary } from '@/background/active-tab';
-import { injectMarkerContentRuntime } from '@/background/content-injection';
+import { SettingsRepository } from '@/db/settings-repository';
 import { isMarkerMessage, MarkerMessageType, type MarkerMessageResponse } from '@/shared/messages';
 
 const sidePanelPath = 'src/pages/sidepanel/index.html';
 const libraryPath = 'src/pages/library/index.html';
 const optionsPath = 'src/pages/options/index.html';
-const pages = new PageRepository(createMarkerDb());
+
+const db = createMarkerDb();
+const pages = new PageRepository(db);
+const bookmarkFolders = new BookmarkFolderRepository(db);
+const bookmarks = new BookmarkRepository(db);
+const settings = new SettingsRepository(db);
+const bookmarkSaveService = new BookmarkSaveService(bookmarks, chrome.bookmarks);
 
 async function configureSidePanel(): Promise<void> {
   try {
@@ -35,6 +45,10 @@ async function openSidePanel(tab?: chrome.tabs.Tab): Promise<void> {
 
 async function openExtensionPage(path: string): Promise<void> {
   await chrome.tabs.create({ url: chrome.runtime.getURL(path) });
+}
+
+async function hasChromeBookmarkPermission(): Promise<boolean> {
+  return chrome.permissions.contains({ permissions: ['bookmarks'] });
 }
 
 async function enableSite(
@@ -118,6 +132,65 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
           console.debug('Marker could not record page metadata.', error);
         });
       return false;
+    }
+
+    case MarkerMessageType.SaveBookmark: {
+      hasChromeBookmarkPermission()
+        .then((hasChromePermission) =>
+          bookmarkSaveService.saveBookmark({
+            chromeParentId: message.chromeParentId,
+            destination: message.destination,
+            folderId: message.folderId,
+            hasChromePermission,
+            title: message.title,
+            url: message.url,
+          }),
+        )
+        .then((response) => sendResponse(response))
+        .catch((error: unknown) => {
+          console.debug('Marker could not save bookmark.', error);
+          sendResponse({ ok: false, reason: 'Marker could not save this bookmark.' });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.ImportChromeBookmarks: {
+      hasChromeBookmarkPermission()
+        .then(async (hasChromePermission) => {
+          if (!hasChromePermission) {
+            return { ok: false, reason: 'Chrome bookmark permission was not granted.' };
+          }
+
+          return importChromeBookmarks(chrome.bookmarks, bookmarkFolders, bookmarks, message.folderId);
+        })
+        .then((response) => sendResponse(response))
+        .catch((error: unknown) => {
+          console.debug('Marker could not import Chrome bookmarks.', error);
+          sendResponse({ ok: false, reason: 'Marker could not import Chrome bookmarks.' });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.GetBookmarkSaveBehavior: {
+      settings
+        .getBookmarkSaveBehavior()
+        .then((behavior) => sendResponse({ behavior }))
+        .catch((error: unknown) => {
+          console.debug('Marker could not load bookmark settings.', error);
+          sendResponse({ behavior: 'always-ask' });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.SetBookmarkSaveBehavior: {
+      settings
+        .setBookmarkSaveBehavior(message.behavior)
+        .then(() => sendResponse())
+        .catch((error: unknown) => {
+          console.debug('Marker could not save bookmark settings.', error);
+          sendResponse();
+        });
+      return true;
     }
   }
 });

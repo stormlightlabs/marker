@@ -1,5 +1,15 @@
-import { Brand } from '@/components/Brand';
+import { createSignal, onMount } from 'solid-js';
+import type { BookmarkSaveBehavior } from '@/db/settings-repository';
+import { MarkerMessageType } from '@/shared/messages';
 import '@/styles/index.css';
+import { Brand } from '@/components/Brand';
+
+const behaviorLabels: Record<BookmarkSaveBehavior, string> = {
+  'always-ask': 'Always ask',
+  'marker-only': 'Marker only',
+  'chrome-only': 'Chrome only',
+  both: 'Both',
+};
 
 function OptionsHeader() {
   return (
@@ -16,24 +26,62 @@ function OptionsHeader() {
   );
 }
 
+function BehaviorButton(props: {
+  activeBehavior: BookmarkSaveBehavior;
+  behavior: BookmarkSaveBehavior;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      class={props.activeBehavior === props.behavior ? 'button button--primary' : 'button'}
+      type="button"
+      onClick={props.onSelect}>
+      {behaviorLabels[props.behavior]}
+    </button>
+  );
+}
+
 function BookmarkSettingsCard() {
+  const [behavior, setBehavior] = createSignal<BookmarkSaveBehavior>('always-ask');
+
+  async function saveBehavior(nextBehavior: BookmarkSaveBehavior): Promise<void> {
+    setBehavior(nextBehavior);
+    await chrome.runtime.sendMessage({ type: MarkerMessageType.SetBookmarkSaveBehavior, behavior: nextBehavior });
+  }
+
+  onMount(() => {
+    void chrome.runtime
+      .sendMessage({ type: MarkerMessageType.GetBookmarkSaveBehavior })
+      .then((response: { behavior: BookmarkSaveBehavior }) => setBehavior(response.behavior))
+      .catch((error: unknown) => {
+        console.debug('Marker could not load bookmark save behavior.', error);
+      });
+  });
+
   return (
     <section class="card" aria-labelledby="bookmark-default-heading">
       <p class="eyebrow">Bookmarking</p>
       <h2 class="card__title" id="bookmark-default-heading">
         Bookmark save behavior
       </h2>
-      <p class="card__body">Always ask, Marker only, Chrome only, or save to both.</p>
+      <p class="card__body">Skip the save dialog by choosing a default destination.</p>
       <div class="cluster card__body">
-        <button class="button button--primary" type="button">
-          Always ask
-        </button>
-        <button class="button" type="button">
-          Marker only
-        </button>
-        <button class="button" type="button">
-          Both
-        </button>
+        <BehaviorButton
+          activeBehavior={behavior()}
+          behavior="always-ask"
+          onSelect={() => void saveBehavior('always-ask')}
+        />
+        <BehaviorButton
+          activeBehavior={behavior()}
+          behavior="marker-only"
+          onSelect={() => void saveBehavior('marker-only')}
+        />
+        <BehaviorButton
+          activeBehavior={behavior()}
+          behavior="chrome-only"
+          onSelect={() => void saveBehavior('chrome-only')}
+        />
+        <BehaviorButton activeBehavior={behavior()} behavior="both" onSelect={() => void saveBehavior('both')} />
       </div>
     </section>
   );
@@ -68,7 +116,7 @@ function ThemeSwatch() {
   );
 }
 
-function OptionsPage() {
+export default function OptionsPage() {
   return (
     <main class="app-shell app-shell--page theme-retro" aria-labelledby="options-title">
       <OptionsHeader />
@@ -82,5 +130,3 @@ function OptionsPage() {
     </main>
   );
 }
-
-export default OptionsPage;

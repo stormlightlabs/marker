@@ -2,6 +2,7 @@ import type {
   AnnotationBodyRecord,
   AnnotationRecord,
   AnnotationTargetRecord,
+  AppSettingRecord,
   BookmarkFolderRecord,
   BookmarkRecord,
   MarkerDb,
@@ -17,20 +18,23 @@ export type MarkerExport = {
   annotations: AnnotationRecord[];
   annotationTargets: AnnotationTargetRecord[];
   annotationBodies: AnnotationBodyRecord[];
+  appSettings?: AppSettingRecord[];
 };
 
 export class ExportRepository {
   constructor(private readonly db: MarkerDb) {}
 
   async exportJson(exportedAt = new Date().toISOString()): Promise<MarkerExport> {
-    const [pages, bookmarkFolders, bookmarks, annotations, annotationTargets, annotationBodies] = await Promise.all([
-      this.db.pages.toArray(),
-      this.db.bookmarkFolders.toArray(),
-      this.db.bookmarks.toArray(),
-      this.db.annotations.toArray(),
-      this.db.annotationTargets.toArray(),
-      this.db.annotationBodies.toArray(),
-    ]);
+    const [pages, bookmarkFolders, bookmarks, annotations, annotationTargets, annotationBodies, appSettings] =
+      await Promise.all([
+        this.db.pages.toArray(),
+        this.db.bookmarkFolders.toArray(),
+        this.db.bookmarks.toArray(),
+        this.db.annotations.toArray(),
+        this.db.annotationTargets.toArray(),
+        this.db.annotationBodies.toArray(),
+        this.db.appSettings.toArray(),
+      ]);
 
     return {
       version: 1,
@@ -41,6 +45,7 @@ export class ExportRepository {
       annotations,
       annotationTargets,
       annotationBodies,
+      appSettings,
     };
   }
 
@@ -58,6 +63,7 @@ export class ExportRepository {
         this.db.annotations,
         this.db.annotationTargets,
         this.db.annotationBodies,
+        this.db.appSettings,
       ],
       async () => {
         await this.db.pages.bulkPut(input.pages);
@@ -66,6 +72,7 @@ export class ExportRepository {
         await this.db.annotations.bulkPut(input.annotations);
         await this.db.annotationTargets.bulkPut(input.annotationTargets);
         await this.db.annotationBodies.bulkPut(input.annotationBodies);
+        await this.db.appSettings.bulkPut(input.appSettings ?? []);
       },
     );
   }
