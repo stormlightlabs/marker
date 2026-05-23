@@ -2,6 +2,7 @@ import { createSignal, onMount, Show } from 'solid-js';
 import { MarkerMessageType, type MarkerMessageResponse } from '@/shared/messages';
 import type { ActiveTabSummary } from '@/shared/permissions';
 import '@/styles/index.css';
+import { Brand } from '@/components/Brand';
 
 function openExtensionPage(type: MarkerMessageType.OpenLibrary | MarkerMessageType.OpenOptions): void {
   void chrome.runtime.sendMessage({ type });
@@ -92,12 +93,7 @@ function SidePanelPage() {
   return (
     <main class="app-shell side-panel-shell theme-minimal-dark" aria-labelledby="side-panel-title">
       <header class="app-header card card--accent">
-        <div class="brand-lockup" aria-label="Marker for Chrome">
-          <span class="brand-mark" aria-hidden="true">
-            M
-          </span>
-          <span class="wordmark">Marker</span>
-        </div>
+        <Brand label="Marker for Chrome" />
         <p class="eyebrow">Chrome side panel</p>
         <h1 class="app-header__title" id="side-panel-title">
           Bookmarks and annotations for this page
