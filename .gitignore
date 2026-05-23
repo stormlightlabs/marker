@@ -23,6 +23,9 @@ migrate_working_dir/
 # is commented out by default.
 #.vscode/
 
+# Node/pnpm workspace
+node_modules/
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
@@ -45,3 +48,4 @@ app.*.map.json
 /android/app/release
 
 .sandbox/
+node_modules/

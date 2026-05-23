@@ -1,1 +1,8 @@
-{ "printWidth": 120, "objectWrap": "collapse", "bracketSameLine": true, "singleQuote": true }
+{
+  "bracketSameLine": true,
+  "printWidth": 120,
+  "objectWrap": "collapse",
+  "singleQuote": true,
+  "plugins": ["prettier-plugin-astro"],
+  "overrides": [{ "files": "*.astro", "options": { "parser": "astro" } }]
+}

@@ -1,5 +1,5 @@
 ---
-import BaseLayout from "./BaseLayout.astro";
+import BaseLayout from './BaseLayout.astro';
 
 interface Props {
   title: string;
@@ -34,7 +34,7 @@ const { title, description, effectiveDate } = Astro.props;
           fill="none"
           opacity="0.7"></path>
       </svg>
-      <h1><span>{title.split(" ")[0]}</span> {title.split(" ").slice(1).join(" ")}</h1>
+      <h1><span>{title.split(' ')[0]}</span> {title.split(' ').slice(1).join(' ')}</h1>
       {effectiveDate && <p>Effective {effectiveDate}</p>}
     </header>
 
@@ -81,7 +81,7 @@ const { title, description, effectiveDate } = Astro.props;
 
     h1 {
       margin-bottom: 0.75rem;
-      font-family: "Lora Variable", ui-serif, Georgia, serif;
+      font-family: 'Lora Variable', ui-serif, Georgia, serif;
       font-size: clamp(var(--size-3xl), 4vw, var(--size-5xl));
       font-weight: 760;
       line-height: var(--line-tight);
@@ -93,7 +93,7 @@ const { title, description, effectiveDate } = Astro.props;
       display: inline-block;
 
       &::before {
-        content: "";
+        content: '';
         position: absolute;
         inset: 0.1em -0.15em;
         z-index: -1;
@@ -130,7 +130,7 @@ const { title, description, effectiveDate } = Astro.props;
     .static-page__content h2 {
       margin-top: 2.5rem;
       color: var(--ink);
-      font-family: "Lora Variable", ui-serif, Georgia, serif;
+      font-family: 'Lora Variable', ui-serif, Georgia, serif;
       font-size: var(--size-xl);
       font-weight: 760;
       line-height: var(--line-snug);
@@ -147,7 +147,7 @@ const { title, description, effectiveDate } = Astro.props;
       padding-left: 1.25rem;
 
       &::before {
-        content: "";
+        content: '';
         position: absolute;
         top: 0.7em;
         left: 0;

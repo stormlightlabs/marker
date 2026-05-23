@@ -1,18 +1,48 @@
 ---
 interface Props {
   size?: number;
-  weight?: "standard" | "display";
+  weight?: 'standard' | 'display';
 }
 
-const { size = 22, weight = "standard" } = Astro.props;
-const strokeWidth = weight === "display" ? 28 : 60;
-const highlightWidth = weight === "display" ? 38 : 80;
-const detailWidth = weight === "display" ? 18 : 40;
+const { size = 22, weight = 'standard' } = Astro.props;
+const strokeWidth = weight === 'display' ? 28 : 60;
+const highlightWidth = weight === 'display' ? 38 : 80;
+const detailWidth = weight === 'display' ? 18 : 40;
 ---
 
-<svg width={size} height={size} viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <path d="M 308 196 H 610 Q 624 196 634 206 L 730 302 Q 740 312 740 326 V 739 Q 740 760 722 770 Q 711 776 699 769 L 512 656 L 325 769 Q 313 776 302 770 Q 284 760 284 739 V 220 A 24 24 0 0 1 308 196 Z" stroke="#111111" stroke-width={strokeWidth} stroke-linejoin="round" stroke-linecap="round" fill="none" />
-  <path d="M 610 200 V 318 Q 610 334 626 334 H 736" stroke="#111111" stroke-width={strokeWidth} stroke-linejoin="round" stroke-linecap="round" fill="none" />
-  <path d="M 360 465 C 430 450, 530 440, 660 438 M 362 482 C 440 466, 540 459, 664 458 M 360 500 C 440 486, 545 478, 665 475" stroke="#FFD85A" stroke-width={highlightWidth} stroke-linecap="round" stroke-linejoin="round" opacity="0.95" fill="none" />
-  <path d="M 384 562 C 470 552, 557 548, 650 548" stroke="#111111" stroke-width={detailWidth} stroke-linecap="round" fill="none" />
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 1024 1024"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  aria-hidden="true">
+  <path
+    d="M 308 196 H 610 Q 624 196 634 206 L 730 302 Q 740 312 740 326 V 739 Q 740 760 722 770 Q 711 776 699 769 L 512 656 L 325 769 Q 313 776 302 770 Q 284 760 284 739 V 220 A 24 24 0 0 1 308 196 Z"
+    stroke="#111111"
+    stroke-width={strokeWidth}
+    stroke-linejoin="round"
+    stroke-linecap="round"
+    fill="none"></path>
+  <path
+    d="M 610 200 V 318 Q 610 334 626 334 H 736"
+    stroke="#111111"
+    stroke-width={strokeWidth}
+    stroke-linejoin="round"
+    stroke-linecap="round"
+    fill="none"></path>
+  <path
+    d="M 360 465 C 430 450, 530 440, 660 438 M 362 482 C 440 466, 540 459, 664 458 M 360 500 C 440 486, 545 478, 665 475"
+    stroke="#FFD85A"
+    stroke-width={highlightWidth}
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.95"
+    fill="none"></path>
+  <path
+    d="M 384 562 C 470 552, 557 548, 650 548"
+    stroke="#111111"
+    stroke-width={detailWidth}
+    stroke-linecap="round"
+    fill="none"></path>
 </svg>

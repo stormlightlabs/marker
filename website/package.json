@@ -1,5 +1,5 @@
 {
-  "name": "website",
+  "name": "marker-website",
   "type": "module",
   "version": "0.0.1",
   "engines": {
@@ -17,9 +17,5 @@
     "@fontsource-variable/sora": "^5.2.8",
     "astro": "^6.3.6",
     "typescript": "^6.0.3"
-  },
-  "devDependencies": {
-    "prettier": "^3.8.3",
-    "prettier-plugin-astro": "^0.14.1"
   }
 }
