@@ -1,8 +1,9 @@
-import type { AppTheme, BookmarkSaveBehavior } from '@/db/settings-repository';
+import type { AnnotationDisplayMode, AppTheme, BookmarkSaveBehavior } from '@/db/settings-repository';
 import type { BookmarkSaveDestination, SaveBookmarkResult } from '@/background/bookmark-save-service';
 import type { ImportChromeBookmarksResult } from '@/background/chrome-bookmarks';
+import type { MarkerExport } from '@/db/export-repository';
 import type { AnnotationWithParts } from '@/db/annotation-repository';
-import type { AnnotationMotivation, PageMetadata, Selector } from '@/db/schema';
+import type { AnnotationMotivation, BookmarkFolderRecord, BookmarkRecord, PageMetadata, PageRecord, Selector } from '@/db/schema';
 import type { ActiveTabSummary } from './permissions';
 
 export enum MarkerMessageType {
@@ -13,11 +14,23 @@ export enum MarkerMessageType {
   PageVisited = 'marker:page-visited',
   SaveBookmark = 'marker:save-bookmark',
   ImportChromeBookmarks = 'marker:import-chrome-bookmarks',
+  GetLibraryState = 'marker:get-library-state',
+  ExportJson = 'marker:export-json',
+  ImportJson = 'marker:import-json',
+  GetPermissionStatus = 'marker:get-permission-status',
   GetBookmarkSaveBehavior = 'marker:get-bookmark-save-behavior',
   SetBookmarkSaveBehavior = 'marker:set-bookmark-save-behavior',
   GetAppTheme = 'marker:get-app-theme',
   SetAppTheme = 'marker:set-app-theme',
+  GetAnnotationDisplayMode = 'marker:get-annotation-display-mode',
+  SetAnnotationDisplayMode = 'marker:set-annotation-display-mode',
   CreateAnnotation = 'marker:create-annotation',
+  GetCurrentPageState = 'marker:get-current-page-state',
+  UpdateAnnotationNote = 'marker:update-annotation-note',
+  DeleteAnnotation = 'marker:delete-annotation',
+  ScrollToAnnotation = 'marker:scroll-to-annotation',
+  RemoveRenderedAnnotation = 'marker:remove-rendered-annotation',
+  SetAnnotationVisibility = 'marker:set-annotation-visibility',
 }
 
 export type OpenLibraryMessage = { type: MarkerMessageType.OpenLibrary };
@@ -41,6 +54,21 @@ export type SaveBookmarkMessage = {
 
 export type ImportChromeBookmarksMessage = { type: MarkerMessageType.ImportChromeBookmarks; folderId?: string };
 
+export type LibraryState = {
+  pages: PageRecord[];
+  folders: BookmarkFolderRecord[];
+  bookmarks: BookmarkRecord[];
+  annotations: AnnotationWithParts[];
+};
+
+export type GetLibraryStateMessage = { type: MarkerMessageType.GetLibraryState };
+
+export type ExportJsonMessage = { type: MarkerMessageType.ExportJson };
+
+export type ImportJsonMessage = { type: MarkerMessageType.ImportJson; data: MarkerExport };
+
+export type GetPermissionStatusMessage = { type: MarkerMessageType.GetPermissionStatus };
+
 export type GetBookmarkSaveBehaviorMessage = { type: MarkerMessageType.GetBookmarkSaveBehavior };
 
 export type SetBookmarkSaveBehaviorMessage = {
@@ -52,14 +80,50 @@ export type GetAppThemeMessage = { type: MarkerMessageType.GetAppTheme };
 
 export type SetAppThemeMessage = { type: MarkerMessageType.SetAppTheme; theme: AppTheme };
 
+export type GetAnnotationDisplayModeMessage = { type: MarkerMessageType.GetAnnotationDisplayMode };
+
+export type SetAnnotationDisplayModeMessage = {
+  type: MarkerMessageType.SetAnnotationDisplayMode;
+  mode: AnnotationDisplayMode;
+};
+
 export type CreateAnnotationMessage = {
   type: MarkerMessageType.CreateAnnotation;
   url: string;
   metadata: PageMetadata;
   selector: Selector[];
   motivation: AnnotationMotivation;
-  bodies?: Array<{ type: 'TextualBody' | 'StyleHint'; format?: 'text/markdown' | 'text/plain' | 'application/json'; value: string }>;
+  bodies?: Array<{
+    type: 'TextualBody' | 'StyleHint';
+    format?: 'text/markdown' | 'text/plain' | 'application/json';
+    value: string;
+  }>;
 };
+
+export type CurrentPageState = {
+  summary: ActiveTabSummary;
+  page?: PageRecord;
+  bookmark?: BookmarkRecord;
+  annotations: AnnotationWithParts[];
+  bookmarkSaveBehavior: BookmarkSaveBehavior;
+  annotationDisplayMode: AnnotationDisplayMode;
+};
+
+export type GetCurrentPageStateMessage = { type: MarkerMessageType.GetCurrentPageState };
+
+export type UpdateAnnotationNoteMessage = {
+  type: MarkerMessageType.UpdateAnnotationNote;
+  annotationId: string;
+  value: string;
+};
+
+export type DeleteAnnotationMessage = { type: MarkerMessageType.DeleteAnnotation; annotationId: string };
+
+export type ScrollToAnnotationMessage = { type: MarkerMessageType.ScrollToAnnotation; annotationId: string };
+
+export type RemoveRenderedAnnotationMessage = { type: MarkerMessageType.RemoveRenderedAnnotation; annotationId: string };
+
+export type SetAnnotationVisibilityMessage = { type: MarkerMessageType.SetAnnotationVisibility; visible: boolean };
 
 export type MarkerMessage =
   | OpenLibraryMessage
@@ -69,11 +133,23 @@ export type MarkerMessage =
   | PageVisitedMessage
   | SaveBookmarkMessage
   | ImportChromeBookmarksMessage
+  | GetLibraryStateMessage
+  | ExportJsonMessage
+  | ImportJsonMessage
+  | GetPermissionStatusMessage
   | GetBookmarkSaveBehaviorMessage
   | SetBookmarkSaveBehaviorMessage
   | GetAppThemeMessage
   | SetAppThemeMessage
-  | CreateAnnotationMessage;
+  | GetAnnotationDisplayModeMessage
+  | SetAnnotationDisplayModeMessage
+  | CreateAnnotationMessage
+  | GetCurrentPageStateMessage
+  | UpdateAnnotationNoteMessage
+  | DeleteAnnotationMessage
+  | ScrollToAnnotationMessage
+  | RemoveRenderedAnnotationMessage
+  | SetAnnotationVisibilityMessage;
 
 export type EnableSiteResponse = { ok: true } | { ok: false; reason: string };
 
@@ -87,13 +163,29 @@ export type MarkerMessageResponse<T extends MarkerMessage = MarkerMessage> = T e
         ? SaveBookmarkResult
         : T extends ImportChromeBookmarksMessage
           ? ImportChromeBookmarksResult | { ok: false; reason: string }
-          : T extends GetBookmarkSaveBehaviorMessage
+          : T extends GetLibraryStateMessage
+            ? LibraryState
+            : T extends ExportJsonMessage
+              ? MarkerExport
+              : T extends ImportJsonMessage
+                ? { ok: true } | { ok: false; reason: string }
+                : T extends GetPermissionStatusMessage
+                  ? { hasChromeBookmarkPermission: boolean; activeTab: ActiveTabSummary }
+                  : T extends GetBookmarkSaveBehaviorMessage
             ? { behavior: BookmarkSaveBehavior }
             : T extends GetAppThemeMessage
               ? { theme: AppTheme }
-              : T extends CreateAnnotationMessage
+              : T extends GetAnnotationDisplayModeMessage
+                ? { mode: AnnotationDisplayMode }
+                : T extends CreateAnnotationMessage
                 ? { ok: true; annotation: AnnotationWithParts } | { ok: false; reason: string }
-                : undefined;
+                : T extends GetCurrentPageStateMessage
+                  ? CurrentPageState
+                  : T extends UpdateAnnotationNoteMessage | DeleteAnnotationMessage
+                    ? { ok: true } | { ok: false; reason: string }
+                    : T extends ScrollToAnnotationMessage
+                      ? { ok: true } | { ok: false; reason: string }
+                      : undefined;
 
 const markerMessageTypeValues = new Set<string>(Object.values(MarkerMessageType));
 
@@ -119,11 +211,29 @@ export function isMarkerMessage(value: unknown): value is MarkerMessage {
       const message = value as { destination?: unknown; url?: unknown };
       return typeof message.url === 'string' && typeof message.destination === 'string';
     }
+    case MarkerMessageType.ImportJson: {
+      return typeof (value as { data?: unknown }).data === 'object' && (value as { data?: unknown }).data !== null;
+    }
     case MarkerMessageType.SetBookmarkSaveBehavior: {
       return typeof (value as { behavior?: unknown }).behavior === 'string';
     }
     case MarkerMessageType.SetAppTheme: {
       return typeof (value as { theme?: unknown }).theme === 'string';
+    }
+    case MarkerMessageType.SetAnnotationDisplayMode: {
+      return typeof (value as { mode?: unknown }).mode === 'string';
+    }
+    case MarkerMessageType.UpdateAnnotationNote: {
+      const message = value as { annotationId?: unknown; value?: unknown };
+      return typeof message.annotationId === 'string' && typeof message.value === 'string';
+    }
+    case MarkerMessageType.DeleteAnnotation:
+    case MarkerMessageType.ScrollToAnnotation:
+    case MarkerMessageType.RemoveRenderedAnnotation: {
+      return typeof (value as { annotationId?: unknown }).annotationId === 'string';
+    }
+    case MarkerMessageType.SetAnnotationVisibility: {
+      return typeof (value as { visible?: unknown }).visible === 'boolean';
     }
     case MarkerMessageType.CreateAnnotation: {
       const message = value as { url?: unknown; metadata?: unknown; selector?: unknown; motivation?: unknown };

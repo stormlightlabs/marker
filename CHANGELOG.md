@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### 2026-05-22
+
+- Chrome extension changelog: [extension/CHANGELOG.md](extension/CHANGELOG.md).
+
 ### 2026-05-20
 
 - Fuzzy searchable browsing history with searchable title, url, & description

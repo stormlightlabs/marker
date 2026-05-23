@@ -50,6 +50,10 @@ export class BookmarkFolderRepository {
     await this.db.bookmarks.where('folderId').equals(id).modify({ deletedAt: now, updatedAt: now });
     await this.db.bookmarkFolders.update(id, { deletedAt: now, updatedAt: now });
   }
+
+  async listAllFolders(): Promise<BookmarkFolderRecord[]> {
+    return this.db.bookmarkFolders.filter((folder) => folder.deletedAt == null).sortBy('sortOrder');
+  }
 }
 
 export class BookmarkRepository {
@@ -86,6 +90,14 @@ export class BookmarkRepository {
     await this.db.bookmarks.update(id, { deletedAt: now, updatedAt: now });
   }
 
+  async findBookmarkForUrl(url: string): Promise<BookmarkRecord | undefined> {
+    return this.db.bookmarks
+      .where('url')
+      .equals(url)
+      .filter((bookmark) => bookmark.deletedAt == null)
+      .first();
+  }
+
   async listBookmarks(folderId?: string): Promise<BookmarkRecord[]> {
     const collection =
       folderId == null
@@ -93,6 +105,10 @@ export class BookmarkRepository {
         : this.db.bookmarks.where('folderId').equals(folderId);
 
     return collection.filter((bookmark) => bookmark.deletedAt == null).sortBy('sortOrder');
+  }
+
+  async listAllBookmarks(): Promise<BookmarkRecord[]> {
+    return this.db.bookmarks.filter((bookmark) => bookmark.deletedAt == null).sortBy('sortOrder');
   }
 
   async searchBookmarks(query: string): Promise<BookmarkRecord[]> {

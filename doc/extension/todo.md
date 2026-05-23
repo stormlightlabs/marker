@@ -179,6 +179,8 @@ Acceptance:
 
 ## Milestone 10: side panel
 
+Status: Complete.
+
 Deliverables:
 
 - Current tab summary.
@@ -198,6 +200,8 @@ Acceptance:
 - Bookmark save behavior follows the user setting.
 
 ## Milestone 11: full library page
+
+Status: Complete.
 
 Deliverables:
 
@@ -220,6 +224,8 @@ Acceptance:
 - JSON import/export round trips with mobile-compatible shape.
 
 ## Milestone 12: options page
+
+Status: Complete.
 
 Deliverables:
 

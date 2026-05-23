@@ -5,7 +5,7 @@ export function Brand(props: { label: string }) {
       <span class="brand-mark" aria-hidden="true">
         M
       </span>
-      <span class="wordmark wordmark--large">Marker</span>
+      <span class="wordmark wordmark--large">MARKER</span>
     </div>
   );
 }

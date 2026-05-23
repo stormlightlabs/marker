@@ -4,6 +4,7 @@ import { importChromeBookmarks } from '@/background/chrome-bookmarks';
 import { injectMarkerContentRuntime } from '@/background/content-injection';
 import { BookmarkFolderRepository, BookmarkRepository } from '@/db/bookmark-repository';
 import { AnnotationRepository } from '@/db/annotation-repository';
+import { ExportRepository } from '@/db/export-repository';
 import { PageRepository } from '@/db/page-repository';
 import { createMarkerDb } from '@/db/schema';
 import { SettingsRepository } from '@/db/settings-repository';
@@ -19,6 +20,7 @@ const bookmarkFolders = new BookmarkFolderRepository(db);
 const bookmarks = new BookmarkRepository(db);
 const annotations = new AnnotationRepository(db);
 const settings = new SettingsRepository(db);
+const exports = new ExportRepository(db);
 const bookmarkSaveService = new BookmarkSaveService(bookmarks, chrome.bookmarks);
 
 async function configureSidePanel(): Promise<void> {
@@ -51,6 +53,25 @@ async function openExtensionPage(path: string): Promise<void> {
 
 async function hasChromeBookmarkPermission(): Promise<boolean> {
   return chrome.permissions.contains({ permissions: ['bookmarks'] });
+}
+
+async function currentPageState(): Promise<MarkerMessageResponse<{ type: MarkerMessageType.GetCurrentPageState }>> {
+  const summary = await getActiveTabSummary();
+  const [behavior, annotationDisplayMode] = await Promise.all([
+    settings.getBookmarkSaveBehavior(),
+    settings.getAnnotationDisplayMode(),
+  ]);
+  if (summary.url == null) {
+    return { summary, annotations: [], bookmarkSaveBehavior: behavior, annotationDisplayMode };
+  }
+
+  const page = await pages.findByUrl(summary.url);
+  const [bookmark, pageAnnotations] = await Promise.all([
+    bookmarks.findBookmarkForUrl(summary.url),
+    page == null ? Promise.resolve([]) : annotations.listAnnotationsForPage(page.id),
+  ]);
+
+  return { summary, page, bookmark, annotations: pageAnnotations, bookmarkSaveBehavior: behavior, annotationDisplayMode };
 }
 
 async function enableSite(
@@ -105,6 +126,27 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
             hasScriptingPermission: false,
             status: 'unsupported',
             reason: 'Marker could not read the active tab.',
+          });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.GetCurrentPageState: {
+      currentPageState()
+        .then((state) => sendResponse(state))
+        .catch((error: unknown) => {
+          console.debug('Marker could not load current page state.', error);
+          sendResponse({
+            summary: {
+              canAnnotate: false,
+              hasHostPermission: false,
+              hasScriptingPermission: false,
+              status: 'unsupported',
+              reason: 'Marker could not read the active tab.',
+            },
+            annotations: [],
+            bookmarkSaveBehavior: 'always-ask',
+            annotationDisplayMode: 'visible',
           });
         });
       return true;
@@ -186,6 +228,79 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       return true;
     }
 
+    case MarkerMessageType.GetLibraryState: {
+      Promise.all([
+        pages.listPages(),
+        bookmarkFolders.listAllFolders(),
+        bookmarks.listAllBookmarks(),
+        annotations.listAllAnnotations(),
+      ])
+        .then(([pageRecords, folderRecords, bookmarkRecords, annotationRecords]) =>
+          sendResponse({
+            pages: pageRecords,
+            folders: folderRecords,
+            bookmarks: bookmarkRecords,
+            annotations: annotationRecords,
+          }),
+        )
+        .catch((error: unknown) => {
+          console.debug('Marker could not load the library.', error);
+          sendResponse({ pages: [], folders: [], bookmarks: [], annotations: [] });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.ExportJson: {
+      exports
+        .exportJson()
+        .then((data) => sendResponse(data))
+        .catch((error: unknown) => {
+          console.debug('Marker could not export JSON.', error);
+          sendResponse({
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            pages: [],
+            bookmarkFolders: [],
+            bookmarks: [],
+            annotations: [],
+            annotationTargets: [],
+            annotationBodies: [],
+            appSettings: [],
+          });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.ImportJson: {
+      exports
+        .importJson(message.data)
+        .then(() => sendResponse({ ok: true }))
+        .catch((error: unknown) => {
+          console.debug('Marker could not import JSON.', error);
+          sendResponse({ ok: false, reason: 'Marker could not import this JSON file.' });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.GetPermissionStatus: {
+      Promise.all([hasChromeBookmarkPermission(), getActiveTabSummary()])
+        .then(([hasChromeBookmarkPermission, activeTab]) => sendResponse({ hasChromeBookmarkPermission, activeTab }))
+        .catch((error: unknown) => {
+          console.debug('Marker could not load permission status.', error);
+          sendResponse({
+            hasChromeBookmarkPermission: false,
+            activeTab: {
+              canAnnotate: false,
+              hasHostPermission: false,
+              hasScriptingPermission: false,
+              status: 'unsupported',
+              reason: 'Marker could not read the active tab.',
+            },
+          });
+        });
+      return true;
+    }
+
     case MarkerMessageType.ImportChromeBookmarks: {
       hasChromeBookmarkPermission()
         .then(async (hasChromePermission) => {
@@ -199,6 +314,28 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         .catch((error: unknown) => {
           console.debug('Marker could not import Chrome bookmarks.', error);
           sendResponse({ ok: false, reason: 'Marker could not import Chrome bookmarks.' });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.UpdateAnnotationNote: {
+      annotations
+        .updateMarkdownBody(message.annotationId, message.value)
+        .then(() => sendResponse({ ok: true }))
+        .catch((error: unknown) => {
+          console.debug('Marker could not update annotation note.', error);
+          sendResponse({ ok: false, reason: 'Marker could not update this note.' });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.DeleteAnnotation: {
+      annotations
+        .deleteAnnotation(message.annotationId)
+        .then(() => sendResponse({ ok: true }))
+        .catch((error: unknown) => {
+          console.debug('Marker could not delete annotation.', error);
+          sendResponse({ ok: false, reason: 'Marker could not delete this annotation.' });
         });
       return true;
     }
@@ -242,6 +379,28 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         .then(() => sendResponse())
         .catch((error: unknown) => {
           console.debug('Marker could not save theme settings.', error);
+          sendResponse();
+        });
+      return true;
+    }
+
+    case MarkerMessageType.GetAnnotationDisplayMode: {
+      settings
+        .getAnnotationDisplayMode()
+        .then((mode) => sendResponse({ mode }))
+        .catch((error: unknown) => {
+          console.debug('Marker could not load annotation display settings.', error);
+          sendResponse({ mode: 'visible' });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.SetAnnotationDisplayMode: {
+      settings
+        .setAnnotationDisplayMode(message.mode)
+        .then(() => sendResponse())
+        .catch((error: unknown) => {
+          console.debug('Marker could not save annotation display settings.', error);
           sendResponse();
         });
       return true;

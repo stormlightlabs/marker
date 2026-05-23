@@ -69,13 +69,18 @@ describe('bookmark repositories', () => {
     });
 
     expect(await folders.listFolders(root.id)).toMatchObject([{ id: child.id, parentId: root.id }]);
+    expect(await folders.listAllFolders()).toHaveLength(2);
     expect(await bookmarks.listBookmarks(child.id)).toMatchObject([
       { id: bookmark.id, chromeBookmarkId: 'chrome-1', tags: ['browser', 'research'] },
     ]);
     expect(await bookmarks.searchBookmarks('research')).toHaveLength(1);
+    expect(await bookmarks.listAllBookmarks()).toHaveLength(1);
+    expect(await bookmarks.findBookmarkForUrl('https://example.com')).toMatchObject({ id: bookmark.id });
 
     await bookmarks.softDeleteBookmark(bookmark.id, '2026-05-22T02:00:00.000Z');
     expect(await bookmarks.listBookmarks(child.id)).toHaveLength(0);
+    expect(await bookmarks.listAllBookmarks()).toHaveLength(0);
+    expect(await bookmarks.findBookmarkForUrl('https://example.com')).toBeUndefined();
   });
 
   it('soft deletes folder trees and contained bookmarks', async () => {
@@ -114,6 +119,8 @@ describe('AnnotationRepository', () => {
     expect(created.annotation.motivation).toBe('commenting');
     expect(created.targets[0]?.selector[0]).toMatchObject({ type: 'TextQuoteSelector', exact: 'selected text' });
     expect(created.bodies).toHaveLength(2);
+
+    expect(await annotations.listAllAnnotations()).toHaveLength(1);
 
     await annotations.updateMarkdownBody(created.annotation.id, 'updated', '2026-05-22T02:00:00.000Z');
     const [updated] = await annotations.listAnnotationsForPage('page-1');

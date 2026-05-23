@@ -72,6 +72,11 @@ export class AnnotationRepository {
     return Promise.all(annotations.map((annotation) => this.getAnnotationWithParts(annotation)));
   }
 
+  async listAllAnnotations(): Promise<AnnotationWithParts[]> {
+    const annotations = await this.db.annotations.filter((annotation) => annotation.deletedAt == null).toArray();
+    return Promise.all(annotations.map((annotation) => this.getAnnotationWithParts(annotation)));
+  }
+
   async updateMarkdownBody(annotationId: string, value: string, now = nowIso()): Promise<void> {
     const body = await this.db.annotationBodies
       .where('annotationId')

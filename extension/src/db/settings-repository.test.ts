@@ -40,4 +40,13 @@ describe('SettingsRepository', () => {
 
     expect(await settings.getAppTheme()).toBe('retro');
   });
+
+  it('persists annotation display mode', async () => {
+    const settings = new SettingsRepository(testDb());
+
+    expect(await settings.getAnnotationDisplayMode()).toBe('visible');
+    await settings.setAnnotationDisplayMode('hidden', '2026-05-22T00:00:00.000Z');
+
+    expect(await settings.getAnnotationDisplayMode()).toBe('hidden');
+  });
 });

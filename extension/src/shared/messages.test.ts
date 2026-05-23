@@ -6,6 +6,15 @@ describe('isMarkerMessage', () => {
     expect(isMarkerMessage({ type: MarkerMessageType.OpenLibrary })).toBe(true);
     expect(isMarkerMessage({ type: MarkerMessageType.EnableSite, tabId: 7 })).toBe(true);
     expect(isMarkerMessage({ type: MarkerMessageType.SetAppTheme, theme: 'retro' })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.GetAnnotationDisplayMode })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.SetAnnotationDisplayMode, mode: 'hidden' })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.DeleteAnnotation, annotationId: 'annotation_1' })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.UpdateAnnotationNote, annotationId: 'annotation_1', value: 'note' })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.SetAnnotationVisibility, visible: false })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.GetLibraryState })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.ExportJson })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.ImportJson, data: { version: 1 } })).toBe(true);
+    expect(isMarkerMessage({ type: MarkerMessageType.GetPermissionStatus })).toBe(true);
     expect(
       isMarkerMessage({
         type: MarkerMessageType.CreateAnnotation,
@@ -22,6 +31,11 @@ describe('isMarkerMessage', () => {
     expect(isMarkerMessage({})).toBe(false);
     expect(isMarkerMessage({ type: 'other' })).toBe(false);
     expect(isMarkerMessage({ type: MarkerMessageType.EnableSite })).toBe(false);
+    expect(isMarkerMessage({ type: MarkerMessageType.SetAnnotationDisplayMode })).toBe(false);
+    expect(isMarkerMessage({ type: MarkerMessageType.DeleteAnnotation })).toBe(false);
+    expect(isMarkerMessage({ type: MarkerMessageType.UpdateAnnotationNote, annotationId: 'annotation_1' })).toBe(false);
+    expect(isMarkerMessage({ type: MarkerMessageType.SetAnnotationVisibility, visible: 'yes' })).toBe(false);
+    expect(isMarkerMessage({ type: MarkerMessageType.ImportJson })).toBe(false);
     expect(isMarkerMessage({ type: MarkerMessageType.CreateAnnotation, url: 'https://example.com' })).toBe(false);
   });
 });

@@ -1,126 +1,245 @@
+import { createMemo, createSignal, For, onMount, Show } from 'solid-js';
 import { Brand } from '@/components/Brand';
+import type { AnnotationWithParts } from '@/db/annotation-repository';
+import type { BookmarkFolderRecord, BookmarkRecord, PageRecord } from '@/db/schema';
+import type { LibraryState } from '@/shared/messages';
+import { MarkerMessageType } from '@/shared/messages';
 import '@/styles/index.css';
 import { createAppTheme, themeClass } from '@/pages/theme';
 
-function LibraryHeader() {
-  return (
-    <header class="app-header">
-      <Brand label="Marker Library" />
-      <p class="eyebrow">Library</p>
-      <h1 class="app-header__title" id="library-title">
-        Bookmarks / Annotations
-      </h1>
-      <p class="app-header__description">
-        Search and manage Marker folders, bookmarks, pages, highlights, underlines, and notes.
-      </p>
-      <div class="cluster">
-        <input class="library-search" value="folder:research annotation:note" aria-label="Search library" />
-        <button class="button button--primary" type="button">
-          Import Chrome
-        </button>
-        <button class="button" type="button">
-          Export JSON
-        </button>
-      </div>
-    </header>
-  );
+type LibraryFilter = 'all' | 'bookmarks' | 'annotations' | 'pages';
+type SelectedItem = { type: 'page'; id: string } | { type: 'bookmark'; id: string } | { type: 'annotation'; id: string };
+
+type SearchResult =
+  | { type: 'bookmark'; bookmark: BookmarkRecord; text: string }
+  | { type: 'annotation'; annotation: AnnotationWithParts; text: string }
+  | { type: 'page'; page: PageRecord; text: string };
+
+function annotationQuote(annotation: AnnotationWithParts): string {
+  const plain = annotation.bodies.find((body) => body.format === 'text/plain')?.value;
+  const quote = annotation.targets[0]?.selector.find((selector) => selector.type === 'TextQuoteSelector');
+  return plain ?? quote?.exact ?? '';
 }
 
-function LibraryStats() {
-  return (
-    <section class="library-stats" aria-label="Library statistics">
-      <article class="card library-stat">
-        <strong>128</strong>
-        <span class="muted">bookmarks</span>
-      </article>
-      <article class="card library-stat">
-        <strong>412</strong>
-        <span class="muted">annotations</span>
-      </article>
-      <article class="card library-stat">
-        <strong>23</strong>
-        <span class="muted">folders</span>
-      </article>
-    </section>
-  );
+function annotationNote(annotation: AnnotationWithParts): string {
+  return annotation.bodies.find((body) => body.format === 'text/markdown')?.value ?? '';
 }
 
-function FolderCard(props: { title: string; count: string }) {
-  return (
-    <article class="card">
-      <strong>{props.title}</strong>
-      <p class="muted">{props.count}</p>
-    </article>
-  );
+function annotationKind(annotation: AnnotationWithParts): string {
+  if (annotationNote(annotation).trim().length > 0) return 'note';
+  return annotation.annotation.motivation === 'linking' ? 'underline' : 'highlight';
 }
 
-function FoldersPanel() {
-  return (
-    <aside class="library-panel card">
-      <h2 class="card__title">Folders</h2>
-      <div class="library-list">
-        <FolderCard title="Inbox" count="9 items" />
-        <FolderCard title="Long reads" count="31 items" />
-        <FolderCard title="Interface research" count="22 items" />
-      </div>
-    </aside>
-  );
+function downloadJson(data: unknown, filename: string): void {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
-function ResultsPanel() {
-  return (
-    <section class="library-panel card">
-      <h2 class="card__title">Results</h2>
-      <div class="library-tabs" aria-label="Result filters">
-        <button class="button button--primary" type="button">
-          All
-        </button>
-        <button class="button" type="button">
-          Bookmarks
-        </button>
-        <button class="button" type="button">
-          Annotations
-        </button>
-      </div>
-      <div class="library-list">
-        <article class="card">
-          <p class="eyebrow">Bookmark</p>
-          <strong>The browser as notebook</strong>
-          <p class="card__body">A saved page with four annotations and Chrome bookmark linkage.</p>
-        </article>
-        <article class="card quote-card">
-          <p class="eyebrow">Annotation</p>
-          <blockquote>The best bookmark is often the sentence that explains why you saved the page.</blockquote>
-        </article>
-      </div>
-    </section>
-  );
-}
-
-function PageDetailPanel() {
-  return (
-    <aside class="library-panel card">
-      <h2 class="card__title">Page detail</h2>
-      <p class="card__body">Joined bookmark metadata, annotation count, Markdown notes, and export status.</p>
-      <article class="card quote-card">
-        <p class="eyebrow">Saved quote</p>
-        <blockquote>The active tab is context, not just a URL.</blockquote>
-      </article>
-    </aside>
-  );
+async function readJsonFile(file: File): Promise<unknown> {
+  return JSON.parse(await file.text()) as unknown;
 }
 
 function LibraryPage() {
   const appTheme = createAppTheme();
+  const [state, setState] = createSignal<LibraryState>({ pages: [], folders: [], bookmarks: [], annotations: [] });
+  const [query, setQuery] = createSignal('');
+  const [filter, setFilter] = createSignal<LibraryFilter>('all');
+  const [selected, setSelected] = createSignal<SelectedItem>();
+  const [status, setStatus] = createSignal<string>();
+
+  const folderById = createMemo(() => new Map(state().folders.map((folder) => [folder.id, folder])));
+  const pageById = createMemo(() => new Map(state().pages.map((page) => [page.id, page])));
+  const annotationsByPage = createMemo(() => {
+    const map = new Map<string, AnnotationWithParts[]>();
+    for (const annotation of state().annotations) {
+      const list = map.get(annotation.annotation.pageId) ?? [];
+      list.push(annotation);
+      map.set(annotation.annotation.pageId, list);
+    }
+    return map;
+  });
+
+  function folderPath(folderId: string | undefined): string {
+    if (folderId == null) return 'Root';
+    const parts: string[] = [];
+    for (let folder: BookmarkFolderRecord | undefined = folderById().get(folderId); folder != null; folder = folder.parentId == null ? undefined : folderById().get(folder.parentId)) {
+      parts.unshift(folder.title);
+    }
+    return parts.join(' / ') || 'Root';
+  }
+
+  function searchableBookmark(bookmark: BookmarkRecord): string {
+    return [bookmark.title, bookmark.url, bookmark.description, bookmark.tags.join(' '), folderPath(bookmark.folderId)]
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  function searchableAnnotation(annotation: AnnotationWithParts): string {
+    const page = pageById().get(annotation.annotation.pageId);
+    return [annotationKind(annotation), annotationQuote(annotation), annotationNote(annotation), page?.title, page?.url]
+      .filter(Boolean)
+      .join(' ');
+  }
+
+  const results = createMemo<SearchResult[]>(() => {
+    const normalizedQuery = query().trim().toLocaleLowerCase();
+    const matches = (text: string) => normalizedQuery.length === 0 || text.toLocaleLowerCase().includes(normalizedQuery);
+    const output: SearchResult[] = [];
+
+    if (filter() === 'all' || filter() === 'bookmarks') {
+      for (const bookmark of state().bookmarks) {
+        const text = searchableBookmark(bookmark);
+        if (matches(text)) output.push({ type: 'bookmark', bookmark, text });
+      }
+    }
+
+    if (filter() === 'all' || filter() === 'annotations') {
+      for (const annotation of state().annotations) {
+        const text = searchableAnnotation(annotation);
+        if (matches(text)) output.push({ type: 'annotation', annotation, text });
+      }
+    }
+
+    if (filter() === 'all' || filter() === 'pages') {
+      for (const page of state().pages) {
+        const text = [page.title, page.url, page.description, page.canonicalUrl, page.metadata?.siteName].filter(Boolean).join(' ');
+        if (matches(text)) output.push({ type: 'page', page, text });
+      }
+    }
+
+    return output;
+  });
+
+  const selectedPage = createMemo(() => {
+    const item = selected();
+    if (item?.type === 'page') return pageById().get(item.id);
+    if (item?.type === 'bookmark') return pageById().get(state().bookmarks.find((bookmark) => bookmark.id === item.id)?.pageId ?? '');
+    if (item?.type === 'annotation') return pageById().get(state().annotations.find((annotation) => annotation.annotation.id === item.id)?.annotation.pageId ?? '');
+    return state().pages[0];
+  });
+
+  async function refreshLibrary(): Promise<void> {
+    setState(await chrome.runtime.sendMessage({ type: MarkerMessageType.GetLibraryState }));
+  }
+
+  async function exportJson(): Promise<void> {
+    const data = await chrome.runtime.sendMessage({ type: MarkerMessageType.ExportJson });
+    downloadJson(data, `marker-export-${new Date().toISOString().slice(0, 10)}.json`);
+    setStatus('Exported Marker JSON.');
+  }
+
+  async function importJson(file: File): Promise<void> {
+    const response: { ok: true } | { ok: false; reason: string } = await chrome.runtime.sendMessage({
+      type: MarkerMessageType.ImportJson,
+      data: await readJsonFile(file),
+    });
+    if (!response.ok) {
+      setStatus(response.reason);
+      return;
+    }
+    setStatus('Imported Marker JSON.');
+    await refreshLibrary();
+  }
+
+  async function importChrome(): Promise<void> {
+    if (!(await chrome.permissions.request({ permissions: ['bookmarks'] }))) {
+      setStatus('Chrome bookmark permission was not granted.');
+      return;
+    }
+    const response = await chrome.runtime.sendMessage({ type: MarkerMessageType.ImportChromeBookmarks });
+    if ('reason' in response) {
+      setStatus(response.reason);
+      return;
+    }
+    setStatus(`Imported ${response.bookmarks.length} Chrome bookmarks.`);
+    await refreshLibrary();
+  }
+
+  onMount(() => {
+    void refreshLibrary().catch((error: unknown) => {
+      console.debug('Marker could not load library state.', error);
+      setStatus('Marker could not load the library.');
+    });
+  });
 
   return (
     <main class={`app-shell app-shell--page ${themeClass(appTheme.theme())}`} aria-labelledby="library-title">
-      <LibraryHeader />
-      <LibraryStats />
+      <header class="app-header">
+        <Brand label="Marker Library" />
+        <p class="eyebrow">Library</p>
+        <h1 class="app-header__title" id="library-title">Bookmarks / Annotations</h1>
+        <p class="app-header__description">Search bookmarks, folders, pages, highlights, underlines, and notes.</p>
+        <div class="cluster">
+          <input class="library-search" value={query()} onInput={(event) => setQuery(event.currentTarget.value)} placeholder="Search title, URL, folder, quote, or note" aria-label="Search library" />
+          <button class="button button--primary" type="button" onClick={() => void importChrome()}>Import Chrome</button>
+          <button class="button" type="button" onClick={() => void exportJson()}>Export JSON</button>
+          <label class="button" for="library-import-json">Import JSON</label>
+          <input id="library-import-json" class="visually-hidden" type="file" accept="application/json" onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            if (file != null) void importJson(file);
+          }} />
+        </div>
+        <Show when={status()}><p class="card__body" role="status">{status()}</p></Show>
+      </header>
+
+      <section class="library-stats" aria-label="Library statistics">
+        <article class="card library-stat"><strong>{state().bookmarks.length}</strong><span class="muted">bookmarks</span></article>
+        <article class="card library-stat"><strong>{state().annotations.length}</strong><span class="muted">annotations</span></article>
+        <article class="card library-stat"><strong>{state().folders.length}</strong><span class="muted">folders</span></article>
+      </section>
+
       <section class="library-grid" aria-label="Library sections">
-        <FoldersPanel />
-        <ResultsPanel />
-        <PageDetailPanel />
+        <aside class="library-panel card">
+          <h2 class="card__title">Folders</h2>
+          <div class="library-list">
+            <For each={state().folders} fallback={<p class="muted">No folders yet.</p>}>
+              {(folder) => <article class="card"><strong>{folder.title}</strong><p class="muted">{folderPath(folder.parentId)}</p></article>}
+            </For>
+          </div>
+        </aside>
+
+        <section class="library-panel card">
+          <h2 class="card__title">Results</h2>
+          <div class="library-tabs" aria-label="Result filters">
+            <For each={(['all', 'bookmarks', 'annotations', 'pages'] as LibraryFilter[])}>
+              {(nextFilter) => <button class={filter() === nextFilter ? 'button button--primary' : 'button'} type="button" onClick={() => setFilter(nextFilter)}>{nextFilter}</button>}
+            </For>
+          </div>
+          <div class="library-list">
+            <For each={results()} fallback={<p class="muted">No matching library items.</p>}>
+              {(result) => (
+                <article class="card quote-card" role="button" tabIndex={0} onClick={() => setSelected(result.type === 'bookmark' ? { type: 'bookmark', id: result.bookmark.id } : result.type === 'annotation' ? { type: 'annotation', id: result.annotation.annotation.id } : { type: 'page', id: result.page.id })}>
+                  <p class="eyebrow">{result.type}</p>
+                  <Show when={result.type === 'bookmark'}><strong>{(result as Extract<SearchResult, { type: 'bookmark' }>).bookmark.title ?? (result as Extract<SearchResult, { type: 'bookmark' }>).bookmark.url}</strong></Show>
+                  <Show when={result.type === 'annotation'}><blockquote>{annotationQuote((result as Extract<SearchResult, { type: 'annotation' }>).annotation)}</blockquote></Show>
+                  <Show when={result.type === 'page'}><strong>{(result as Extract<SearchResult, { type: 'page' }>).page.title ?? (result as Extract<SearchResult, { type: 'page' }>).page.url}</strong></Show>
+                  <p class="card__body muted">{result.text}</p>
+                </article>
+              )}
+            </For>
+          </div>
+        </section>
+
+        <aside class="library-panel card">
+          <h2 class="card__title">Page detail</h2>
+          <Show when={selectedPage()} fallback={<p class="card__body">Select a result to inspect its page.</p>}>
+            {(page) => <>
+              <p class="eyebrow">Page</p>
+              <strong>{page().title ?? page().url}</strong>
+              <p class="card__body muted">{page().canonicalUrl ?? page().url}</p>
+              <p class="card__body">Bookmark state: {state().bookmarks.some((bookmark) => bookmark.pageId === page().id || bookmark.url === page().url) ? 'saved' : 'not saved'}</p>
+              <div class="library-list">
+                <For each={annotationsByPage().get(page().id) ?? []} fallback={<p class="muted">No annotations on this page.</p>}>
+                  {(annotation) => <article class="card quote-card"><p class="eyebrow">{annotationKind(annotation)}</p><blockquote>{annotationQuote(annotation)}</blockquote><Show when={annotationNote(annotation)}><p class="card__body">{annotationNote(annotation)}</p></Show></article>}
+                </For>
+              </div>
+            </>}
+          </Show>
+        </aside>
       </section>
     </main>
   );
