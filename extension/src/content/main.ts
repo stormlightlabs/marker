@@ -1,6 +1,9 @@
 import { renderAnnotations } from '@/content/annotations/renderer';
+import { installAnnotationToolbar } from '@/content/annotations/toolbar';
 import { currentPageMetadata } from '@/content/reader/page-meta';
 import { MarkerMessageType, type MarkerMessageResponse, type PageVisitedMessage } from '@/shared/messages';
+
+installAnnotationToolbar();
 
 try {
   const message: PageVisitedMessage = {

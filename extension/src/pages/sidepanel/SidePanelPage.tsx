@@ -4,6 +4,7 @@ import { MarkerMessageType, type MarkerMessageResponse } from '@/shared/messages
 import type { ActiveTabSummary } from '@/shared/permissions';
 import '@/styles/index.css';
 import { Brand } from '@/components/Brand';
+import { createAppTheme, themeClass } from '@/pages/theme';
 
 function openExtensionPage(type: MarkerMessageType.OpenLibrary | MarkerMessageType.OpenOptions): void {
   void chrome.runtime.sendMessage({ type });
@@ -52,6 +53,7 @@ function SidePanelPage() {
   const [isEnabling, setIsEnabling] = createSignal(false);
   const [error, setError] = createSignal<string>();
   const [saveStatus, setSaveStatus] = createSignal<string>();
+  const appTheme = createAppTheme();
 
   async function refreshSummary(): Promise<void> {
     setSummary(await fetchActiveTabSummary());
@@ -137,7 +139,7 @@ function SidePanelPage() {
   });
 
   return (
-    <main class="app-shell side-panel-shell theme-minimal-dark" aria-labelledby="side-panel-title">
+    <main class={`app-shell side-panel-shell ${themeClass(appTheme.theme())}`} aria-labelledby="side-panel-title">
       <header class="app-header card card--accent">
         <Brand label="Marker for Chrome" />
         <p class="eyebrow">Chrome side panel</p>

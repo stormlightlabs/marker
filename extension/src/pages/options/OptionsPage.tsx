@@ -1,8 +1,9 @@
 import { createSignal, onMount } from 'solid-js';
-import type { BookmarkSaveBehavior } from '@/db/settings-repository';
+import { appThemes, type AppTheme, type BookmarkSaveBehavior } from '@/db/settings-repository';
 import { MarkerMessageType } from '@/shared/messages';
 import '@/styles/index.css';
 import { Brand } from '@/components/Brand';
+import { createAppTheme, themeClass, themeLabels } from '@/pages/theme';
 
 const behaviorLabels: Record<BookmarkSaveBehavior, string> = {
   'always-ask': 'Always ask',
@@ -99,14 +100,27 @@ function PermissionSettingsCard() {
   );
 }
 
-function ThemeSwatch() {
+function ThemeButton(props: { activeTheme: AppTheme; theme: AppTheme; onSelect: () => void }) {
+  return (
+    <button class={props.activeTheme === props.theme ? 'button button--primary' : 'button'} type="button" onClick={props.onSelect}>
+      {themeLabels[props.theme]}
+    </button>
+  );
+}
+
+function ThemeSettingsCard(props: { activeTheme: AppTheme; onSelect: (theme: AppTheme) => void }) {
   return (
     <aside class="card theme-swatch" aria-labelledby="theme-heading">
       <p class="eyebrow">Themes</p>
       <h2 class="card__title" id="theme-heading">
-        Minimal + Retro
+        App theme
       </h2>
-      <p class="card__body">Minimal supports light and dark. Retro uses Righteous, Oswald, and Libre Baskerville.</p>
+      <p class="card__body">Choose one theme for Options, Library, and the side panel.</p>
+      <div class="cluster card__body">
+        {appThemes.map((theme) => (
+          <ThemeButton activeTheme={props.activeTheme} theme={theme} onSelect={() => props.onSelect(theme)} />
+        ))}
+      </div>
       <div class="theme-swatch__row" aria-hidden="true">
         <span class="theme-swatch__chip theme-minimal-light"></span>
         <span class="theme-swatch__chip theme-minimal-dark"></span>
@@ -117,15 +131,17 @@ function ThemeSwatch() {
 }
 
 export default function OptionsPage() {
+  const appTheme = createAppTheme();
+
   return (
-    <main class="app-shell app-shell--page theme-retro" aria-labelledby="options-title">
+    <main class={`app-shell app-shell--page ${themeClass(appTheme.theme())}`} aria-labelledby="options-title">
       <OptionsHeader />
       <section class="options-grid" aria-label="Options sections">
         <div class="options-list">
           <BookmarkSettingsCard />
           <PermissionSettingsCard />
         </div>
-        <ThemeSwatch />
+        <ThemeSettingsCard activeTheme={appTheme.theme()} onSelect={(theme) => void appTheme.saveTheme(theme)} />
       </section>
     </main>
   );

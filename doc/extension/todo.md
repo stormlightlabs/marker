@@ -157,6 +157,8 @@ Acceptance:
 
 ## Milestone 9: annotation toolbar and Markdown note UI
 
+Status: Complete.
+
 Deliverables:
 
 - Shadow DOM toolbar.

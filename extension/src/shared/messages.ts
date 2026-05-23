@@ -1,8 +1,8 @@
-import type { BookmarkSaveBehavior } from '@/db/settings-repository';
+import type { AppTheme, BookmarkSaveBehavior } from '@/db/settings-repository';
 import type { BookmarkSaveDestination, SaveBookmarkResult } from '@/background/bookmark-save-service';
 import type { ImportChromeBookmarksResult } from '@/background/chrome-bookmarks';
 import type { AnnotationWithParts } from '@/db/annotation-repository';
-import type { PageMetadata } from '@/db/schema';
+import type { AnnotationMotivation, PageMetadata, Selector } from '@/db/schema';
 import type { ActiveTabSummary } from './permissions';
 
 export enum MarkerMessageType {
@@ -15,6 +15,9 @@ export enum MarkerMessageType {
   ImportChromeBookmarks = 'marker:import-chrome-bookmarks',
   GetBookmarkSaveBehavior = 'marker:get-bookmark-save-behavior',
   SetBookmarkSaveBehavior = 'marker:set-bookmark-save-behavior',
+  GetAppTheme = 'marker:get-app-theme',
+  SetAppTheme = 'marker:set-app-theme',
+  CreateAnnotation = 'marker:create-annotation',
 }
 
 export type OpenLibraryMessage = { type: MarkerMessageType.OpenLibrary };
@@ -45,6 +48,19 @@ export type SetBookmarkSaveBehaviorMessage = {
   behavior: BookmarkSaveBehavior;
 };
 
+export type GetAppThemeMessage = { type: MarkerMessageType.GetAppTheme };
+
+export type SetAppThemeMessage = { type: MarkerMessageType.SetAppTheme; theme: AppTheme };
+
+export type CreateAnnotationMessage = {
+  type: MarkerMessageType.CreateAnnotation;
+  url: string;
+  metadata: PageMetadata;
+  selector: Selector[];
+  motivation: AnnotationMotivation;
+  bodies?: Array<{ type: 'TextualBody' | 'StyleHint'; format?: 'text/markdown' | 'text/plain' | 'application/json'; value: string }>;
+};
+
 export type MarkerMessage =
   | OpenLibraryMessage
   | OpenOptionsMessage
@@ -54,7 +70,10 @@ export type MarkerMessage =
   | SaveBookmarkMessage
   | ImportChromeBookmarksMessage
   | GetBookmarkSaveBehaviorMessage
-  | SetBookmarkSaveBehaviorMessage;
+  | SetBookmarkSaveBehaviorMessage
+  | GetAppThemeMessage
+  | SetAppThemeMessage
+  | CreateAnnotationMessage;
 
 export type EnableSiteResponse = { ok: true } | { ok: false; reason: string };
 
@@ -70,7 +89,11 @@ export type MarkerMessageResponse<T extends MarkerMessage = MarkerMessage> = T e
           ? ImportChromeBookmarksResult | { ok: false; reason: string }
           : T extends GetBookmarkSaveBehaviorMessage
             ? { behavior: BookmarkSaveBehavior }
-            : undefined;
+            : T extends GetAppThemeMessage
+              ? { theme: AppTheme }
+              : T extends CreateAnnotationMessage
+                ? { ok: true; annotation: AnnotationWithParts } | { ok: false; reason: string }
+                : undefined;
 
 const markerMessageTypeValues = new Set<string>(Object.values(MarkerMessageType));
 
@@ -98,6 +121,19 @@ export function isMarkerMessage(value: unknown): value is MarkerMessage {
     }
     case MarkerMessageType.SetBookmarkSaveBehavior: {
       return typeof (value as { behavior?: unknown }).behavior === 'string';
+    }
+    case MarkerMessageType.SetAppTheme: {
+      return typeof (value as { theme?: unknown }).theme === 'string';
+    }
+    case MarkerMessageType.CreateAnnotation: {
+      const message = value as { url?: unknown; metadata?: unknown; selector?: unknown; motivation?: unknown };
+      return (
+        typeof message.url === 'string' &&
+        typeof message.metadata === 'object' &&
+        message.metadata !== null &&
+        Array.isArray(message.selector) &&
+        typeof message.motivation === 'string'
+      );
     }
     default: {
       return true;

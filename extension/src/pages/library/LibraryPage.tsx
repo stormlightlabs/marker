@@ -1,5 +1,6 @@
 import { Brand } from '@/components/Brand';
 import '@/styles/index.css';
+import { createAppTheme, themeClass } from '@/pages/theme';
 
 function LibraryHeader() {
   return (
@@ -110,8 +111,10 @@ function PageDetailPanel() {
 }
 
 function LibraryPage() {
+  const appTheme = createAppTheme();
+
   return (
-    <main class="app-shell app-shell--page theme-minimal-light" aria-labelledby="library-title">
+    <main class={`app-shell app-shell--page ${themeClass(appTheme.theme())}`} aria-labelledby="library-title">
       <LibraryHeader />
       <LibraryStats />
       <section class="library-grid" aria-label="Library sections">

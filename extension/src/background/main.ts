@@ -120,6 +120,33 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       return true;
     }
 
+    case MarkerMessageType.CreateAnnotation: {
+      pages
+        .recordPageVisit({
+          url: message.url,
+          canonicalUrl: message.metadata.canonicalUrl,
+          title: message.metadata.title,
+          description: message.metadata.description,
+          faviconUrl: message.metadata.faviconUrl,
+          metadata: message.metadata,
+        })
+        .then((page) =>
+          annotations.createAnnotation({
+            pageId: page.id,
+            sourceUrl: message.url,
+            selector: message.selector,
+            motivation: message.motivation,
+            bodies: message.bodies,
+          }),
+        )
+        .then((annotation) => sendResponse({ ok: true, annotation }))
+        .catch((error: unknown) => {
+          console.debug('Marker could not create annotation.', error);
+          sendResponse({ ok: false, reason: 'Marker could not save this annotation.' });
+        });
+      return true;
+    }
+
     case MarkerMessageType.PageVisited: {
       pages
         .recordPageVisit({
@@ -193,6 +220,28 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         .then(() => sendResponse())
         .catch((error: unknown) => {
           console.debug('Marker could not save bookmark settings.', error);
+          sendResponse();
+        });
+      return true;
+    }
+
+    case MarkerMessageType.GetAppTheme: {
+      settings
+        .getAppTheme()
+        .then((theme) => sendResponse({ theme }))
+        .catch((error: unknown) => {
+          console.debug('Marker could not load theme settings.', error);
+          sendResponse({ theme: 'minimal-light' });
+        });
+      return true;
+    }
+
+    case MarkerMessageType.SetAppTheme: {
+      settings
+        .setAppTheme(message.theme)
+        .then(() => sendResponse())
+        .catch((error: unknown) => {
+          console.debug('Marker could not save theme settings.', error);
           sendResponse();
         });
       return true;

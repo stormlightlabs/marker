@@ -35,6 +35,7 @@ export default defineConfig(
       'unicorn/prevent-abbreviations': 'off',
       'unicorn/prefer-ternary': 'off',
       'unicorn/prefer-global-this': 'off',
+      'unicorn/prefer-string-replace-all': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },
   },
