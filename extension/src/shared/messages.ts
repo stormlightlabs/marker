@@ -1,9 +1,16 @@
-import type { AnnotationDisplayMode, AppTheme, BookmarkSaveBehavior } from '@/db/settings-repository';
+import type { AnnotationDisplayMode, BookmarkSaveBehavior } from '@/db/settings-repository';
 import type { BookmarkSaveDestination, SaveBookmarkResult } from '@/background/bookmark-save-service';
 import type { ImportChromeBookmarksResult } from '@/background/chrome-bookmarks';
 import type { MarkerExport } from '@/db/export-repository';
 import type { AnnotationWithParts } from '@/db/annotation-repository';
-import type { AnnotationMotivation, BookmarkFolderRecord, BookmarkRecord, PageMetadata, PageRecord, Selector } from '@/db/schema';
+import type {
+  AnnotationMotivation,
+  BookmarkFolderRecord,
+  BookmarkRecord,
+  PageMetadata,
+  PageRecord,
+  Selector,
+} from '@/db/schema';
 import type { ActiveTabSummary } from './permissions';
 
 export enum MarkerMessageType {
@@ -20,10 +27,9 @@ export enum MarkerMessageType {
   GetPermissionStatus = 'marker:get-permission-status',
   GetBookmarkSaveBehavior = 'marker:get-bookmark-save-behavior',
   SetBookmarkSaveBehavior = 'marker:set-bookmark-save-behavior',
-  GetAppTheme = 'marker:get-app-theme',
-  SetAppTheme = 'marker:set-app-theme',
   GetAnnotationDisplayMode = 'marker:get-annotation-display-mode',
   SetAnnotationDisplayMode = 'marker:set-annotation-display-mode',
+  SettingsChanged = 'marker:settings-changed',
   CreateAnnotation = 'marker:create-annotation',
   GetCurrentPageState = 'marker:get-current-page-state',
   UpdateAnnotationNote = 'marker:update-annotation-note',
@@ -31,6 +37,7 @@ export enum MarkerMessageType {
   ScrollToAnnotation = 'marker:scroll-to-annotation',
   RemoveRenderedAnnotation = 'marker:remove-rendered-annotation',
   SetAnnotationVisibility = 'marker:set-annotation-visibility',
+  ContentRuntimeStatus = 'marker:content-runtime-status',
 }
 
 export type OpenLibraryMessage = { type: MarkerMessageType.OpenLibrary };
@@ -76,15 +83,17 @@ export type SetBookmarkSaveBehaviorMessage = {
   behavior: BookmarkSaveBehavior;
 };
 
-export type GetAppThemeMessage = { type: MarkerMessageType.GetAppTheme };
-
-export type SetAppThemeMessage = { type: MarkerMessageType.SetAppTheme; theme: AppTheme };
-
 export type GetAnnotationDisplayModeMessage = { type: MarkerMessageType.GetAnnotationDisplayMode };
 
 export type SetAnnotationDisplayModeMessage = {
   type: MarkerMessageType.SetAnnotationDisplayMode;
   mode: AnnotationDisplayMode;
+};
+
+export type SettingsChangedMessage = {
+  type: MarkerMessageType.SettingsChanged;
+  key: 'bookmark-save-behavior' | 'annotation-display-mode';
+  value: string;
 };
 
 export type CreateAnnotationMessage = {
@@ -121,9 +130,14 @@ export type DeleteAnnotationMessage = { type: MarkerMessageType.DeleteAnnotation
 
 export type ScrollToAnnotationMessage = { type: MarkerMessageType.ScrollToAnnotation; annotationId: string };
 
-export type RemoveRenderedAnnotationMessage = { type: MarkerMessageType.RemoveRenderedAnnotation; annotationId: string };
+export type RemoveRenderedAnnotationMessage = {
+  type: MarkerMessageType.RemoveRenderedAnnotation;
+  annotationId: string;
+};
 
 export type SetAnnotationVisibilityMessage = { type: MarkerMessageType.SetAnnotationVisibility; visible: boolean };
+
+export type ContentRuntimeStatusMessage = { type: MarkerMessageType.ContentRuntimeStatus };
 
 export type MarkerMessage =
   | OpenLibraryMessage
@@ -139,17 +153,17 @@ export type MarkerMessage =
   | GetPermissionStatusMessage
   | GetBookmarkSaveBehaviorMessage
   | SetBookmarkSaveBehaviorMessage
-  | GetAppThemeMessage
-  | SetAppThemeMessage
   | GetAnnotationDisplayModeMessage
   | SetAnnotationDisplayModeMessage
+  | SettingsChangedMessage
   | CreateAnnotationMessage
   | GetCurrentPageStateMessage
   | UpdateAnnotationNoteMessage
   | DeleteAnnotationMessage
   | ScrollToAnnotationMessage
   | RemoveRenderedAnnotationMessage
-  | SetAnnotationVisibilityMessage;
+  | SetAnnotationVisibilityMessage
+  | ContentRuntimeStatusMessage;
 
 export type EnableSiteResponse = { ok: true } | { ok: false; reason: string };
 
@@ -172,20 +186,20 @@ export type MarkerMessageResponse<T extends MarkerMessage = MarkerMessage> = T e
                 : T extends GetPermissionStatusMessage
                   ? { hasChromeBookmarkPermission: boolean; activeTab: ActiveTabSummary }
                   : T extends GetBookmarkSaveBehaviorMessage
-            ? { behavior: BookmarkSaveBehavior }
-            : T extends GetAppThemeMessage
-              ? { theme: AppTheme }
-              : T extends GetAnnotationDisplayModeMessage
-                ? { mode: AnnotationDisplayMode }
-                : T extends CreateAnnotationMessage
-                ? { ok: true; annotation: AnnotationWithParts } | { ok: false; reason: string }
-                : T extends GetCurrentPageStateMessage
-                  ? CurrentPageState
-                  : T extends UpdateAnnotationNoteMessage | DeleteAnnotationMessage
-                    ? { ok: true } | { ok: false; reason: string }
-                    : T extends ScrollToAnnotationMessage
-                      ? { ok: true } | { ok: false; reason: string }
-                      : undefined;
+                    ? { behavior: BookmarkSaveBehavior }
+                    : T extends GetAnnotationDisplayModeMessage
+                      ? { mode: AnnotationDisplayMode }
+                      : T extends CreateAnnotationMessage
+                        ? { ok: true; annotation: AnnotationWithParts } | { ok: false; reason: string }
+                        : T extends GetCurrentPageStateMessage
+                          ? CurrentPageState
+                          : T extends UpdateAnnotationNoteMessage | DeleteAnnotationMessage
+                            ? { ok: true } | { ok: false; reason: string }
+                            : T extends ScrollToAnnotationMessage
+                              ? { ok: true } | { ok: false; reason: string }
+                              : T extends ContentRuntimeStatusMessage
+                                ? { ok: true }
+                                : undefined;
 
 const markerMessageTypeValues = new Set<string>(Object.values(MarkerMessageType));
 
@@ -217,11 +231,12 @@ export function isMarkerMessage(value: unknown): value is MarkerMessage {
     case MarkerMessageType.SetBookmarkSaveBehavior: {
       return typeof (value as { behavior?: unknown }).behavior === 'string';
     }
-    case MarkerMessageType.SetAppTheme: {
-      return typeof (value as { theme?: unknown }).theme === 'string';
-    }
     case MarkerMessageType.SetAnnotationDisplayMode: {
       return typeof (value as { mode?: unknown }).mode === 'string';
+    }
+    case MarkerMessageType.SettingsChanged: {
+      const message = value as { key?: unknown; value?: unknown };
+      return typeof message.key === 'string' && typeof message.value === 'string';
     }
     case MarkerMessageType.UpdateAnnotationNote: {
       const message = value as { annotationId?: unknown; value?: unknown };

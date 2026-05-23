@@ -1,4 +1,4 @@
-.theme-retro {
+:root {
   --surface: #f7ecd2;
   --surface-raised: #ead7ad;
   --surface-card: #fff8e8;
@@ -12,14 +12,9 @@
   --shadow-color: rgba(51, 34, 20, 0.12);
   --font-display: Righteous, Inter, ui-sans-serif, system-ui, sans-serif;
   --font-wordmark: Righteous, Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-label: Oswald, Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-label: 'Google Sans', Inter, ui-sans-serif, system-ui, sans-serif;
   --font-reading: 'Libre Baskerville', Georgia, serif;
-  --radius-sm: 0.125rem;
-  --radius-md: 0.1875rem;
-  --radius-lg: 0.25rem;
-  --radius-xl: 0.375rem;
-  --radius-pill: 0.25rem;
-  --shadow-card: 0 1px 0 rgba(51, 34, 20, 0.08), 0 14px 36px rgba(51, 34, 20, 0.08);
+  --shadow-card: 0 1px 0 rgba(51, 34, 20, 0.08);
   --shadow-soft: 0 1px 0 rgba(51, 34, 20, 0.08);
   color-scheme: light;
 }

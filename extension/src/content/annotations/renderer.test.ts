@@ -4,7 +4,11 @@ import type { AnnotationWithParts } from '@/db/annotation-repository';
 import type { AnnotationMotivation, Selector } from '@/db/schema';
 import { cleanupRenderedAnnotations, renderAnnotations, resolveRange, scrollToAnnotation } from './renderer';
 
-function annotation(id: string, selector: Selector[], motivation: AnnotationMotivation = 'highlighting'): AnnotationWithParts {
+function annotation(
+  id: string,
+  selector: Selector[],
+  motivation: AnnotationMotivation = 'highlighting',
+): AnnotationWithParts {
   return {
     annotation: { id, pageId: 'page_1', motivation, createdAt: 'now', modifiedAt: 'now' },
     targets: [{ id: `target_${id}`, annotationId: id, sourceUrl: 'https://example.com', selector }],
@@ -38,10 +42,12 @@ describe('annotation renderer', () => {
   it('uses position fallback then css fallback when quote cannot resolve', () => {
     document.body.innerHTML = '<article id="story">Alpha beta</article>';
 
-    expect(resolveRange([
-      { type: 'TextQuoteSelector', exact: 'missing' },
-      { type: 'TextPositionSelector', start: 6, end: 10 },
-    ])?.toString()).toBe('beta');
+    expect(
+      resolveRange([
+        { type: 'TextQuoteSelector', exact: 'missing' },
+        { type: 'TextPositionSelector', start: 6, end: 10 },
+      ])?.toString(),
+    ).toBe('beta');
     expect(resolveRange([{ type: 'CssSelector', value: '#story' }])?.toString()).toBe('Alpha beta');
   });
 
@@ -52,6 +58,8 @@ describe('annotation renderer', () => {
 
     const mark = document.querySelector<HTMLElement>('[data-marker-annotation-id="a1"]')!;
     expect(mark.dataset.markerStyle).toBe('underline');
+    expect(mark.style.backgroundColor).toBe('transparent');
+    expect(mark.style.color).toBe('inherit');
     expect(mark.style.textDecoration).toContain('underline');
   });
 
@@ -80,10 +88,13 @@ describe('annotation renderer', () => {
   it('handles nested annotations by rerendering from clean text', () => {
     document.body.innerHTML = '<p>Alpha beta gamma</p>';
 
-    renderAnnotations([
-      annotation('outer', [{ type: 'TextQuoteSelector', exact: 'beta gamma' }]),
-      annotation('inner', [{ type: 'TextQuoteSelector', exact: 'beta' }]),
-    ], { retryMs: 0 });
+    renderAnnotations(
+      [
+        annotation('outer', [{ type: 'TextQuoteSelector', exact: 'beta gamma' }]),
+        annotation('inner', [{ type: 'TextQuoteSelector', exact: 'beta' }]),
+      ],
+      { retryMs: 0 },
+    );
 
     expect(document.querySelectorAll('[data-marker-annotation-id]')).toHaveLength(2);
     expect(document.body.textContent).toBe('Alpha beta gamma');
@@ -93,7 +104,9 @@ describe('annotation renderer', () => {
     vi.useFakeTimers();
     document.body.innerHTML = '<main></main>';
 
-    const dispose = renderAnnotations([annotation('a1', [{ type: 'TextQuoteSelector', exact: 'later' }])], { retryMs: 25 });
+    const dispose = renderAnnotations([annotation('a1', [{ type: 'TextQuoteSelector', exact: 'later' }])], {
+      retryMs: 25,
+    });
     document.querySelector('main')!.textContent = 'loaded later';
     await vi.advanceTimersByTimeAsync(25);
 

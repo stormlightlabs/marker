@@ -7,8 +7,7 @@
 }
 
 .card--accent {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--highlight) 28%, transparent), transparent 52%), var(--surface-card);
+  background: color-mix(in srgb, var(--highlight) 16%, var(--surface-card));
 }
 
 .card__title {
@@ -43,25 +42,24 @@
   padding-inline-start: var(--space-3);
 }
 
-.theme-retro .card {
+.card {
   border-color: var(--border);
-  background: linear-gradient(180deg, color-mix(in srgb, white 18%, transparent), transparent 42%), var(--surface-card);
+  background: var(--surface-card);
   box-shadow: var(--shadow-soft);
 }
 
-.theme-retro .card--accent {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--highlight) 16%, transparent), transparent 54%), var(--surface-card);
+.card--accent {
+  background: color-mix(in srgb, var(--highlight) 14%, var(--surface-card));
 }
 
-.theme-retro .card__title {
+.card__title {
   font-family: var(--font-label);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.025em;
   text-transform: uppercase;
 }
 
-.theme-retro .quote-card::before {
+.quote-card::before {
   inset: var(--space-4) auto var(--space-4) 0;
   width: 0.1875rem;
   border-right: 0;

@@ -16,8 +16,7 @@
   padding-inline: var(--space-2);
 }
 
-.side-panel-actions,
-.theme-switcher {
+.side-panel-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -28,7 +27,7 @@
   gap: var(--space-3);
 }
 
-.theme-retro .side-panel-shell {
+.side-panel-shell {
   border-inline-start: 3px solid var(--border);
   border-inline-end: 3px solid var(--border);
 }

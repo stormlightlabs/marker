@@ -180,6 +180,7 @@ function wrapRange(range: Range, annotationId: string, style: 'highlight' | 'und
     wrapper.dataset.markerStyle = style;
     if (style === 'underline') {
       wrapper.style.backgroundColor = 'transparent';
+      wrapper.style.color = 'inherit';
       wrapper.style.textDecoration = 'underline';
       wrapper.style.textDecorationColor = 'currentColor';
       wrapper.style.textDecorationThickness = '0.12em';

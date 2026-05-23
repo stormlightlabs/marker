@@ -1,7 +1,5 @@
 .options-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.7fr);
-  gap: var(--space-4);
+  display: block;
 }
 
 .options-list {
@@ -9,30 +7,7 @@
   gap: var(--space-3);
 }
 
-.theme-swatch {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.theme-swatch__row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
-}
-
-.theme-swatch__chip {
-  min-height: 3rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-}
-
-.theme-retro .theme-swatch__chip {
-  box-shadow: none;
-}
-
-@media (max-width: 760px) {
-  .options-grid {
-    grid-template-columns: 1fr;
-  }
+.options-list > .card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 12rem;
 }

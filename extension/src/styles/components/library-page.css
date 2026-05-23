@@ -1,13 +1,24 @@
+.library-content {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+}
+
 .library-grid {
   display: grid;
   grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.4fr) minmax(14rem, 0.9fr);
   gap: var(--space-4);
 }
 
-.library-tabs,
-.library-stats {
+.library-tabs {
   display: flex;
   flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.library-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
@@ -31,12 +42,21 @@
   gap: var(--space-3);
 }
 
+.library-list > .card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 8rem;
+}
+
 .library-stat {
-  min-width: 8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .library-stat strong {
-  display: block;
   font-size: var(--size-2xl);
   line-height: var(--line-tight);
 }
@@ -47,7 +67,7 @@
   }
 }
 
-.theme-retro .library-search {
+.library-search {
   border-width: 3px;
   box-shadow: var(--shadow-retro);
 }

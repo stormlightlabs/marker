@@ -1,7 +1,7 @@
 import { getActiveTabSummary, getTabSummary } from '@/background/active-tab';
 import { BookmarkSaveService } from '@/background/bookmark-save-service';
 import { importChromeBookmarks } from '@/background/chrome-bookmarks';
-import { injectMarkerContentRuntime } from '@/background/content-injection';
+import { ensureMarkerContentRuntime } from '@/background/content-injection';
 import { BookmarkFolderRepository, BookmarkRepository } from '@/db/bookmark-repository';
 import { AnnotationRepository } from '@/db/annotation-repository';
 import { ExportRepository } from '@/db/export-repository';
@@ -55,12 +55,27 @@ async function hasChromeBookmarkPermission(): Promise<boolean> {
   return chrome.permissions.contains({ permissions: ['bookmarks'] });
 }
 
+function broadcastSettingChanged(key: 'bookmark-save-behavior' | 'annotation-display-mode', value: string): void {
+  chrome.runtime.sendMessage({ type: MarkerMessageType.SettingsChanged, key, value }).catch((error: unknown) => {
+    console.debug('Marker could not broadcast setting change.', error);
+  });
+}
+
 async function currentPageState(): Promise<MarkerMessageResponse<{ type: MarkerMessageType.GetCurrentPageState }>> {
   const summary = await getActiveTabSummary();
   const [behavior, annotationDisplayMode] = await Promise.all([
     settings.getBookmarkSaveBehavior(),
     settings.getAnnotationDisplayMode(),
   ]);
+
+  if (summary.status === 'enabled' && summary.tabId != null) {
+    try {
+      await ensureMarkerContentRuntime(summary.tabId);
+    } catch (error) {
+      console.debug('Marker could not ensure the content runtime while loading page state.', error);
+    }
+  }
+
   if (summary.url == null) {
     return { summary, annotations: [], bookmarkSaveBehavior: behavior, annotationDisplayMode };
   }
@@ -71,7 +86,14 @@ async function currentPageState(): Promise<MarkerMessageResponse<{ type: MarkerM
     page == null ? Promise.resolve([]) : annotations.listAnnotationsForPage(page.id),
   ]);
 
-  return { summary, page, bookmark, annotations: pageAnnotations, bookmarkSaveBehavior: behavior, annotationDisplayMode };
+  return {
+    summary,
+    page,
+    bookmark,
+    annotations: pageAnnotations,
+    bookmarkSaveBehavior: behavior,
+    annotationDisplayMode,
+  };
 }
 
 async function enableSite(
@@ -83,7 +105,7 @@ async function enableSite(
     return { ok: false, reason: summary.reason ?? 'Marker does not have permission to annotate this page.' };
   }
 
-  await injectMarkerContentRuntime(tabId);
+  await ensureMarkerContentRuntime(tabId);
   return { ok: true };
 }
 
@@ -354,31 +376,12 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     case MarkerMessageType.SetBookmarkSaveBehavior: {
       settings
         .setBookmarkSaveBehavior(message.behavior)
-        .then(() => sendResponse())
+        .then(() => {
+          broadcastSettingChanged('bookmark-save-behavior', message.behavior);
+          sendResponse();
+        })
         .catch((error: unknown) => {
           console.debug('Marker could not save bookmark settings.', error);
-          sendResponse();
-        });
-      return true;
-    }
-
-    case MarkerMessageType.GetAppTheme: {
-      settings
-        .getAppTheme()
-        .then((theme) => sendResponse({ theme }))
-        .catch((error: unknown) => {
-          console.debug('Marker could not load theme settings.', error);
-          sendResponse({ theme: 'minimal-light' });
-        });
-      return true;
-    }
-
-    case MarkerMessageType.SetAppTheme: {
-      settings
-        .setAppTheme(message.theme)
-        .then(() => sendResponse())
-        .catch((error: unknown) => {
-          console.debug('Marker could not save theme settings.', error);
           sendResponse();
         });
       return true;
@@ -398,7 +401,10 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
     case MarkerMessageType.SetAnnotationDisplayMode: {
       settings
         .setAnnotationDisplayMode(message.mode)
-        .then(() => sendResponse())
+        .then(() => {
+          broadcastSettingChanged('annotation-display-mode', message.mode);
+          sendResponse();
+        })
         .catch((error: unknown) => {
           console.debug('Marker could not save annotation display settings.', error);
           sendResponse();

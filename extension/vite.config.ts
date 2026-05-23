@@ -1,7 +1,8 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { crx } from '@crxjs/vite-plugin';
-import { defineConfig } from 'vite';
+import UnoCSS from 'unocss/vite';
+import { defineConfig, type PluginOption } from 'vite';
 import solid from 'vite-plugin-solid';
 import zip from 'vite-plugin-zip-pack';
 import manifest from './manifest.config.ts';
@@ -11,7 +12,12 @@ const extensionRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   resolve: { alias: { '@': path.resolve(extensionRoot, 'src') } },
-  plugins: [solid(), crx({ manifest }), zip({ outDir: 'release', outFileName: `crx-${name}-${version}.zip` })],
+  plugins: [
+    UnoCSS() as unknown as PluginOption,
+    solid(),
+    crx({ manifest }),
+    zip({ outDir: 'release', outFileName: `crx-${name}-${version}.zip` }),
+  ],
   build: {
     rollupOptions: {
       input: {

@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onMount, Show } from 'solid-js';
+import { createMemo, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { type BookmarkSaveDestination } from '@/background/bookmark-save-service';
 import type { AnnotationWithParts } from '@/db/annotation-repository';
 import type { BookmarkSaveBehavior } from '@/db/settings-repository';
@@ -11,8 +11,7 @@ import {
 import type { ActiveTabSummary } from '@/shared/permissions';
 import '@/styles/index.css';
 import { Brand } from '@/components/Brand';
-import { createAppTheme, themeClass } from '@/pages/theme';
-
+import { IconButton } from '@/components/IconButton';
 type SidePanelSection = 'page' | 'bookmarks' | 'annotations';
 
 function openExtensionPage(type: MarkerMessageType.OpenLibrary | MarkerMessageType.OpenOptions): void {
@@ -81,10 +80,11 @@ function SidePanelPage() {
   const [error, setError] = createSignal<string>();
   const [saveStatus, setSaveStatus] = createSignal<string>();
   const [annotationsVisible, setAnnotationsVisible] = createSignal(true);
-  const appTheme = createAppTheme();
   const summary = createMemo(() => state()?.summary);
   const annotations = createMemo(() => state()?.annotations ?? []);
   const bookmarkBehavior = createMemo<BookmarkSaveBehavior>(() => state()?.bookmarkSaveBehavior ?? 'always-ask');
+  const markerActionLabel = createMemo(() => (summary()?.status === 'enabled' ? 'Load Marker' : 'Enable site'));
+  const markerActionVisibleLabel = createMemo(() => (isEnabling() ? 'Loading…' : markerActionLabel()));
 
   async function refreshState(): Promise<void> {
     const nextState = await fetchCurrentPageState();
@@ -103,10 +103,12 @@ function SidePanelPage() {
     setError(undefined);
 
     try {
-      const granted = await requestSitePermissions(activeSummary);
-      if (!granted) {
-        setError('Site permission was not granted.');
-        return;
+      if (activeSummary.status === 'needs-permission') {
+        const granted = await requestSitePermissions(activeSummary);
+        if (!granted) {
+          setError('Site permission was not granted.');
+          return;
+        }
       }
 
       const response = await injectContentRuntime(activeSummary.tabId);
@@ -167,15 +169,34 @@ function SidePanelPage() {
 
   function saveWithDefaultBehavior(): void {
     const behavior = bookmarkBehavior();
-    if (behavior === 'always-ask') {
-      setActiveSection('bookmarks');
-      setSaveStatus('Choose where to save this page.');
-      return;
+
+    switch (behavior) {
+      case 'always-ask': {
+        setActiveSection('bookmarks');
+        setSaveStatus('Choose where to save this page.');
+        return;
+      }
+      case 'marker-only': {
+        void saveBookmark('marker');
+        return;
+      }
+      case 'chrome-only': {
+        void saveBookmark('chrome');
+        return;
+      }
+      case 'both': {
+        void saveBookmark('both');
+        return;
+      }
     }
-    void saveBookmark(behavior === 'marker-only' ? 'marker' : behavior === 'chrome-only' ? 'chrome' : 'both');
   }
 
-  async function sendToActiveTab(message: ScrollToAnnotationMessage | { type: MarkerMessageType.RemoveRenderedAnnotation; annotationId: string } | { type: MarkerMessageType.SetAnnotationVisibility; visible: boolean }): Promise<unknown> {
+  async function sendToActiveTab(
+    message:
+      | ScrollToAnnotationMessage
+      | { type: MarkerMessageType.RemoveRenderedAnnotation; annotationId: string }
+      | { type: MarkerMessageType.SetAnnotationVisibility; visible: boolean },
+  ): Promise<unknown> {
     const tabId = summary()?.tabId;
     if (tabId == null) return undefined;
     return chrome.tabs.sendMessage(tabId, message);
@@ -229,32 +250,65 @@ function SidePanelPage() {
       console.debug('Marker could not load the active tab summary.', caughtError);
       setError('Marker could not read the active tab.');
     });
+
+    const listener = (message: unknown) => {
+      if (
+        typeof message !== 'object' ||
+        message == null ||
+        (message as { type?: unknown }).type !== MarkerMessageType.SettingsChanged
+      ) {
+        return;
+      }
+      const changed = message as { key?: unknown; value?: unknown };
+      if (changed.key === 'bookmark-save-behavior' || changed.key === 'annotation-display-mode') {
+        void refreshState().catch((error: unknown) => {
+          console.debug('Marker could not refresh side panel settings.', error);
+        });
+      }
+    };
+    const refreshFromTabChange = () => {
+      void refreshState().catch((error: unknown) => {
+        console.debug('Marker could not refresh side panel after tab change.', error);
+      });
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    chrome.tabs.onActivated.addListener(refreshFromTabChange);
+    chrome.tabs.onUpdated.addListener(refreshFromTabChange);
+    onCleanup(() => {
+      chrome.runtime.onMessage.removeListener(listener);
+      chrome.tabs.onActivated.removeListener(refreshFromTabChange);
+      chrome.tabs.onUpdated.removeListener(refreshFromTabChange);
+    });
   });
 
   return (
-    <main class={`app-shell side-panel-shell ${themeClass(appTheme.theme())}`} aria-labelledby="side-panel-title">
+    <main class="app-shell side-panel-shell" aria-labelledby="side-panel-title">
       <header class="app-header card card--accent">
         <Brand label="Marker for Chrome" />
         <p class="eyebrow">Chrome side panel</p>
-        <h1 class="app-header__title" id="side-panel-title">
-          Bookmarks and annotations for this page
-        </h1>
-        <p class="app-header__description">Manage the active tab, page bookmark, and current-page annotations.</p>
-      </header>
 
-      <nav class="side-panel-tabs" aria-label="Marker sections">
-        <For each={(['page', 'bookmarks', 'annotations'] as SidePanelSection[])}>
-          {(section) => (
-            <button
-              class={activeSection() === section ? 'button button--primary' : 'button'}
-              type="button"
-              aria-current={activeSection() === section ? 'page' : undefined}
-              onClick={() => setActiveSection(section)}>
-              {section === 'page' ? 'Page' : section === 'bookmarks' ? 'Bookmarks' : 'Annotations'}
-            </button>
-          )}
-        </For>
-      </nav>
+        <nav class="side-panel-tabs" aria-label="Marker sections">
+          <For each={['page', 'bookmarks', 'annotations'] as SidePanelSection[]}>
+            {(section) => (
+              <button
+                class={activeSection() === section ? 'button button--primary' : 'button'}
+                type="button"
+                aria-current={activeSection() === section ? 'page' : undefined}
+                onClick={() => setActiveSection(section)}>
+                <Show
+                  when={section === 'page'}
+                  fallback={
+                    <Show when={section === 'bookmarks'} fallback="Annotations">
+                      Bookmarks
+                    </Show>
+                  }>
+                  Page
+                </Show>
+              </button>
+            )}
+          </For>
+        </nav>
+      </header>
 
       <Show when={activeSection() === 'page'}>
         <section class="card" aria-labelledby="current-page-heading">
@@ -266,7 +320,8 @@ function SidePanelPage() {
             <p class="card__body muted">{summary()?.title ?? summary()?.url}</p>
           </Show>
           <p class="card__body muted">
-            {state()?.bookmark != null ? 'Saved to Marker.' : 'Not saved to Marker yet.'} {annotations().length} annotations.
+            {state()?.bookmark != null ? 'Saved to Marker.' : 'Not saved to Marker yet.'} {annotations().length}{' '}
+            annotations.
           </p>
           <Show when={error()}>
             <p class="card__body" role="alert">
@@ -279,21 +334,30 @@ function SidePanelPage() {
             </p>
           </Show>
           <div class="side-panel-actions card__body">
-            <button
+            <IconButton
               class="button button--primary"
               type="button"
-              disabled={summary()?.status !== 'needs-permission' || isEnabling()}
-              onClick={() => void enableSite()}>
-              <Show when={isEnabling()} fallback={<Show when={summary()?.status === 'enabled'} fallback="Enable site">Site enabled</Show>}>
-                Enabling…
-              </Show>
-            </button>
-            <button class="button" type="button" disabled={summary()?.url == null} onClick={saveWithDefaultBehavior}>
-              Save page
-            </button>
-            <button class="button" type="button" onClick={() => void toggleAnnotationVisibility()}>
-              {annotationsVisible() ? 'Hide highlights' : 'Show highlights'}
-            </button>
+              icon="shield-check"
+              label={markerActionLabel()}
+              visibleLabel={markerActionVisibleLabel()}
+              disabled={summary()?.status === 'unsupported' || summary() == null || isEnabling()}
+              onClick={() => void enableSite()}
+            />
+            <IconButton
+              class="button"
+              type="button"
+              icon="bookmark-plus"
+              label="Save page"
+              disabled={summary()?.url == null}
+              onClick={saveWithDefaultBehavior}
+            />
+            <IconButton
+              class="button"
+              type="button"
+              icon={annotationsVisible() ? 'eye-off' : 'eye'}
+              label={annotationsVisible() ? 'Hide highlights' : 'Show highlights'}
+              onClick={() => void toggleAnnotationVisibility()}
+            />
           </div>
         </section>
       </Show>
@@ -304,25 +368,50 @@ function SidePanelPage() {
             Page bookmark
           </h2>
           <p class="card__body">
-            Default behavior: {bookmarkBehavior().replace('-', ' ')}. {state()?.bookmark != null ? 'This page is saved in Marker.' : 'Choose a destination to save this page.'}
+            Default behavior: {bookmarkBehavior().replace('-', ' ')}.{' '}
+            {state()?.bookmark != null ? 'This page is saved in Marker.' : 'Choose a destination to save this page.'}
           </p>
           <div class="side-panel-actions card__body">
-            <button class="button" type="button" disabled={summary()?.url == null} onClick={() => void saveBookmark('marker')}>
-              Save Marker
-            </button>
-            <button class="button" type="button" disabled={summary()?.url == null} onClick={() => void saveBookmark('chrome')}>
-              Save Chrome
-            </button>
-            <button class="button button--primary" type="button" disabled={summary()?.url == null} onClick={() => void saveBookmark('both')}>
-              Save both
-            </button>
+            <IconButton
+              class="button"
+              type="button"
+              icon="bookmark"
+              label="Save to Marker"
+              visibleLabel="Save Marker"
+              disabled={summary()?.url == null}
+              onClick={() => void saveBookmark('marker')}
+            />
+            <IconButton
+              class="button"
+              type="button"
+              icon="bookmark-plus"
+              label="Save to Chrome"
+              visibleLabel="Save Chrome"
+              disabled={summary()?.url == null}
+              onClick={() => void saveBookmark('chrome')}
+            />
+            <IconButton
+              class="button button--primary"
+              type="button"
+              icon="check"
+              label="Save to both"
+              visibleLabel="Save both"
+              disabled={summary()?.url == null}
+              onClick={() => void saveBookmark('both')}
+            />
           </div>
         </section>
       </Show>
 
       <Show when={activeSection() === 'annotations'}>
         <section class="side-panel-preview-list" aria-label="Current page annotations">
-          <Show when={annotations().length > 0} fallback={<article class="card"><p class="card__body">No annotations saved for this page yet.</p></article>}>
+          <Show
+            when={annotations().length > 0}
+            fallback={
+              <article class="card">
+                <p class="card__body">No annotations saved for this page yet.</p>
+              </article>
+            }>
             <For each={annotations()}>
               {(annotation) => (
                 <article class="card quote-card">
@@ -334,15 +423,30 @@ function SidePanelPage() {
                     <p class="card__body">{annotationNote(annotation)}</p>
                   </Show>
                   <div class="side-panel-actions card__body">
-                    <button class="button" type="button" onClick={() => void jumpToAnnotation(annotation.annotation.id)}>
-                      Jump
-                    </button>
-                    <button class="button" type="button" onClick={() => void editAnnotation(annotation)}>
-                      Edit
-                    </button>
-                    <button class="button" type="button" onClick={() => void deleteAnnotation(annotation.annotation.id)}>
-                      Delete
-                    </button>
+                    <IconButton
+                      class="button"
+                      type="button"
+                      icon="chevron-right"
+                      label="Jump to annotation"
+                      visibleLabel="Jump"
+                      onClick={() => void jumpToAnnotation(annotation.annotation.id)}
+                    />
+                    <IconButton
+                      class="button"
+                      type="button"
+                      icon="pencil"
+                      label="Edit annotation"
+                      visibleLabel="Edit"
+                      onClick={() => void editAnnotation(annotation)}
+                    />
+                    <IconButton
+                      class="button"
+                      type="button"
+                      icon="trash-2"
+                      label="Delete annotation"
+                      visibleLabel="Delete"
+                      onClick={() => void deleteAnnotation(annotation.annotation.id)}
+                    />
                   </div>
                 </article>
               )}
@@ -356,12 +460,20 @@ function SidePanelPage() {
           Quick actions
         </h2>
         <div class="side-panel-actions card__body">
-          <button class="button" type="button" onClick={() => openExtensionPage(MarkerMessageType.OpenLibrary)}>
-            Open Library
-          </button>
-          <button class="button" type="button" onClick={() => openExtensionPage(MarkerMessageType.OpenOptions)}>
-            Open Options
-          </button>
+          <IconButton
+            class="button"
+            type="button"
+            icon="library"
+            label="Open Library"
+            onClick={() => openExtensionPage(MarkerMessageType.OpenLibrary)}
+          />
+          <IconButton
+            class="button"
+            type="button"
+            icon="settings"
+            label="Open Options"
+            onClick={() => openExtensionPage(MarkerMessageType.OpenOptions)}
+          />
         </div>
       </section>
     </main>

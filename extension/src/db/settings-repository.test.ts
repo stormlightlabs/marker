@@ -32,15 +32,6 @@ describe('SettingsRepository', () => {
     expect(await settings.getBookmarkSaveBehavior()).toBe('both');
   });
 
-  it('persists the shared app theme', async () => {
-    const settings = new SettingsRepository(testDb());
-
-    expect(await settings.getAppTheme()).toBe('minimal-light');
-    await settings.setAppTheme('retro', '2026-05-22T00:00:00.000Z');
-
-    expect(await settings.getAppTheme()).toBe('retro');
-  });
-
   it('persists annotation display mode', async () => {
     const settings = new SettingsRepository(testDb());
 

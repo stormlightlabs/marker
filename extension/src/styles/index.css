@@ -3,8 +3,8 @@
 @import '@fontsource/inter/latin-600.css';
 @import '@fontsource/inter/latin-700.css';
 @import '@fontsource/righteous/latin-400.css';
-@import '@fontsource/oswald/latin-400.css';
-@import '@fontsource/oswald/latin-600.css';
+@import '@fontsource/google-sans/latin-400.css';
+@import '@fontsource/google-sans/latin-600.css';
 @import '@fontsource/libre-baskerville/latin-400.css';
 @import '@fontsource/libre-baskerville/latin-700.css';
 
@@ -13,8 +13,7 @@
 @import './tokens/spacing.css';
 @import './tokens/radii.css';
 @import './tokens/shadows.css';
-@import './themes/minimal.css';
-@import './themes/retro.css';
+@import './theme.css';
 @import './base.css';
 @import './utilities.css';
 @import './components/buttons.css';

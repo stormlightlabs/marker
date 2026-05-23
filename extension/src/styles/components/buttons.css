@@ -8,17 +8,25 @@
   padding: 0.6rem 0.9rem;
   color: var(--text);
   background: var(--surface-card);
+  box-shadow: none;
+  font-family: var(--font-label);
   font-size: var(--size-sm);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   transition:
-    background 0.16s ease,
-    border-color 0.16s ease,
-    transform 0.1s ease;
+    background 80ms ease-out,
+    border-color 80ms ease-out,
+    color 80ms ease-out,
+    opacity 80ms ease-out,
+    transform 60ms ease-out;
 }
 
-.button:hover {
+.button:hover:not(:disabled):not(.button--primary):not([aria-current='page']) {
   border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--surface-card) 82%, white);
 }
 
 .button:disabled {
@@ -26,35 +34,34 @@
   opacity: 0.52;
 }
 
-.button:active:not(:disabled) {
-  transform: translateY(1px);
+.button:disabled:hover {
+  border-color: var(--border);
+  color: var(--text);
+  background: var(--surface-card);
 }
 
-.button--primary {
+.button:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.button--primary,
+.button[aria-current='page'] {
   border-color: var(--accent);
   color: var(--accent-text);
   background: var(--accent);
+}
+
+.button--primary:hover:not(:disabled),
+.button[aria-current='page']:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 78%, black);
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent) 86%, black);
 }
 
 .button--ghost {
   background: transparent;
 }
 
-.theme-retro .button {
-  border-color: var(--border);
-  box-shadow: none;
-  font-family: var(--font-label);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.theme-retro .button:hover {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--surface-card) 82%, white);
-}
-
-.theme-retro .button:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: none;
+.button--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-card) 54%, transparent);
 }

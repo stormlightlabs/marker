@@ -30,12 +30,12 @@
   line-height: 1;
 }
 
-.theme-retro .brand-mark {
+.brand-mark {
   border-color: color-mix(in srgb, var(--text) 54%, transparent);
   border-radius: 50%;
   box-shadow: none;
 }
 
-.theme-retro .wordmark {
+.wordmark {
   color: #a33b2d;
 }

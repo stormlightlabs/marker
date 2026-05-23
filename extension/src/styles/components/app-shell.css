@@ -5,11 +5,21 @@
 }
 
 .app-shell--page {
+  box-sizing: border-box;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: var(--space-6);
-  max-width: 1120px;
-  margin-inline: auto;
+  width: 100%;
+  height: 100vh;
   padding: var(--space-8);
+  overflow: hidden;
+}
+
+.app-content-scroll {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: var(--space-2);
 }
 
 .app-header {
@@ -30,26 +40,12 @@
   color: var(--text-soft);
 }
 
-.theme-minimal-dark.app-shell {
-  background:
-    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--highlight) 16%, transparent), transparent 28rem),
-    var(--surface);
-}
-
-.theme-retro.app-shell {
-  background:
-    radial-gradient(circle at 18% 8%, color-mix(in srgb, var(--highlight) 16%, transparent), transparent 24rem),
-    linear-gradient(90deg, color-mix(in srgb, var(--text) 4%, transparent) 1px, transparent 1px) 0 0 / 22px 22px,
-    linear-gradient(color-mix(in srgb, var(--text) 3%, transparent) 1px, transparent 1px) 0 0 / 22px 22px,
-    var(--surface);
-}
-
-.theme-retro .app-header {
+.app-header {
   padding-block-end: var(--space-4);
   border-bottom: 3px double var(--border);
 }
 
-.theme-retro .app-header__title {
+.app-header__title {
   color: #a33b2d;
   letter-spacing: -0.03em;
   text-shadow: none;

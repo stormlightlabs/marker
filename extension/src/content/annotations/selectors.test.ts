@@ -29,7 +29,12 @@ describe('captureSelection', () => {
 
     expect(captured?.exact).toBe('beta');
     expect(captured?.selectors).toContainEqual({ type: 'TextPositionSelector', start: 6, end: 10 });
-    expect(captured?.selectors[0]).toMatchObject({ type: 'TextQuoteSelector', exact: 'beta', prefix: 'Alpha ', suffix: ' gamma' });
+    expect(captured?.selectors[0]).toMatchObject({
+      type: 'TextQuoteSelector',
+      exact: 'beta',
+      prefix: 'Alpha ',
+      suffix: ' gamma',
+    });
     expect(captured?.selectors).toContainEqual({ type: 'CssSelector', value: '#article' });
   });
 
