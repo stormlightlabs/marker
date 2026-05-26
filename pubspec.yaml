@@ -31,6 +31,12 @@ dependencies:
   re_highlight: ^0.0.3
   share_plus: ^13.1.0
   logger: ^2.6.2
+  poptart: ^0.1.1
+  poptart_core: ^0.1.1
+  poptart_oauth: ^0.1.1
+  poptart_lex: ^0.1.0
+  margin_poptart: ^0.1.0
+  flutter_secure_storage: ^10.3.0
 
 dev_dependencies:
   build_runner: ^2.15.0

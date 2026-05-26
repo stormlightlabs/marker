@@ -1,13 +1,5 @@
 # ATProto and Semble sync todo
 
-## Phase 0: decisions before code
-
-- [ ] Add latest versions of `poptart`, `poptart_core`, `poptart_oauth`, and `poptart_lex`.
-- [ ] Decide where secure token/session storage will live.
-- [ ] Decide whether annotation sync is enabled with bookmark sync or gated by a separate setting.
-- [ ] Decide the initial OAuth redirect/client metadata strategy for iOS and Android.
-- [ ] Pin the Semble commit SHA used for local lexicon generation.
-
 ## Phase 1: local model alignment
 
 - [ ] Add Drift table for `BookmarkCollectionLinks`.
@@ -31,19 +23,23 @@
 
 ## Phase 3: local lexicons
 
-- [ ] Vendor Semble lexicon JSON under `third_party/lexicons/semble/`.
+- [ ] Vendor Semble/Cosmik lexicon JSON under `vendor/lexicons/semble/`.
 - [ ] Include `network.cosmik.*` lexicons.
-- [ ] Include `at.margin.*` lexicons.
-- [ ] Add a `VERSION` or metadata file with the Semble commit SHA.
-- [ ] Add `tool/update_semble_lexicons.dart` or an equivalent repeatable generation script.
-- [ ] Generate Dart lexicon types into `lib/features/atproto/lexicons/`.
+- [ ] Use `margin_poptart` for `at.margin.*` lexicons instead of vendoring Margin JSON.
+- [ ] Add a `VERSION` or metadata file with the Semble commit SHA `5efdaf0813d77faaf0c7be757ad1e6203d698a44`.
+- [ ] Add `tool/update_semble_lexicons.dart` or an equivalent repeatable generation script for Cosmik lexicons.
+- [ ] Generate Dart Cosmik lexicon types into `lib/features/atproto/lexicons/network/cosmik/`.
 - [ ] Add a CI/check mode that fails when generated files are stale.
-- [ ] Add mapper tests that use generated types where possible.
+- [ ] Add mapper tests that use generated Cosmik types and `margin_poptart` types where possible.
 
 ## Phase 4: auth and repo client
 
 - [ ] Add ATProto auth repository behind Marker-owned interfaces.
-- [ ] Store sensitive OAuth/session material in secure storage, not Drift.
+- [ ] Add a Marker-owned secure session store backed by `flutter_secure_storage`.
+- [ ] Store sensitive OAuth/session material in `flutter_secure_storage`, not Drift.
+- [ ] Replace placeholder app identifiers with stable Marker identifiers before OAuth wiring.
+- [ ] Host static OAuth client metadata from the Marker website and use its HTTPS URL as `client_id`.
+- [ ] Configure iOS and Android OAuth callbacks with HTTPS app/universal links, with custom scheme only as a dev fallback.
 - [ ] Add account connect/disconnect flows.
 - [ ] Add repo client wrapper for `createRecord`, `putRecord`, `deleteRecord`, `getRecord`, and `listRecords`.
 - [ ] Add fake repo client for tests.
@@ -85,16 +81,17 @@
 - [ ] Mark local rows deleted when remote `getRecord` returns not found and no local dirty edit exists.
 - [ ] Add deletion tests for local deletes, remote not found, and link removal records.
 
-## Phase 8: Margin annotation sync
+## Phase 8: Margin note sync
 
-- [ ] Map Marker annotations to `at.margin.annotation`.
+- [ ] Map Marker annotations, highlights, underlines, and notes to `at.margin.note`.
+- [ ] Use `margin_poptart` `NoteRecord`, `Target`, `Selector`, and `Body` types in the mapper.
 - [ ] Choose remote selector shape from Marker's local selector array.
 - [ ] Preserve full local selector arrays even when the remote record stores one selector.
-- [ ] Keep style hints local in the first implementation.
-- [ ] Push annotations through the outbox worker.
-- [ ] Pull remote `at.margin.annotation` records.
-- [ ] Import remote annotations without aggressive dedupe.
-- [ ] Add tests for highlight, underline, note, malformed selector, and duplicate annotation cases.
+- [ ] Map highlight color to `NoteRecord.color` when available and keep unsupported style hints local.
+- [ ] Push notes through the outbox worker.
+- [ ] Pull remote `at.margin.note` records.
+- [ ] Import remote notes without aggressive dedupe.
+- [ ] Add tests for highlight, underline, note, malformed selector, and duplicate note cases.
 
 ## Phase 9: product polish
 
@@ -102,7 +99,7 @@
 - [ ] Show per-account sync errors in settings.
 - [ ] Add account disconnect behavior that leaves local data intact.
 - [ ] Add privacy copy for what sync publishes.
-- [ ] Add opt-in controls for annotation sync if needed.
+- [ ] Add separate opt-in controls for annotation sync.
 - [ ] Add lightweight diagnostics export for sync state without secrets.
 
 ## Later work

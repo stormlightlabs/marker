@@ -7,14 +7,14 @@ Marker is a bookmarking and highlighting browser. The ATProto integration should
 - Sync bookmarks as Semble cards.
 - Sync bookmark folders as Semble collections.
 - Sync folder membership as Semble collection links.
-- Sync highlights and notes using the Margin annotation lexicons included in Semble.
-- Generate local Dart types for Semble/Margin lexicons instead of hand-building every record shape.
+- Sync highlights and notes using `at.margin.note` from the `margin_poptart` package.
+- Generate local Dart types for Semble/Cosmik lexicons instead of hand-building every record shape.
 - Treat ATProto deletion sync as a first-class design issue, not an afterthought.
 - Keep browsing history local unless a later feature explicitly publishes it.
 
 ## Source lexicons
 
-Semble currently carries two lexicon groups that matter to Marker.
+Marker needs Semble/Cosmik lexicons for bookmark sync and Margin lexicons for annotation sync.
 
 ### Semble/Cosmik records
 
@@ -32,14 +32,14 @@ Semble currently carries two lexicon groups that matter to Marker.
 
 | NSID | Marker use |
 | --- | --- |
-| `at.margin.annotation` | Main representation for Marker annotations, highlights, underlines, and notes. |
-| `at.margin.highlight` | Optional lightweight highlight format. Marker should prefer `at.margin.annotation` at first. |
-| `at.margin.bookmark` | Simpler bookmark format. Marker should prefer `network.cosmik.card` for Semble compatibility. |
+| `at.margin.note` | Main representation for Marker annotations, highlights, underlines, and notes. |
 | `at.margin.collection` | Simpler collection format. Marker should prefer `network.cosmik.collection`. |
 | `at.margin.collectionItem` | Collection membership with position. Useful reference if sort order becomes important. |
 | `at.margin.reply` | Later annotation discussion. |
-| `at.margin.like` | Later social action on annotations or replies. |
+| `at.margin.like` | Later social action on notes or replies. |
 | `at.margin.profile` | Later Margin profile support. |
+| `at.margin.preferences` | Later Margin preference import/export if Marker needs it. |
+| `at.margin.apikey` | Not used by Marker sync. |
 
 ## Current Marker local model
 
@@ -144,7 +144,7 @@ AtprotoAccounts
 - updatedAt DATETIME NOT NULL
 ```
 
-Tokens and refresh material must go in secure storage, not Drift.
+Tokens, refresh material, DPoP key material, and pending OAuth context must go in `flutter_secure_storage`, not Drift.
 
 ```text
 AtprotoRecordMirrors
@@ -281,16 +281,19 @@ Mapping:
 
 A card can belong to more than one collection after the local join table exists.
 
-### Annotation to `at.margin.annotation`
+### Annotation to `at.margin.note`
 
-Marker's annotation target JSON already resembles Margin's W3C target model. Prefer `at.margin.annotation` for highlights, underlines, and notes.
+Marker's annotation target JSON already resembles Margin's W3C target model. Use the generated `margin_poptart` `NoteRecord`, `Target`, `Selector`, and `Body` types for highlights, underlines, and notes.
 
 ```json
 {
+  "$type": "at.margin.note",
   "target": {
+    "$type": "at.margin.note#target",
     "source": "https://example.com/article",
     "title": "Article title",
     "selector": {
+      "$type": "at.margin.note#selector",
       "type": "TextQuoteSelector",
       "exact": "selected text",
       "prefix": "before ",
@@ -298,10 +301,12 @@ Marker's annotation target JSON already resembles Margin's W3C target model. Pre
     }
   },
   "body": {
+    "$type": "at.margin.note#body",
     "format": "text/markdown",
     "value": "reader note"
   },
   "motivation": "commenting",
+  "color": "yellow",
   "createdAt": "2026-05-26T00:00:00.000Z"
 }
 ```
@@ -312,39 +317,36 @@ Mapping:
 | --- | --- |
 | `AnnotationTargets.sourceUrl` | `target.source` |
 | page title | `target.title` |
-| TextQuote selector | `target.selector` or range selector component |
-| TextPosition selector | `target.selector` or range selector component |
-| CSS selector | `target.selector` or range selector component |
+| TextQuote selector | `target.selector` with `type: "TextQuoteSelector"` |
+| TextPosition selector | `target.selector` with `type: "TextPositionSelector"` |
+| CSS selector | `target.selector` with `type: "CssSelector"` |
 | `Annotations.motivation` | `motivation` |
 | `AnnotationBodies.TextualBody` | `body.value`, `body.format` |
+| highlight color style hint | `color` when available |
 | `Annotations.createdAt` | `createdAt` |
+| `Annotations.modifiedAt` | `modifiedAt` |
 
-Margin's `target.selector` is a union, not an array. Marker currently stores multiple selectors. The mapper should choose the strongest selector shape for the remote record:
+Margin's `target.selector` stores one selector. Marker currently stores multiple selectors. The mapper should choose the strongest selector shape for the remote record:
 
-1. If TextQuote and TextPosition are present, emit a `RangeSelector` only when the stored data can satisfy its required shape.
-2. Otherwise prefer `TextQuoteSelector` because it survives page layout changes better than offsets.
-3. Include CSS selector only when quote/position data is unavailable or when a later lexicon revision supports multiple selectors.
+1. Prefer `TextQuoteSelector` because it survives page layout changes better than offsets.
+2. Use `TextPositionSelector` when quote data is unavailable and offsets are present.
+3. Use CSS, XPath, or fragment selectors only when quote/position data is unavailable.
 
 Keep the full selector array locally so Marker can re-anchor highlights using all available evidence.
 
 ### Style hints
 
-Marker stores highlight/underline style in an `AnnotationBodies` row with type `StyleHint`. `at.margin.annotation` has no style field. Options:
-
-- For highlights only, use `at.margin.highlight.color`.
-- For unified annotation sync, keep style local in phase 1.
-- Later, propose a `style` or `color` property for `at.margin.annotation`, or publish a Marker-specific companion record.
-
-Use phase 1 local style preservation. Do not drop style data during remote import/export.
+Marker stores highlight/underline style in an `AnnotationBodies` row with type `StyleHint`. `at.margin.note` has a `color` field, so the first implementation should map highlight color when the stored value is compatible. Keep underline and unsupported style hints local. Do not drop style data during remote import/export.
 
 ## Generated local lexicons
 
-Marker should vendor the Semble lexicon JSON and generate Dart types locally.
+Marker should vendor the Semble/Cosmik lexicon JSON and generate Dart types locally. Margin lexicons should come from the published `margin_poptart` package.
 
-Recommended layout:
+Recommended Semble/Cosmik layout:
 
 ```text
-third_party/lexicons/semble/
+vendor/lexicons/semble/
+  VERSION
   network/cosmik/card.json
   network/cosmik/collection.json
   network/cosmik/collectionLink.json
@@ -352,14 +354,6 @@ third_party/lexicons/semble/
   network/cosmik/connection.json
   network/cosmik/defs.json
   network/cosmik/follow.json
-  at/margin/annotation.json
-  at/margin/bookmark.json
-  at/margin/collection.json
-  at/margin/collectionItem.json
-  at/margin/highlight.json
-  at/margin/like.json
-  at/margin/profile.json
-  at/margin/reply.json
 ```
 
 Recommended generated output:
@@ -367,7 +361,6 @@ Recommended generated output:
 ```text
 lib/features/atproto/lexicons/
   network/cosmik/...
-  at/margin/...
 ```
 
 Add a script so generation is repeatable:
@@ -378,22 +371,24 @@ tool/update_semble_lexicons.dart
 
 The script should:
 
-1. Fetch or read pinned Semble lexicon JSON.
-2. Validate lexicon IDs match expected NSIDs.
+1. Fetch or read pinned Semble/Cosmik lexicon JSON from `https://github.com/cosmik-network/semble` at commit `5efdaf0813d77faaf0c7be757ad1e6203d698a44`.
+2. Validate lexicon IDs match expected `network.cosmik.*` NSIDs.
 3. Run the chosen Poptart lexicon generation path.
 4. Fail if generated files differ from committed output unless run in update mode.
-5. Write the Semble commit SHA to a small metadata file, for example `third_party/lexicons/semble/VERSION`.
+5. Write the Semble commit SHA and source path to `vendor/lexicons/semble/VERSION`.
 
 Until generation is wired, repository calls may use raw JSON maps behind typed mapper classes. Raw JSON should be an implementation bridge only. Public sync code should depend on Marker-owned domain models and mappers.
 
 ## ATProto client layer
 
-Use Poptart for auth/session/XRPC behavior, following the patterns in Lazurite and Spark:
+Use Poptart for auth/session/XRPC behavior and `margin_poptart` for Margin record types:
 
 - `poptart`
 - `poptart_core`
 - `poptart_oauth`
 - `poptart_lex`
+- `margin_poptart`
+- `flutter_secure_storage`
 
 Marker should hide Poptart behind app interfaces:
 
@@ -413,8 +408,21 @@ lib/features/atproto/
     sync_record_ref.dart
     sync_conflict.dart
   lexicons/
-    ...generated files...
+    network/cosmik/
+      ...generated Cosmik files...
 ```
+
+### Session storage and OAuth client metadata
+
+Use `flutter_secure_storage` behind a Marker-owned session-store interface. The secure store should hold OAuth sessions, refresh tokens, DPoP key material, nonce state, and pending OAuth context. Drift should hold only account metadata such as DID, handle, PDS endpoint, and timestamps.
+
+Before shipping OAuth, replace the placeholder app identifiers with a stable ID such as `com.stormlightlabs.marker`. Host static OAuth client metadata from the Marker website and use that URL as the OAuth `client_id`, for example:
+
+```text
+https://<marker-domain>/oauth/atproto/client-metadata.json
+```
+
+The initial metadata should describe a native public client with DPoP-bound access tokens, `authorization_code` and `refresh_token` grants, `token_endpoint_auth_method: "none"`, and scope `atproto transition:generic`. Prefer HTTPS app/universal links for the callback on iOS and Android. A custom scheme is acceptable only as a development fallback.
 
 Minimum repo operations:
 
@@ -448,7 +456,7 @@ For each signed-in account, pull these collections:
 - `network.cosmik.collection`
 - `network.cosmik.collectionLink`
 - `network.cosmik.collectionLinkRemoval`
-- `at.margin.annotation`
+- `at.margin.note`
 
 For each listed record:
 
@@ -514,7 +522,7 @@ Rules:
 - Link delete should only remove that membership, not the card.
 - `sortOrder` stays local.
 
-### Annotations
+### Annotations / Margin notes
 
 Primary identity: mirror URI. Secondary import key should be conservative:
 
@@ -530,7 +538,7 @@ Do not dedupe annotations aggressively. Duplicates are safer than accidentally m
 - A bookmark/card is synced only after ATProto sync is enabled for the account.
 - Default collection `accessType` is `CLOSED`.
 - Public/open collections need an explicit UI action.
-- Annotation sync should be opt-in separately if the UI makes highlights feel private.
+- Annotation sync is a separate opt-in setting and defaults off.
 
 ## Test requirements
 
@@ -542,4 +550,4 @@ Add tests with each implementation step:
 - push worker tests with fake repo client;
 - pull importer tests for new, updated, duplicate, and malformed records;
 - deletion tests for local soft delete, remote delete confirmation, and collection-link removal;
-- conflict tests for URL dedupe, folder rename, multi-collection membership, and annotation import.
+- conflict tests for URL dedupe, folder rename, multi-collection membership, and Margin note import.
