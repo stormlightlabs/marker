@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
@@ -7,6 +9,7 @@ import 'package:marker/features/atproto/application/atproto_login_controller.dar
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_session_store.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:poptart/poptart.dart';
 
 import '../../../helpers/harness.dart';
@@ -20,6 +23,7 @@ void main() {
   late AtprotoAuthRepository authRepository;
   late FakeAtprotoOAuthClient oauthClient;
   late FakeAtprotoOAuthBrowser browser;
+  late FakeSembleBookmarkPullService bookmarkPullService;
 
   setUp(() {
     FakeWebViewPlatform();
@@ -28,6 +32,7 @@ void main() {
     sessionStore = MemoryAtprotoSessionStore();
     oauthClient = FakeAtprotoOAuthClient();
     browser = FakeAtprotoOAuthBrowser();
+    bookmarkPullService = FakeSembleBookmarkPullService();
     authRepository = AtprotoAuthRepository(
       syncRepository: syncRepository,
       sessionStore: sessionStore,
@@ -40,6 +45,17 @@ void main() {
     authRepository.dispose();
     await database.close();
   });
+
+  Future<void> seedConnectedAccount() async {
+    await syncRepository.upsertAccount(
+      did: 'did:plc:alice',
+      handle: 'alice.bsky.social',
+      pdsEndpoint: 'https://pds.example',
+      authMethod: 'oauth',
+    );
+    await sessionStore.saveOAuthSession('did:plc:alice', await oauthClient.callback(callbackUrl: '', context: fakeContext));
+    await authRepository.restore();
+  }
 
   testWidgets('connects ATProto account from settings sheet', (tester) async {
     await tester.pumpWidget(
@@ -130,9 +146,24 @@ void main() {
     expect(find.text('PDS endpoint'), findsOneWidget);
     expect(find.text('https://pds.example'), findsOneWidget);
     expect(find.text('Last bookmark import'), findsOneWidget);
-    expect(find.text('Last error'), findsOneWidget);
-    expect(find.text('rate limited'), findsOneWidget);
+    expect(find.text('Last error'), findsWidgets);
+    expect(find.text('rate limited'), findsWidgets);
+    expect(find.text('Sync diagnostics'), findsOneWidget);
+    expect(find.text('Cards / bookmarks'), findsOneWidget);
+    expect(find.text('network.cosmik.card'), findsOneWidget);
+    expect(find.text('Collections / folders'), findsOneWidget);
+    expect(find.text('network.cosmik.collection'), findsOneWidget);
+    expect(find.text('Collection links'), findsOneWidget);
+    expect(find.text('network.cosmik.collectionLink'), findsOneWidget);
+    expect(find.textContaining('Last successful sync:'), findsWidgets);
+    expect(find.text('Last error: rate limited'), findsOneWidget);
+    expect(find.text('Last error: None'), findsNWidgets(2));
+    expect(find.textContaining('access-token'), findsNothing);
+    expect(find.textContaining('refresh-token'), findsNothing);
+    expect(find.textContaining('private-key'), findsNothing);
 
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Disconnect'));
     await tester.pumpAndSettle();
     expect(find.text('Disconnect ATProto?'), findsOneWidget);
@@ -144,6 +175,100 @@ void main() {
     expect((await database.select(database.bookmarks).get()).single.id, 'local-bookmark');
     expect(find.text('Connect a Bluesky or Atmosphere account'), findsOneWidget);
   });
+
+  testWidgets('imports bookmarks from the connected settings card and shows result summary', (tester) async {
+    final importCompleter = Completer<SembleBookmarkPullResult>();
+    bookmarkPullService.pendingResult = importCompleter.future;
+    await seedConnectedAccount();
+
+    await tester.pumpWidget(
+      markerTestApp(
+        database: database,
+        additionalOverrides: [
+          atprotoAuthRepositoryProvider.overrideWithValue(authRepository),
+          sembleBookmarkPullServiceProvider.overrideWithValue(bookmarkPullService),
+        ],
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Settings'));
+    await pumpRouteTransition(tester);
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import bookmarks'));
+    await tester.pump();
+    expect(find.text('Importing bookmarks...'), findsOneWidget);
+    importCompleter.complete(
+      const SembleBookmarkPullResult(
+        cardsImported: 2,
+        collectionsImported: 1,
+        linksImported: 3,
+        duplicates: 1,
+        conflicts: 1,
+        malformed: 0,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(bookmarkPullService.accountDid, 'did:plc:alice');
+    expect(find.text('Bookmark import complete'), findsOneWidget);
+    expect(find.text('Imported 2 bookmarks, 1 folder, and 3 folder links.\nSkipped 1 duplicate, 1 conflict, and 0 malformed records.'), findsOneWidget);
+    expect(find.text('View sync issues'), findsOneWidget);
+  });
+
+  testWidgets('shows import failure state from the connected settings card', (tester) async {
+    bookmarkPullService.error = StateError('offline');
+    await seedConnectedAccount();
+
+    await tester.pumpWidget(
+      markerTestApp(
+        database: database,
+        additionalOverrides: [
+          atprotoAuthRepositoryProvider.overrideWithValue(authRepository),
+          sembleBookmarkPullServiceProvider.overrideWithValue(bookmarkPullService),
+        ],
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Settings'));
+    await pumpRouteTransition(tester);
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import bookmarks'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Import failed'), findsOneWidget);
+    expect(find.text('Could not import bookmarks. Check your connection and try again.'), findsOneWidget);
+  });
+
+}
+
+class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
+  SembleBookmarkPullResult result = const SembleBookmarkPullResult();
+  Future<SembleBookmarkPullResult>? pendingResult;
+  Object? error;
+  String? accountDid;
+
+  @override
+  Future<SembleBookmarkPullResult> pull(String accountDid) async {
+    this.accountDid = accountDid;
+    final error = this.error;
+    if (error != null) throw error;
+    final pendingResult = this.pendingResult;
+    if (pendingResult != null) return pendingResult;
+    return result;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeAtprotoOAuthBrowser implements AtprotoOAuthBrowser {

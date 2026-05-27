@@ -261,17 +261,16 @@ Imported collections become Marker folders. Synced private collections use CLOSE
 
 ### Bookmark import
 
-- [ ] Add `Import bookmarks` action for connected accounts.
-- [ ] Wire action to `SembleBookmarkPullService.pull(accountDid)`.
-- [ ] Show loading, success, empty, partial-error, and failure states.
-- [ ] Display import counts for cards, collections, links, duplicates, conflicts, and malformed records.
-- [ ] Add widget/controller tests for result summaries.
+- [x] Add `Import bookmarks` action for connected accounts.
+- [x] Wire action to `SembleBookmarkPullService.pull(accountDid)`.
+- [x] Show loading, success, empty, partial-error, and failure states.
+- [x] Display import counts for cards, collections, links, duplicates, conflicts, and malformed records.
+- [x] Add widget/controller tests for result summaries.
 
 ### Diagnostics
 
-- [ ] Add sync status section listing tracked collections.
-- [ ] Show `AtprotoSyncState.lastSuccessfulSyncAt` and `lastError`.
-- [ ] Add non-secret diagnostics export later in product polish.
+- [x] Add sync status section listing tracked collections.
+- [x] Show `AtprotoSyncState.lastSuccessfulSyncAt` and `lastError`.
 
 ### Later UI, after push/deletion phases
 
@@ -280,3 +279,4 @@ Imported collections become Marker folders. Synced private collections use CLOSE
 - [ ] Add delete sync status.
 - [ ] Add annotation sync opt-in and Margin note import/export status.
 - [ ] Add conflict resolution UI only after both pull and push exist.
+- [ ] Add non-secret diagnostics export

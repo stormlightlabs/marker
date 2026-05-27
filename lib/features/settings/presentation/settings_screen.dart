@@ -5,8 +5,10 @@ import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
+import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
 
@@ -257,8 +259,10 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final syncStates = ref.watch(_atprotoSyncStatesProvider(account.did)).value ?? const <AtprotoSyncStateData>[];
+    final importState = ref.watch(atprotoBookmarkImportControllerProvider);
     final lastImport = _latestSuccessfulSync(syncStates);
     final lastError = _latestError(syncStates);
+    final isImporting = importState.isImporting;
 
     return _SettingsRowFrame(
       child: Padding(
@@ -293,14 +297,28 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
             _AtprotoDetailRow(label: 'Last bookmark import', value: _formatDateTime(lastImport)),
             if (lastError != null) _AtprotoDetailRow(label: 'Last error', value: lastError, isError: true),
             const SizedBox(height: 12),
+            _AtprotoDiagnosticsSection(syncStates: syncStates, formatDateTime: _formatDateTime),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: CupertinoButton(
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     color: const Color(0xFF2A2A30),
-                    onPressed: () => _showImportPendingDialog(context),
-                    child: const Text('Import bookmarks'),
+                    disabledColor: const Color(0xFF2A2A30),
+                    onPressed: isImporting ? null : () => _importBookmarks(context, ref),
+                    child: isImporting
+                        ? const FittedBox(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CupertinoActivityIndicator(color: CupertinoColors.white),
+                                SizedBox(width: 8),
+                                Text('Importing bookmarks...'),
+                              ],
+                            ),
+                          )
+                        : const Text('Import bookmarks'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -371,14 +389,135 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
     await ref.read(atprotoAuthRepositoryProvider).disconnect(account.did);
   }
 
-  Future<void> _showImportPendingDialog(BuildContext context) async {
+  Future<void> _importBookmarks(BuildContext context, WidgetRef ref) async {
+    final result = await ref.read(atprotoBookmarkImportControllerProvider.notifier).importBookmarks(account.did);
+    ref.invalidate(_atprotoSyncStatesProvider(account.did));
+    if (!context.mounted) return;
+    if (result == null) {
+      final state = ref.read(atprotoBookmarkImportControllerProvider);
+      final message = state is AtprotoBookmarkImportFailed
+          ? state.message
+          : 'Could not import bookmarks. Check your connection and try again.';
+      await _showImportFailureDialog(context, message);
+      return;
+    }
+    await _showImportResultDialog(context, result);
+  }
+
+  Future<void> _showImportResultDialog(BuildContext context, SembleBookmarkPullResult result) async {
     await showCupertinoDialog<void>(
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
-        title: const Text('Import bookmarks'),
-        content: const Text('Bookmark import controls are coming in the next sync step.'),
+        title: const Text('Bookmark import complete'),
+        content: Text(sembleBookmarkPullSummary(result)),
+        actions: [
+          if (sembleBookmarkPullHasIssues(result))
+            CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('View sync issues')),
+          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showImportFailureDialog(BuildContext context, String message) async {
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Import failed'),
+        content: Text(message),
         actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
       ),
+    );
+  }
+}
+
+class _AtprotoDiagnosticsSection extends StatelessWidget {
+  const _AtprotoDiagnosticsSection({required this.syncStates, required this.formatDateTime});
+
+  final List<AtprotoSyncStateData> syncStates;
+  final String Function(DateTime? value) formatDateTime;
+
+  static const _trackedCollections = <String, String>{
+    sembleCardCollection: 'Cards / bookmarks',
+    sembleCollectionCollection: 'Collections / folders',
+    sembleCollectionLinkCollection: 'Collection links',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final statesByCollection = {for (final state in syncStates) state.collection: state};
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F0F13),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Sync diagnostics',
+              style: TextStyle(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Protocol state only. Tokens, keys, OAuth context, and refresh material are never shown.',
+              style: TextStyle(color: CupertinoColors.systemGrey2, fontSize: 11, height: 1.25),
+            ),
+            const SizedBox(height: 8),
+            for (final entry in _trackedCollections.entries) ...[
+              _AtprotoDiagnosticCollectionRow(
+                collectionLabel: entry.value,
+                collection: entry.key,
+                syncState: statesByCollection[entry.key],
+                formatDateTime: formatDateTime,
+              ),
+              if (entry.key != _trackedCollections.keys.last) const SizedBox(height: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AtprotoDiagnosticCollectionRow extends StatelessWidget {
+  const _AtprotoDiagnosticCollectionRow({
+    required this.collectionLabel,
+    required this.collection,
+    required this.syncState,
+    required this.formatDateTime,
+  });
+
+  final String collectionLabel;
+  final String collection;
+  final AtprotoSyncStateData? syncState;
+  final String Function(DateTime? value) formatDateTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final lastError = syncState?.lastError?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(collectionLabel, style: const TextStyle(color: CupertinoColors.white, fontSize: 12)),
+        const SizedBox(height: 2),
+        Text(collection, style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 11)),
+        const SizedBox(height: 2),
+        Text(
+          'Last successful sync: ${formatDateTime(syncState?.lastSuccessfulSyncAt)}',
+          style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+        ),
+        Text(
+          lastError == null || lastError.isEmpty ? 'Last error: None' : 'Last error: $lastError',
+          style: TextStyle(
+            color: lastError == null || lastError.isEmpty ? CupertinoColors.systemGrey : CupertinoColors.systemRed,
+            fontSize: 11,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -535,10 +674,10 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
     final account = await ref.read(atprotoLoginControllerProvider.notifier).connect(handle: _handleController.text);
     if (!mounted || account == null) return;
     Navigator.of(context).pop();
-    await _showImportPrompt(context);
+    await _showImportPrompt(context, account.did);
   }
 
-  Future<void> _showImportPrompt(BuildContext context) async => await showCupertinoDialog<void>(
+  Future<void> _showImportPrompt(BuildContext context, String accountDid) async => await showCupertinoDialog<void>(
     context: context,
     builder: (dialogContext) => CupertinoAlertDialog(
       title: const Text('Import bookmarks now?'),
@@ -546,9 +685,40 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
       actions: [
         CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Not now')),
         CupertinoDialogAction(
-          onPressed: () => Navigator.of(dialogContext).pop(),
+          onPressed: () async {
+            Navigator.of(dialogContext).pop();
+            final result = await ref.read(atprotoBookmarkImportControllerProvider.notifier).importBookmarks(accountDid);
+            if (!context.mounted) return;
+            if (result == null) {
+              await _showImportFailure(context);
+              return;
+            }
+            await _showImportResult(context, result);
+          },
           child: const Text('Import bookmarks'),
         ),
+      ],
+    ),
+  );
+
+  Future<void> _showImportFailure(BuildContext context) async => showCupertinoDialog<void>(
+    context: context,
+    builder: (failureContext) => CupertinoAlertDialog(
+      title: const Text('Import failed'),
+      content: const Text('Could not import bookmarks. Check your connection and try again.'),
+      actions: [CupertinoDialogAction(onPressed: () => Navigator.of(failureContext).pop(), child: const Text('OK'))],
+    ),
+  );
+
+  Future<void> _showImportResult(BuildContext context, SembleBookmarkPullResult result) async => showCupertinoDialog<void>(
+    context: context,
+    builder: (resultContext) => CupertinoAlertDialog(
+      title: const Text('Bookmark import complete'),
+      content: Text(sembleBookmarkPullSummary(result)),
+      actions: [
+        if (sembleBookmarkPullHasIssues(result))
+          CupertinoDialogAction(onPressed: () => Navigator.of(resultContext).pop(), child: const Text('View sync issues')),
+        CupertinoDialogAction(onPressed: () => Navigator.of(resultContext).pop(), child: const Text('OK')),
       ],
     ),
   );
