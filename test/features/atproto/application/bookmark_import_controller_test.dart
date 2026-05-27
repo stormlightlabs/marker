@@ -11,7 +11,9 @@ void main() {
     final container = ProviderContainer(overrides: [sembleBookmarkPullServiceProvider.overrideWithValue(service)]);
     addTearDown(container.dispose);
 
-    final result = await container.read(atprotoBookmarkImportControllerProvider.notifier).importBookmarks('did:plc:alice');
+    final result = await container
+        .read(atprotoBookmarkImportControllerProvider.notifier)
+        .importBookmarks('did:plc:alice');
 
     expect(service.accountDid, 'did:plc:alice');
     expect(result?.cardsImported, 12);
@@ -23,12 +25,17 @@ void main() {
     final container = ProviderContainer(overrides: [sembleBookmarkPullServiceProvider.overrideWithValue(service)]);
     addTearDown(container.dispose);
 
-    final result = await container.read(atprotoBookmarkImportControllerProvider.notifier).importBookmarks('did:plc:alice');
+    final result = await container
+        .read(atprotoBookmarkImportControllerProvider.notifier)
+        .importBookmarks('did:plc:alice');
 
     expect(result, isNull);
     final state = container.read(atprotoBookmarkImportControllerProvider);
     expect(state, isA<AtprotoBookmarkImportFailed>());
-    expect((state as AtprotoBookmarkImportFailed).message, 'Could not import bookmarks. Check your connection and try again.');
+    expect(
+      (state as AtprotoBookmarkImportFailed).message,
+      'Could not import bookmarks. Check your connection and try again.',
+    );
   });
 
   test('formats result summaries for imported, empty, and partial issue imports', () {
@@ -63,8 +70,11 @@ class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
   String? accountDid;
 
   @override
-  Future<SembleBookmarkPullResult> pull(String accountDid) async {
+  Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
     this.accountDid = accountDid;
+    onProgress?.call(
+      const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 3, description: 'Fetching cards'),
+    );
     final error = this.error;
     if (error != null) throw error;
     return result;

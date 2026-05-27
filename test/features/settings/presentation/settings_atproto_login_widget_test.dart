@@ -56,7 +56,10 @@ void main() {
       pdsEndpoint: 'https://pds.example',
       authMethod: 'oauth',
     );
-    await sessionStore.saveOAuthSession('did:plc:alice', await oauthClient.callback(callbackUrl: '', context: fakeContext));
+    await sessionStore.saveOAuthSession(
+      'did:plc:alice',
+      await oauthClient.callback(callbackUrl: '', context: fakeContext),
+    );
     await authRepository.restore();
   }
 
@@ -120,7 +123,10 @@ void main() {
       lastSuccessfulSyncAt: now,
       lastError: 'rate limited',
     );
-    await sessionStore.saveOAuthSession('did:plc:alice', await oauthClient.callback(callbackUrl: '', context: fakeContext));
+    await sessionStore.saveOAuthSession(
+      'did:plc:alice',
+      await oauthClient.callback(callbackUrl: '', context: fakeContext),
+    );
     await database
         .into(database.bookmarks)
         .insert(
@@ -148,6 +154,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Connected as @alice.bsky.social'), findsOneWidget);
+    expect(find.text('Account info'), findsOneWidget);
+    expect(find.text('Account DID'), findsNothing);
+    await tester.tap(find.text('Account info'));
+    await tester.pumpAndSettle();
     expect(find.text('Account DID'), findsOneWidget);
     expect(find.text('did:plc:alice'), findsOneWidget);
     expect(find.text('Handle'), findsOneWidget);
@@ -158,6 +168,11 @@ void main() {
     expect(find.text('Last error'), findsWidgets);
     expect(find.text('rate limited'), findsWidgets);
     expect(find.text('Sync diagnostics'), findsOneWidget);
+    expect(find.text('Cards / bookmarks'), findsNothing);
+    await tester.ensureVisible(find.text('Sync diagnostics'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sync diagnostics'), warnIfMissed: false);
+    await tester.pumpAndSettle();
     expect(find.text('Cards / bookmarks'), findsOneWidget);
     expect(find.text('network.cosmik.card'), findsOneWidget);
     expect(find.text('Collections / folders'), findsOneWidget);
@@ -167,6 +182,7 @@ void main() {
     expect(find.textContaining('Last successful sync:'), findsWidgets);
     expect(find.text('Last error: rate limited'), findsOneWidget);
     expect(find.text('Last error: None'), findsNWidgets(2));
+    expect(find.text('Records synced: 0'), findsNWidgets(3));
     expect(find.textContaining('access-token'), findsNothing);
     expect(find.textContaining('refresh-token'), findsNothing);
     expect(find.textContaining('private-key'), findsNothing);
@@ -210,7 +226,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Import bookmarks'));
     await tester.pump();
-    expect(find.text('Importing bookmarks...'), findsOneWidget);
+    await tester.pump();
+    expect(find.text('Importing bookmarks'), findsOneWidget);
+    expect(find.textContaining('requests complete'), findsOneWidget);
+    expect(find.textContaining('Fetching'), findsOneWidget);
     importCompleter.complete(
       const SembleBookmarkPullResult(
         cardsImported: 2,
@@ -225,8 +244,13 @@ void main() {
 
     expect(bookmarkPullService.accountDid, 'did:plc:alice');
     expect(find.text('Bookmark import complete'), findsOneWidget);
-    expect(find.text('Imported 2 bookmarks, 1 folder, and 3 folder links.\nSkipped 1 duplicate, 1 conflict, and 0 malformed records.'), findsOneWidget);
-    expect(find.text('View sync issues'), findsOneWidget);
+    expect(
+      find.text(
+        'Imported 2 bookmarks, 1 folder, and 3 folder links.\nSkipped 1 duplicate, 1 conflict, and 0 malformed records.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Done'), findsOneWidget);
   });
 
   testWidgets('shows import failure state from the connected settings card', (tester) async {
@@ -257,7 +281,6 @@ void main() {
     expect(find.text('Import failed'), findsOneWidget);
     expect(find.text('Could not import bookmarks. Check your connection and try again.'), findsOneWidget);
   });
-
 }
 
 class FakeAtprotoActorSearchRepository implements AtprotoActorSearchRepository {
@@ -280,8 +303,11 @@ class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
   String? accountDid;
 
   @override
-  Future<SembleBookmarkPullResult> pull(String accountDid) async {
+  Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
     this.accountDid = accountDid;
+    onProgress?.call(
+      const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 3, description: 'Fetching cards'),
+    );
     final error = this.error;
     if (error != null) throw error;
     final pendingResult = this.pendingResult;
@@ -309,10 +335,7 @@ class FakeAtprotoOAuthClient implements AtprotoOAuthClient {
   @override
   Future<(Uri, OAuthContext)> authorize({String? handle}) async {
     authorizedHandle = handle;
-    return (
-      Uri.parse('https://bsky.social/oauth/authorize?request_uri=abc'),
-      fakeContext,
-    );
+    return (Uri.parse('https://bsky.social/oauth/authorize?request_uri=abc'), fakeContext);
   }
 
   @override

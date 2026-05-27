@@ -29,6 +29,22 @@ final sembleBookmarkPullServiceProvider = Provider<SembleBookmarkPullService>((r
   );
 });
 
+class SembleBookmarkPullProgress {
+  const SembleBookmarkPullProgress({
+    required this.completedRequests,
+    required this.totalRequests,
+    required this.description,
+  });
+
+  final int completedRequests;
+  final int totalRequests;
+  final String description;
+
+  double get fraction => totalRequests == 0 ? 0 : completedRequests / totalRequests;
+}
+
+typedef SembleBookmarkPullProgressListener = void Function(SembleBookmarkPullProgress progress);
+
 class SembleBookmarkPullResult {
   const SembleBookmarkPullResult({
     this.cardsImported = 0,
@@ -75,27 +91,72 @@ class SembleBookmarkPullService {
   final Uuid _uuid;
   final DateTime Function() _now;
 
-  Future<SembleBookmarkPullResult> pull(String accountDid) async {
+  Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
     var result = const SembleBookmarkPullResult();
-    result += await _pullCollection(accountDid, sembleCardCollection, _importCard);
-    result += await _pullCollection(accountDid, sembleCollectionCollection, _importCollection);
-    result += await _pullCollection(accountDid, sembleCollectionLinkCollection, _importCollectionLink);
+    var completedRequests = 0;
+    var totalRequests = 3;
+
+    Future<SembleBookmarkPullResult> pullCollection(
+      String collection,
+      String description,
+      Future<SembleBookmarkPullResult> Function(String accountDid, AtprotoRepoRecord record) importRecord,
+    ) async {
+      return _pullCollection(
+        accountDid,
+        collection,
+        description,
+        importRecord,
+        onProgress: onProgress,
+        completedRequests: () => completedRequests,
+        totalRequests: () => totalRequests,
+        onRequestCompleted: () => completedRequests += 1,
+        onAdditionalRequestNeeded: () => totalRequests += 1,
+      );
+    }
+
+    result += await pullCollection(sembleCardCollection, 'Fetching cards', _importCard);
+    result += await pullCollection(sembleCollectionCollection, 'Fetching collections', _importCollection);
+    result += await pullCollection(sembleCollectionLinkCollection, 'Fetching collection links', _importCollectionLink);
+    onProgress?.call(
+      SembleBookmarkPullProgress(
+        completedRequests: completedRequests,
+        totalRequests: totalRequests,
+        description: 'Import complete',
+      ),
+    );
     return result;
   }
 
   Future<SembleBookmarkPullResult> _pullCollection(
     String accountDid,
     String collection,
-    Future<SembleBookmarkPullResult> Function(String accountDid, AtprotoRepoRecord record) importRecord,
-  ) async {
+    String description,
+    Future<SembleBookmarkPullResult> Function(String accountDid, AtprotoRepoRecord record) importRecord, {
+    SembleBookmarkPullProgressListener? onProgress,
+    required int Function() completedRequests,
+    required int Function() totalRequests,
+    required void Function() onRequestCompleted,
+    required void Function() onAdditionalRequestNeeded,
+  }) async {
     var result = const SembleBookmarkPullResult();
     String? cursor;
     do {
+      onProgress?.call(
+        SembleBookmarkPullProgress(
+          completedRequests: completedRequests(),
+          totalRequests: totalRequests(),
+          description: cursor == null ? description : '$description (next page)',
+        ),
+      );
       final page = await _repoClient.listRecords(did: accountDid, collection: collection, cursor: cursor, limit: 100);
+      onRequestCompleted();
       for (final record in page.records) {
         result += await importRecord(accountDid, record);
       }
       cursor = page.cursor;
+      if (cursor != null) {
+        onAdditionalRequestNeeded();
+      }
     } while (cursor != null);
 
     await _syncRepository.saveCursor(

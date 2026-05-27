@@ -212,9 +212,7 @@ class LibraryRepository {
       }
       page = await _pageForUrl(bookmark.url);
     } else {
-      bookmark = await (_database.select(
-        _database.bookmarks,
-      )..where((bookmark) => bookmark.url.equals(page!.url))).getSingleOrNull();
+      bookmark = await _bookmarkForUrl(page.url);
     }
 
     final urlText = page?.url ?? bookmark!.url;
@@ -269,8 +267,25 @@ class LibraryRepository {
     return {for (final bookmark in rows) bookmark.url: bookmark};
   }
 
-  Future<Page?> _pageForUrl(String url) {
-    return (_database.select(_database.pages)..where((page) => page.url.equals(url))).getSingleOrNull();
+  Future<Page?> _pageForUrl(String url) async {
+    final rows =
+        await (_database.select(_database.pages)
+              ..where((page) => page.url.equals(url))
+              ..orderBy([(page) => OrderingTerm.desc(page.lastVisitedAt), (page) => OrderingTerm.desc(page.createdAt)]))
+            .get();
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<Bookmark?> _bookmarkForUrl(String url) async {
+    final rows =
+        await (_database.select(_database.bookmarks)
+              ..where((bookmark) => bookmark.url.equals(url) & bookmark.deletedAt.isNull())
+              ..orderBy([
+                (bookmark) => OrderingTerm.desc(bookmark.updatedAt),
+                (bookmark) => OrderingTerm.desc(bookmark.createdAt),
+              ]))
+            .get();
+    return rows.isEmpty ? null : rows.first;
   }
 
   Future<int> _annotationCountForPage(String pageId) async {

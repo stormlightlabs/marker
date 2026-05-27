@@ -165,19 +165,29 @@ class AtprotoSyncRepository {
     required String localTable,
     required String localId,
     required String collection,
-  }) =>
-      (_database.select(_database.atprotoRecordMirrors)..where(
-            (mirror) =>
-                mirror.accountDid.equals(accountDid) &
-                mirror.localTable.equals(localTable) &
-                mirror.localId.equals(localId) &
-                mirror.collection.equals(collection),
-          ))
-          .getSingleOrNull();
+  }) async {
+    final rows =
+        await (_database.select(_database.atprotoRecordMirrors)
+              ..where(
+                (mirror) =>
+                    mirror.accountDid.equals(accountDid) &
+                    mirror.localTable.equals(localTable) &
+                    mirror.localId.equals(localId) &
+                    mirror.collection.equals(collection),
+              )
+              ..orderBy([(mirror) => OrderingTerm.desc(mirror.lastSyncedAt), (mirror) => OrderingTerm.desc(mirror.id)]))
+            .get();
+    return rows.firstOrNull;
+  }
 
-  Future<AtprotoRecordMirror?> mirrorForUri({required String accountDid, required String uri}) => (_database.select(
-    _database.atprotoRecordMirrors,
-  )..where((mirror) => mirror.accountDid.equals(accountDid) & mirror.uri.equals(uri))).getSingleOrNull();
+  Future<AtprotoRecordMirror?> mirrorForUri({required String accountDid, required String uri}) async {
+    final rows =
+        await (_database.select(_database.atprotoRecordMirrors)
+              ..where((mirror) => mirror.accountDid.equals(accountDid) & mirror.uri.equals(uri))
+              ..orderBy([(mirror) => OrderingTerm.desc(mirror.lastSyncedAt), (mirror) => OrderingTerm.desc(mirror.id)]))
+            .get();
+    return rows.firstOrNull;
+  }
 
   Future<void> markMirrorSynced({
     required String id,
@@ -197,10 +207,44 @@ class AtprotoSyncRepository {
     );
   }
 
-  Future<AtprotoSyncStateData?> syncState({required String accountDid, required String collection}) {
-    return (_database.select(
-      _database.atprotoSyncState,
-    )..where((state) => state.accountDid.equals(accountDid) & state.collection.equals(collection))).getSingleOrNull();
+  Future<AtprotoSyncStateData?> syncState({required String accountDid, required String collection}) async {
+    final rows =
+        await (_database.select(_database.atprotoSyncState)
+              ..where((state) => state.accountDid.equals(accountDid) & state.collection.equals(collection))
+              ..orderBy([
+                (state) => OrderingTerm.desc(state.lastSuccessfulSyncAt),
+                (state) => OrderingTerm.desc(state.id),
+              ]))
+            .get();
+    return rows.firstOrNull;
+  }
+
+  Future<int> syncedRecordCount({required String accountDid, required String collection}) async {
+    final count = _database.atprotoRecordMirrors.id.count();
+    final query = _database.selectOnly(_database.atprotoRecordMirrors)
+      ..addColumns([count])
+      ..where(
+        _database.atprotoRecordMirrors.accountDid.equals(accountDid) &
+            _database.atprotoRecordMirrors.collection.equals(collection) &
+            _database.atprotoRecordMirrors.lastSyncedAt.isNotNull() &
+            _database.atprotoRecordMirrors.deletedAt.isNull(),
+      );
+    final row = await query.getSingle();
+    return row.read(count) ?? 0;
+  }
+
+  Future<Map<String, int>> syncedRecordCountsForAccount(String accountDid) async {
+    final rows =
+        await (_database.select(_database.atprotoRecordMirrors)..where(
+              (mirror) =>
+                  mirror.accountDid.equals(accountDid) & mirror.lastSyncedAt.isNotNull() & mirror.deletedAt.isNull(),
+            ))
+            .get();
+    final counts = <String, int>{};
+    for (final row in rows) {
+      counts[row.collection] = (counts[row.collection] ?? 0) + 1;
+    }
+    return counts;
   }
 
   Future<List<AtprotoSyncStateData>> syncStatesForAccount(String accountDid) {

@@ -2,18 +2,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 
 final atprotoBookmarkImportControllerProvider =
-    NotifierProvider<AtprotoBookmarkImportController, AtprotoBookmarkImportState>(
-      AtprotoBookmarkImportController.new,
-    );
+    NotifierProvider<AtprotoBookmarkImportController, AtprotoBookmarkImportState>(AtprotoBookmarkImportController.new);
 
 class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportState> {
   @override
   AtprotoBookmarkImportState build() => const AtprotoBookmarkImportIdle();
 
   Future<SembleBookmarkPullResult?> importBookmarks(String accountDid) async {
-    state = const AtprotoBookmarkImportRunning();
+    state = const AtprotoBookmarkImportRunning(
+      SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 3, description: 'Starting import'),
+    );
     try {
-      final result = await ref.read(sembleBookmarkPullServiceProvider).pull(accountDid);
+      final result = await ref
+          .read(sembleBookmarkPullServiceProvider)
+          .pull(accountDid, onProgress: (progress) => state = AtprotoBookmarkImportRunning(progress));
       state = AtprotoBookmarkImportSucceeded(result);
       return result;
     } on Object {
@@ -38,7 +40,9 @@ final class AtprotoBookmarkImportIdle extends AtprotoBookmarkImportState {
 }
 
 final class AtprotoBookmarkImportRunning extends AtprotoBookmarkImportState {
-  const AtprotoBookmarkImportRunning();
+  const AtprotoBookmarkImportRunning(this.progress);
+
+  final SembleBookmarkPullProgress progress;
 }
 
 final class AtprotoBookmarkImportSucceeded extends AtprotoBookmarkImportState {
