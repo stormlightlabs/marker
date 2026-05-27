@@ -71,6 +71,61 @@ class AtprotoSyncRepository {
     return (_database.select(_database.atprotoAccounts)..where((account) => account.did.equals(did))).getSingle();
   }
 
+  Future<AtprotoRecordMirror> upsertMirror({
+    required String accountDid,
+    required String localTable,
+    required String localId,
+    required String collection,
+    required String rkey,
+    required String uri,
+    String? cid,
+    String? lastSyncedRecordJson,
+    String? lastSyncedHash,
+    DateTime? lastSyncedAt,
+    DateTime? dirtyAt,
+    DateTime? deletedAt,
+  }) async {
+    final byUri = await mirrorForUri(accountDid: accountDid, uri: uri);
+    final existing =
+        byUri ??
+        await mirrorForLocal(accountDid: accountDid, localTable: localTable, localId: localId, collection: collection);
+    if (existing == null) {
+      return createMirror(
+        accountDid: accountDid,
+        localTable: localTable,
+        localId: localId,
+        collection: collection,
+        rkey: rkey,
+        uri: uri,
+        cid: cid,
+        lastSyncedRecordJson: lastSyncedRecordJson,
+        lastSyncedHash: lastSyncedHash,
+        lastSyncedAt: lastSyncedAt,
+        dirtyAt: dirtyAt,
+        deletedAt: deletedAt,
+      );
+    }
+
+    await (_database.update(_database.atprotoRecordMirrors)..where((mirror) => mirror.id.equals(existing.id))).write(
+      AtprotoRecordMirrorsCompanion(
+        localTable: Value(localTable),
+        localId: Value(localId),
+        collection: Value(collection),
+        rkey: Value(rkey),
+        uri: Value(uri),
+        cid: Value(cid),
+        lastSyncedRecordJson: Value(lastSyncedRecordJson),
+        lastSyncedHash: Value(lastSyncedHash),
+        lastSyncedAt: Value(lastSyncedAt),
+        dirtyAt: Value(dirtyAt),
+        deletedAt: Value(deletedAt),
+      ),
+    );
+    return (_database.select(
+      _database.atprotoRecordMirrors,
+    )..where((mirror) => mirror.id.equals(existing.id))).getSingle();
+  }
+
   Future<AtprotoRecordMirror> createMirror({
     required String accountDid,
     required String localTable,

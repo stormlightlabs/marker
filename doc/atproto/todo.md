@@ -43,16 +43,16 @@
 
 ## Phase 5: Semble bookmark pull
 
-- [ ] Pull `network.cosmik.card` records with `listRecords`.
-- [ ] Pull `network.cosmik.collection` records.
-- [ ] Pull `network.cosmik.collectionLink` records.
-- [ ] Import remote cards as local bookmarks.
-- [ ] Import remote collections as local folders with local `parentId` unset.
-- [ ] Import links as `BookmarkCollectionLinks`.
-- [ ] Deduplicate cards by normalized URL.
-- [ ] Deduplicate links by collection URI plus card URI.
-- [ ] Add conflict handling for local dirty rows.
-- [ ] Add importer tests for new, duplicate, updated, malformed, and conflicting records.
+- [x] Pull `network.cosmik.card` records with `listRecords`.
+- [x] Pull `network.cosmik.collection` records.
+- [x] Pull `network.cosmik.collectionLink` records.
+- [x] Import remote cards as local bookmarks.
+- [x] Import remote collections as local folders with local `parentId` unset.
+- [x] Import links as `BookmarkCollectionLinks`.
+- [x] Deduplicate cards by normalized URL.
+- [x] Deduplicate links by collection URI plus card URI.
+- [x] Add conflict handling for local dirty rows.
+- [x] Add importer tests for new, duplicate, updated, malformed, and conflicting records.
 
 ## Phase 6: deletion sync
 
