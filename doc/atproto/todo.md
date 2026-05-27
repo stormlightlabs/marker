@@ -1,5 +1,7 @@
 # ATProto and Semble sync todo
 
+See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth, import, status, and diagnostics UI guidance.
+
 ## Phase 1: local model alignment
 
 - [x] Add Drift table for `BookmarkCollectionLinks`.

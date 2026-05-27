@@ -1,0 +1,282 @@
+# ATProto sync UI plan
+
+This document covers the UI needed for the current ATProto integration: OAuth connection, bookmark pull, sync status, privacy copy, and diagnostics. It intentionally does not include push UI beyond labels for later phases.
+
+## Current integration state
+
+Implemented backend pieces:
+
+- OAuth auth repository and secure session store.
+- Poptart repo client wrapper.
+- Settings row for connect/disconnect.
+- Semble/Cosmik bookmark pull for:
+  - `network.cosmik.card`
+  - `network.cosmik.collection`
+  - `network.cosmik.collectionLink`
+- Local import into bookmarks, folders, and folder memberships.
+- Duplicate, malformed-record, and dirty-row conflict counts.
+
+Current UI gap:
+
+- Login still uses a copy/paste authorization URL and callback URL flow.
+- Pull is not exposed as a user action.
+- Sync status is not visible beyond connected/disconnected state.
+
+## UX principles
+
+- Treat ATProto sync as opt-in.
+- Explain that bookmark sync publishes records to the user's ATProto repo.
+- Keep browser history out of sync copy and controls.
+- Keep annotation sync separate from bookmark sync.
+- Prefer clear recovery actions over raw protocol errors.
+- Never show tokens, refresh material, DPoP keys, or OAuth context in UI or diagnostics.
+
+## Login / account connection
+
+### Entry point
+
+Location: Settings → Sync → ATProto Sync.
+
+Disconnected state should show:
+
+- title: `ATProto Sync`
+- subtitle: `Connect a Bluesky or Atmosphere account`
+- primary action: `Connect`
+
+### Connect sheet
+
+The connect action should open a sheet or page with:
+
+- title: `Connect ATProto`
+- body copy:
+  - `Use your Bluesky or Atmosphere account to import Semble/Cosmik bookmarks.`
+  - `Bookmark sync publishes bookmark records to your ATProto repo. Browser history stays local.`
+- optional handle field:
+  - placeholder: `alice.bsky.social`
+  - helper: `Optional. Leave blank to choose an account in the browser.`
+- primary button: `Continue`
+- secondary button: `Cancel`
+
+### Browser launch
+
+On `Continue`:
+
+1. Call `AtprotoAuthRepository.startConnect(handle: ...)`.
+2. Open the returned authorization URL in the system browser.
+3. Move UI to a waiting state.
+
+Use a browser/deep-link helper such as `flutter_web_auth_2` or an equivalent package that can:
+
+- open the system browser or auth session;
+- wait for a callback URL;
+- return the full callback URL to Dart.
+
+The current manual copy/paste callback flow should remain available only behind a debug flag if it is kept at all.
+
+### Callback handling
+
+Production callback:
+
+```text
+https://marker.stormlightlabs.org/oauth/atproto/callback
+```
+
+Development fallback:
+
+```text
+marker-dev://oauth-callback
+```
+
+When the app receives the callback URL:
+
+1. Call `AtprotoAuthRepository.completeConnect(callbackUrl)`.
+2. Show connected state.
+3. Offer an immediate import action.
+
+Post-connect prompt:
+
+- title: `Import bookmarks now?`
+- body: `Marker can pull Semble/Cosmik bookmarks and collections from your ATProto repo.`
+- primary: `Import bookmarks`
+- secondary: `Not now`
+
+### Login states
+
+Represent these states in the UI controller:
+
+- `idle`
+- `startingOAuth`
+- `waitingForCallback`
+- `completingOAuth`
+- `connected`
+- `failed(message)`
+
+Failures should keep the user in the connect sheet with retry and cancel actions.
+
+Common error messages:
+
+| Cause | User message |
+| --- | --- |
+| OAuth start failed | `Could not start sign in. Check your connection and try again.` |
+| Browser/auth session canceled | `Sign in was canceled.` |
+| Missing pending context | `Sign in expired. Start again.` |
+| State mismatch | `Sign in could not be verified. Start again.` |
+| Token exchange failed | `Could not finish sign in. Try again.` |
+| Secure storage unavailable | `Marker could not save the session securely on this device.` |
+
+## Connected settings UI
+
+Connected state should show:
+
+- title: `ATProto Sync`
+- subtitle: `Connected as @handle` or `Connected as did:...`
+- detail rows:
+  - account DID
+  - handle, if known
+  - PDS endpoint, if known
+  - last bookmark import time
+  - last error, if any
+- actions:
+  - `Import bookmarks`
+  - `Disconnect`
+
+Disconnect behavior:
+
+- Clear OAuth session material from secure storage.
+- Leave local bookmarks and imported data intact.
+- Leave sync metadata available for diagnostics unless a later data-removal flow explicitly clears it.
+
+Disconnect confirmation copy:
+
+- title: `Disconnect ATProto?`
+- body: `Marker will remove the saved sign-in session. Imported bookmarks stay on this device.`
+- destructive action: `Disconnect`
+- cancel: `Cancel`
+
+## Bookmark import UI
+
+### Manual import action
+
+Location options:
+
+- Settings → ATProto Sync → `Import bookmarks`
+- Optional secondary entry in Bookmarks screen after account connection exists.
+
+Initial scope: manual pull only.
+
+Import action flow:
+
+1. Disable the button.
+2. Show spinner with `Importing bookmarks...`.
+3. Call `SembleBookmarkPullService.pull(accountDid)`.
+4. Show a result summary.
+
+### Result summary
+
+Show counts from `SembleBookmarkPullResult`:
+
+- imported bookmarks/cards
+- imported folders/collections
+- imported collection links
+- duplicates found
+- conflicts skipped
+- malformed records skipped
+
+Suggested copy:
+
+```text
+Imported 12 bookmarks, 3 folders, and 18 folder links.
+Skipped 4 duplicates, 1 conflict, and 2 malformed records.
+```
+
+For zero changes:
+
+```text
+No new bookmarks found.
+```
+
+### Conflict handling
+
+Current backend behavior skips dirty mirrored local rows and counts them as conflicts.
+
+UI for this phase:
+
+- Show conflict count in result summary.
+- Add link/button: `View sync issues` if conflicts or malformed records exist.
+
+Do not build record-by-record conflict resolution yet. That belongs after push and deletion sync exist.
+
+## Sync issues / diagnostics UI
+
+Add a simple diagnostics screen or expandable section under ATProto Sync.
+
+Show:
+
+- collection name
+- last successful sync time
+- last error
+- latest import summary, if stored later
+
+For Phase 5, `AtprotoSyncState` only stores cursor, last success time, and last error. If import summaries should persist across app restarts, add a small diagnostics table or encode a non-secret summary in `lastError` only when there is an actual error. Prefer a dedicated diagnostics model later.
+
+Do not show:
+
+- access token
+- refresh token
+- DPoP nonce
+- public/private keys
+- OAuth pending context
+
+## Privacy copy
+
+Use this in the connect sheet or connected detail panel:
+
+```text
+Bookmark sync writes Semble/Cosmik bookmark records to your ATProto repo. Browser history stays local. Annotation sync is separate and off by default.
+```
+
+For collections:
+
+```text
+Imported collections become Marker folders. Synced private collections use CLOSED access unless you choose otherwise later.
+```
+
+## Implementation tasks
+
+### Login UX
+
+- [ ] Add a proper ATProto connect sheet/page.
+- [ ] Add optional handle input with validation and trimming.
+- [ ] Add browser launch + callback capture using `flutter_web_auth_2` or equivalent.
+- [ ] Wire callback URL to `AtprotoAuthRepository.completeConnect`.
+- [ ] Keep manual copy/paste callback only behind a debug flag, or remove it.
+- [ ] Add login state controller tests for success, cancel, interrupted state, and token failure.
+
+### Connected settings
+
+- [ ] Replace the current minimal Settings row with connected/disconnected detail states.
+- [ ] Show DID, handle, PDS endpoint, last import time, and last error.
+- [ ] Add disconnect confirmation.
+- [ ] Verify disconnect clears secure session material and leaves local data intact.
+
+### Bookmark import
+
+- [ ] Add `Import bookmarks` action for connected accounts.
+- [ ] Wire action to `SembleBookmarkPullService.pull(accountDid)`.
+- [ ] Show loading, success, empty, partial-error, and failure states.
+- [ ] Display import counts for cards, collections, links, duplicates, conflicts, and malformed records.
+- [ ] Add widget/controller tests for result summaries.
+
+### Diagnostics
+
+- [ ] Add sync status section listing tracked collections.
+- [ ] Show `AtprotoSyncState.lastSuccessfulSyncAt` and `lastError`.
+- [ ] Add non-secret diagnostics export later in product polish.
+
+### Later UI, after push/deletion phases
+
+- [ ] Add local-change push status.
+- [ ] Add retry queue/outbox status.
+- [ ] Add delete sync status.
+- [ ] Add annotation sync opt-in and Margin note import/export status.
+- [ ] Add conflict resolution UI only after both pull and push exist.

@@ -2,6 +2,8 @@
 
 Marker is a bookmarking and highlighting browser. The ATProto integration should make Marker data usable in the Semble/Cosmik data model while keeping local browsing fast, private by default, and available offline.
 
+UI requirements for OAuth connection, bookmark import, sync status, and diagnostics live in [ui.md](./ui.md).
+
 ## Goals
 
 - Sync bookmarks as Semble cards.
