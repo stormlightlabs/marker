@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,8 @@ import 'package:marker/app/routes.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
+import 'package:marker/core/logging/app_logger.dart';
+import 'package:marker/features/atproto/data/atproto_actor_search_repository.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
@@ -412,7 +416,10 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
         content: Text(sembleBookmarkPullSummary(result)),
         actions: [
           if (sembleBookmarkPullHasIssues(result))
-            CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('View sync issues')),
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('View sync issues'),
+            ),
           CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK')),
         ],
       ),
@@ -559,16 +566,26 @@ class _AtprotoConnectSheet extends ConsumerStatefulWidget {
 
 class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
   late final TextEditingController _handleController;
+  Timer? _typeaheadDebounce;
+  var _typeaheadGeneration = 0;
+  var _suggestions = const <AtprotoActorSuggestion>[];
+  var _isSearchingHandles = false;
+  var _ignoreNextHandleChange = false;
+  String? _selectedHandle;
+  String? _handleValidationMessage;
 
   @override
   void initState() {
     super.initState();
-    _handleController = TextEditingController();
+    _handleController = TextEditingController()..addListener(_handleChanged);
   }
 
   @override
   void dispose() {
-    _handleController.dispose();
+    _typeaheadDebounce?.cancel();
+    _handleController
+      ..removeListener(_handleChanged)
+      ..dispose();
     super.dispose();
   }
 
@@ -577,6 +594,10 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
     final loginState = ref.watch(atprotoLoginControllerProvider);
     final isBusy = loginState.isBusy;
     final errorMessage = loginState is AtprotoLoginFailed ? loginState.message : null;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final suggestions = _suggestions.isEmpty
+        ? null
+        : _AtprotoHandleSuggestions(suggestions: _suggestions, onSelected: isBusy ? null : _selectSuggestion);
 
     return CupertinoPopupSurface(
       isSurfacePainted: true,
@@ -588,75 +609,88 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
             decoration: const BoxDecoration(color: Color(0xFF151519)),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Connect ATProto',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'Use your Bluesky or Atmosphere account to import Semble/Cosmik bookmarks.',
-                    style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Bookmark sync publishes bookmark records to your ATProto repo. Browser history stays local.',
-                    style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  CupertinoTextField(
-                    controller: _handleController,
-                    enabled: !isBusy,
-                    placeholder: 'alice.bsky.social',
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    textCapitalization: TextCapitalization.none,
-                    keyboardType: TextInputType.url,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Optional. Leave blank to choose an account in the browser.',
-                    style: TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12),
-                  ),
-                  if (loginState is AtprotoLoginWaitingForCallback) ...[
-                    const SizedBox(height: 12),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                     const Text(
-                      'Waiting for sign in to finish in the browser…',
-                      style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 13),
+                      'Connect ATProto',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700),
                     ),
-                  ],
-                  if (errorMessage != null) ...[
-                    const SizedBox(height: 12),
-                    Text(errorMessage, style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 13)),
-                  ],
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: CupertinoButton(
-                          color: const Color(0xFF2A2A30),
-                          disabledColor: const Color(0xFF2A2A30),
-                          onPressed: isBusy ? null : _cancel,
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: CupertinoButton.filled(
-                          onPressed: isBusy ? null : _continue,
-                          child: isBusy
-                              ? const CupertinoActivityIndicator(color: CupertinoColors.white)
-                              : const Text('Continue'),
-                        ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Use your Bluesky or Atmosphere account to import Semble/Cosmik bookmarks.',
+                      style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Bookmark sync publishes bookmark records to your ATProto repo. Browser history stays local.',
+                      style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    if (keyboardOpen && suggestions != null) ...[suggestions, const SizedBox(height: 8)],
+                    CupertinoTextField(
+                      controller: _handleController,
+                      enabled: !isBusy,
+                      placeholder: 'alice.bsky.social',
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      textCapitalization: TextCapitalization.none,
+                      keyboardType: TextInputType.url,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                    ),
+                    if (!keyboardOpen && suggestions != null) ...[const SizedBox(height: 8), suggestions],
+                    const SizedBox(height: 6),
+                    Text(
+                      _isSearchingHandles
+                          ? 'Looking up handles…'
+                          : 'Optional. Pick a suggested handle, or leave blank to choose in the browser.',
+                      style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12),
+                    ),
+                    if (_handleValidationMessage != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _handleValidationMessage!,
+                        style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 13),
                       ),
                     ],
-                  ),
-                ],
+                    if (loginState is AtprotoLoginWaitingForCallback) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Waiting for sign in to finish in the browser…',
+                        style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 13),
+                      ),
+                    ],
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Text(errorMessage, style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 13)),
+                    ],
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CupertinoButton(
+                            color: const Color(0xFF2A2A30),
+                            disabledColor: const Color(0xFF2A2A30),
+                            onPressed: isBusy ? null : _cancel,
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: CupertinoButton.filled(
+                            onPressed: isBusy ? null : _continue,
+                            child: isBusy
+                                ? const CupertinoActivityIndicator(color: CupertinoColors.white)
+                                : const Text('Continue'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -665,13 +699,123 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
     );
   }
 
+  void _handleChanged() {
+    if (_ignoreNextHandleChange) {
+      _ignoreNextHandleChange = false;
+      return;
+    }
+    final normalized = _normalizeHandle(_handleController.text);
+    _typeaheadDebounce?.cancel();
+    _typeaheadGeneration += 1;
+
+    if (_selectedHandle != null && _selectedHandle != normalized) {
+      _selectedHandle = null;
+    }
+
+    if (normalized == null || normalized == _invalidHandleSentinel) {
+      if (_suggestions.isNotEmpty || _isSearchingHandles || _handleValidationMessage != null) {
+        setState(() {
+          _suggestions = const <AtprotoActorSuggestion>[];
+          _isSearchingHandles = false;
+          _handleValidationMessage = null;
+        });
+      }
+      return;
+    }
+
+    final generation = _typeaheadGeneration;
+    _typeaheadDebounce = Timer(const Duration(milliseconds: 250), () {
+      unawaited(_loadHandleSuggestions(normalized, generation));
+    });
+  }
+
+  Future<void> _loadHandleSuggestions(String query, int generation) async {
+    setState(() {
+      _isSearchingHandles = true;
+      _handleValidationMessage = null;
+    });
+
+    try {
+      final suggestions = await ref.read(atprotoActorSearchRepositoryProvider).searchTypeahead(query);
+      if (!mounted || generation != _typeaheadGeneration) return;
+      setState(() {
+        _suggestions = suggestions;
+        _isSearchingHandles = false;
+      });
+    } on Object catch (error, stackTrace) {
+      ref.read(appLoggerProvider).warning('Failed to search ATProto handles', error: error, stackTrace: stackTrace);
+      if (!mounted || generation != _typeaheadGeneration) return;
+      setState(() {
+        _suggestions = const <AtprotoActorSuggestion>[];
+        _isSearchingHandles = false;
+        _handleValidationMessage = 'Could not look up handles. Check your connection and try again.';
+      });
+    }
+  }
+
+  void _selectSuggestion(AtprotoActorSuggestion suggestion) {
+    _typeaheadDebounce?.cancel();
+    _typeaheadGeneration += 1;
+    _selectedHandle = suggestion.handle;
+    _ignoreNextHandleChange = true;
+    _handleController.value = TextEditingValue(
+      text: suggestion.handle,
+      selection: TextSelection.collapsed(offset: suggestion.handle.length),
+    );
+    setState(() {
+      _suggestions = const <AtprotoActorSuggestion>[];
+      _isSearchingHandles = false;
+      _handleValidationMessage = null;
+    });
+  }
+
+  String? _validatedHandleForSubmit() {
+    final normalized = _normalizeHandle(_handleController.text);
+    if (normalized == null) {
+      setState(() => _handleValidationMessage = null);
+      return null;
+    }
+    if (normalized == _invalidHandleSentinel) {
+      setState(() => _handleValidationMessage = 'Enter a handle like alice.bsky.social, or leave it blank.');
+      return _invalidHandleSentinel;
+    }
+    String? exactSuggestionHandle;
+    for (final suggestion in _suggestions) {
+      if (suggestion.handle == normalized) {
+        exactSuggestionHandle = suggestion.handle;
+        break;
+      }
+    }
+    final validatedHandle = _selectedHandle == normalized ? normalized : exactSuggestionHandle;
+    if (validatedHandle == null) {
+      setState(() => _handleValidationMessage = 'Choose a handle from the suggestions so Marker can verify it.');
+      return _invalidHandleSentinel;
+    }
+    setState(() => _handleValidationMessage = null);
+    return validatedHandle;
+  }
+
+  static const _invalidHandleSentinel = '__marker_invalid_atproto_handle__';
+
+  static String? _normalizeHandle(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    final withoutAt = trimmed.startsWith('@') ? trimmed.substring(1) : trimmed;
+    if (withoutAt.isEmpty || withoutAt.contains(RegExp(r'\s')) || withoutAt.contains('://')) {
+      return _invalidHandleSentinel;
+    }
+    return withoutAt;
+  }
+
   void _cancel() {
     ref.read(atprotoLoginControllerProvider.notifier).reset();
     Navigator.of(context).pop();
   }
 
   Future<void> _continue() async {
-    final account = await ref.read(atprotoLoginControllerProvider.notifier).connect(handle: _handleController.text);
+    final handle = _validatedHandleForSubmit();
+    if (handle == _invalidHandleSentinel) return;
+    final account = await ref.read(atprotoLoginControllerProvider.notifier).connect(handle: handle);
     if (!mounted || account == null) return;
     Navigator.of(context).pop();
     await _showImportPrompt(context, account.did);
@@ -710,16 +854,124 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
     ),
   );
 
-  Future<void> _showImportResult(BuildContext context, SembleBookmarkPullResult result) async => showCupertinoDialog<void>(
-    context: context,
-    builder: (resultContext) => CupertinoAlertDialog(
-      title: const Text('Bookmark import complete'),
-      content: Text(sembleBookmarkPullSummary(result)),
-      actions: [
-        if (sembleBookmarkPullHasIssues(result))
-          CupertinoDialogAction(onPressed: () => Navigator.of(resultContext).pop(), child: const Text('View sync issues')),
-        CupertinoDialogAction(onPressed: () => Navigator.of(resultContext).pop(), child: const Text('OK')),
-      ],
-    ),
-  );
+  Future<void> _showImportResult(BuildContext context, SembleBookmarkPullResult result) async =>
+      showCupertinoDialog<void>(
+        context: context,
+        builder: (resultContext) => CupertinoAlertDialog(
+          title: const Text('Bookmark import complete'),
+          content: Text(sembleBookmarkPullSummary(result)),
+          actions: [
+            if (sembleBookmarkPullHasIssues(result))
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(resultContext).pop(),
+                child: const Text('View sync issues'),
+              ),
+            CupertinoDialogAction(onPressed: () => Navigator.of(resultContext).pop(), child: const Text('OK')),
+          ],
+        ),
+      );
+}
+
+class _AtprotoActorAvatar extends StatelessWidget {
+  const _AtprotoActorAvatar({required this.suggestion});
+
+  final AtprotoActorSuggestion suggestion;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = suggestion.avatar;
+    return ClipOval(
+      child: DecoratedBox(
+        decoration: const BoxDecoration(color: Color(0xFF34343B)),
+        child: SizedBox.square(
+          dimension: 36,
+          child: avatar == null || avatar.isEmpty
+              ? const Icon(CupertinoIcons.person_fill, size: 18, color: CupertinoColors.systemGrey2)
+              : Image.network(
+                  avatar,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(CupertinoIcons.person_fill, size: 18, color: CupertinoColors.systemGrey2),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AtprotoHandleSuggestions extends StatelessWidget {
+  const _AtprotoHandleSuggestions({required this.suggestions, required this.onSelected});
+
+  final List<AtprotoActorSuggestion> suggestions;
+  final ValueChanged<AtprotoActorSuggestion>? onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    const rowHeight = 58.0;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF202026),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF33333A)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: rowHeight * 3),
+          child: ListView.separated(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            itemCount: suggestions.length,
+            separatorBuilder: (context, index) => Container(height: 0.5, color: const Color(0xFF33333A)),
+            itemBuilder: (context, index) {
+              final suggestion = suggestions[index];
+              return SizedBox(
+                height: rowHeight,
+                child: CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: onSelected == null ? null : () => onSelected!(suggestion),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        _AtprotoActorAvatar(suggestion: suggestion),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '@${suggestion.handle}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: CupertinoColors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (suggestion.displayName?.isNotEmpty == true) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  suggestion.displayName!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 }

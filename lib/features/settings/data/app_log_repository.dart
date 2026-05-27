@@ -108,4 +108,29 @@ class AppLogEntry {
   final String sourceFile;
   final String? error;
   final String? stackTrace;
+
+  String toClipboardText() {
+    final buffer = StringBuffer()
+      ..write(time.toIso8601String())
+      ..write(' ')
+      ..write(level.label.toUpperCase())
+      ..write(' [')
+      ..write(sourceFile)
+      ..write('] ')
+      ..write(message);
+    final errorValue = error;
+    if (errorValue != null && errorValue.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..write('error: ')
+        ..write(errorValue);
+    }
+    final stackTraceValue = stackTrace;
+    if (stackTraceValue != null && stackTraceValue.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..write(stackTraceValue);
+    }
+    return buffer.toString();
+  }
 }

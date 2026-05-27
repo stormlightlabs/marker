@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 
 const markerAtprotoOAuthCallbackScheme = 'https';
@@ -47,13 +48,15 @@ class AtprotoLoginController extends Notifier<AtprotoLoginState> {
 
     final repository = ref.read(atprotoAuthRepositoryProvider);
     final browser = ref.read(atprotoOAuthBrowserProvider);
+    final logger = ref.read(appLoggerProvider);
 
     Uri authorizationUrl;
     try {
       state = const AtprotoLoginStartingOAuth();
       authorizationUrl = await repository.startConnect(handle: normalizedHandle);
-    } on Object {
-      state = const AtprotoLoginFailed('Could not start sign in. Check your connection and try again.');
+    } on Object catch (error, stackTrace) {
+      logger.error('Failed to start ATProto OAuth sign in', error: error, stackTrace: stackTrace);
+      state = AtprotoLoginFailed(_startFailureMessage(error));
       return null;
     }
 
@@ -61,10 +64,12 @@ class AtprotoLoginController extends Notifier<AtprotoLoginState> {
     try {
       state = const AtprotoLoginWaitingForCallback();
       callbackUrl = await browser.authenticate(authorizationUrl);
-    } on PlatformException catch (error) {
+    } on PlatformException catch (error, stackTrace) {
+      logger.warning('ATProto OAuth browser failed', error: error, stackTrace: stackTrace);
       state = AtprotoLoginFailed(_browserFailureMessage(error));
       return null;
-    } on Object {
+    } on Object catch (error, stackTrace) {
+      logger.error('ATProto OAuth browser returned an unexpected failure', error: error, stackTrace: stackTrace);
       state = const AtprotoLoginFailed('Could not finish sign in. Try again.');
       return null;
     }
@@ -74,7 +79,8 @@ class AtprotoLoginController extends Notifier<AtprotoLoginState> {
       final account = await repository.completeConnect(callbackUrl);
       state = AtprotoLoginConnected(account);
       return account;
-    } on Object catch (error) {
+    } on Object catch (error, stackTrace) {
+      logger.error('Failed to complete ATProto OAuth sign in', error: error, stackTrace: stackTrace);
       state = AtprotoLoginFailed(_completionFailureMessage(error));
       return null;
     }
@@ -94,6 +100,17 @@ class AtprotoLoginController extends Notifier<AtprotoLoginState> {
       return _invalidHandleSentinel;
     }
     return withoutAt;
+  }
+
+  static String _startFailureMessage(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('client') && message.contains('metadata')) {
+      return 'Could not load Marker sign-in configuration. Try again later.';
+    }
+    if (message.contains('handle') || message.contains('actor')) {
+      return 'Could not verify that handle. Check it and try again.';
+    }
+    return 'Could not start sign in. Check your connection and try again.';
   }
 
   static String _browserFailureMessage(PlatformException error) {

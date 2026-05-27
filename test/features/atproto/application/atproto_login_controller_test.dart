@@ -1,8 +1,11 @@
 import 'package:drift/native.dart';
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_session_store.dart';
@@ -62,6 +65,32 @@ void main() {
       AtprotoLoginCompletingOAuth,
       AtprotoLoginConnected,
     ]);
+  });
+
+  test('logs OAuth start failures and shows configuration-specific copy', () async {
+    final logDirectory = await Directory.systemTemp.createTemp('marker-atproto-login-logs');
+    final logger = await AppLogger.initialize(directory: logDirectory);
+    final localContainer = ProviderContainer(
+      overrides: [
+        atprotoAuthRepositoryProvider.overrideWithValue(authRepository),
+        atprotoOAuthBrowserProvider.overrideWithValue(browser),
+        appLoggerProvider.overrideWithValue(logger),
+      ],
+    );
+    oauthClient.authorizeError = StateError('client metadata was not accepted');
+
+    final account = await localContainer.read(atprotoLoginControllerProvider.notifier).connect(handle: 'alice.bsky.social');
+
+    expect(account, isNull);
+    final state = localContainer.read(atprotoLoginControllerProvider);
+    expect(state, isA<AtprotoLoginFailed>());
+    expect((state as AtprotoLoginFailed).message, 'Could not load Marker sign-in configuration. Try again later.');
+    final logContents = await File('${logDirectory.path}/marker.log').readAsString();
+    expect(logContents, contains('Failed to start ATProto OAuth sign in'));
+
+    localContainer.dispose();
+    await logger.close();
+    await logDirectory.delete(recursive: true);
   });
 
   test('reports browser cancellation and keeps the sheet retryable', () async {
@@ -135,10 +164,13 @@ class FakeAtprotoOAuthBrowser implements AtprotoOAuthBrowser {
 
 class FakeAtprotoOAuthClient implements AtprotoOAuthClient {
   String? authorizedHandle;
+  Object? authorizeError;
   Object? callbackError;
 
   @override
   Future<(Uri, OAuthContext)> authorize({String? handle}) async {
+    final authorizeError = this.authorizeError;
+    if (authorizeError != null) throw authorizeError;
     authorizedHandle = handle;
     return (
       Uri.parse('https://bsky.social/oauth/authorize?request_uri=abc'),

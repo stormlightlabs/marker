@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/features/settings/application/log_share_controller.dart';
 import 'package:marker/features/settings/data/app_log_repository.dart';
@@ -65,7 +66,10 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
                               padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                               itemCount: filtered.length,
                               separatorBuilder: (context, index) => const SizedBox(height: 8),
-                              itemBuilder: (context, index) => _LogRow(entry: filtered[index]),
+                              itemBuilder: (context, index) => _LogRow(
+                                entry: filtered[index],
+                                onCopy: () => unawaited(_copyEntry(context, filtered[index])),
+                              ),
                             ),
                     ),
                   ],
@@ -121,6 +125,19 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
           return true;
         })
         .toList(growable: false);
+  }
+
+  Future<void> _copyEntry(BuildContext context, AppLogEntry entry) async {
+    await Clipboard.setData(ClipboardData(text: entry.toClipboardText()));
+    if (!context.mounted) return;
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Copied log entry'),
+        content: const Text('The selected log entry was copied to the clipboard.'),
+        actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+      ),
+    );
   }
 
   Future<void> _shareLogs(BuildContext context) async {
@@ -213,9 +230,10 @@ class _LogFilters extends StatelessWidget {
 }
 
 class _LogRow extends StatelessWidget {
-  const _LogRow({required this.entry});
+  const _LogRow({required this.entry, required this.onCopy});
 
   final AppLogEntry entry;
+  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -253,6 +271,12 @@ class _LogRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, letterSpacing: 0),
                   ),
+                ),
+                CupertinoButton(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: const Size.square(28),
+                  onPressed: onCopy,
+                  child: const Icon(CupertinoIcons.doc_on_doc, size: 16, color: CupertinoColors.systemGrey),
                 ),
               ],
             ),

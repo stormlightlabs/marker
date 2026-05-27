@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
+import 'package:marker/features/atproto/data/atproto_actor_search_repository.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_session_store.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -24,6 +25,7 @@ void main() {
   late FakeAtprotoOAuthClient oauthClient;
   late FakeAtprotoOAuthBrowser browser;
   late FakeSembleBookmarkPullService bookmarkPullService;
+  late FakeAtprotoActorSearchRepository actorSearchRepository;
 
   setUp(() {
     FakeWebViewPlatform();
@@ -33,6 +35,7 @@ void main() {
     oauthClient = FakeAtprotoOAuthClient();
     browser = FakeAtprotoOAuthBrowser();
     bookmarkPullService = FakeSembleBookmarkPullService();
+    actorSearchRepository = FakeAtprotoActorSearchRepository();
     authRepository = AtprotoAuthRepository(
       syncRepository: syncRepository,
       sessionStore: sessionStore,
@@ -64,6 +67,7 @@ void main() {
         additionalOverrides: [
           atprotoAuthRepositoryProvider.overrideWithValue(authRepository),
           atprotoOAuthBrowserProvider.overrideWithValue(browser),
+          atprotoActorSearchRepositoryProvider.overrideWithValue(actorSearchRepository),
         ],
       ),
     );
@@ -83,6 +87,11 @@ void main() {
     expect(find.text('Use your Bluesky or Atmosphere account to import Semble/Cosmik bookmarks.'), findsOneWidget);
 
     await tester.enterText(find.byType(EditableText), ' @alice.bsky.social ');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    expect(actorSearchRepository.queries, ['alice.bsky.social']);
+    await tester.tap(find.text('@alice.bsky.social'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pump();
     await tester.pumpAndSettle();
@@ -249,6 +258,19 @@ void main() {
     expect(find.text('Could not import bookmarks. Check your connection and try again.'), findsOneWidget);
   });
 
+}
+
+class FakeAtprotoActorSearchRepository implements AtprotoActorSearchRepository {
+  final queries = <String>[];
+  var suggestions = const <AtprotoActorSuggestion>[
+    AtprotoActorSuggestion(did: 'did:plc:alice', handle: 'alice.bsky.social', displayName: 'Alice'),
+  ];
+
+  @override
+  Future<List<AtprotoActorSuggestion>> searchTypeahead(String query, {int limit = 8}) async {
+    queries.add(query);
+    return suggestions;
+  }
 }
 
 class FakeSembleBookmarkPullService implements SembleBookmarkPullService {

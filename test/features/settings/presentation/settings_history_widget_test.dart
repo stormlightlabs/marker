@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/settings/application/log_share_controller.dart';
@@ -11,13 +12,32 @@ import '../../../helpers/harness.dart';
 
 void main() {
   late AppDatabase database;
+  late String clipboardText;
 
   setUp(() {
     FakeWebViewPlatform();
+    clipboardText = '';
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          clipboardText = (call.arguments as Map<Object?, Object?>)['text']! as String;
+          return null;
+        }
+        if (call.method == 'Clipboard.getData') {
+          return {'text': clipboardText};
+        }
+        return null;
+      },
+    );
     database = AppDatabase(NativeDatabase.memory());
   });
 
   tearDown(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
     await database.close();
   });
 
@@ -118,6 +138,14 @@ void main() {
 
     expect(find.text('loaded library'), findsNothing);
     expect(find.text('ignored malformed bridge message'), findsOneWidget);
+
+    await tester.tap(find.byIcon(CupertinoIcons.doc_on_doc).last);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('WARN [marker.log] ignored malformed bridge message'));
+    expect(find.text('Copied log entry'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Download'));
     await tester.pump();

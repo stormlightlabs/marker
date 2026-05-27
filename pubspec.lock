@@ -58,7 +58,7 @@ packages:
     source: hosted
     version: "1.0.1"
   bluesky_poptart:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: bluesky_poptart
       sha256: "4ec414a56a2f1024db65e1f9701e41f5484121ab2ed8f0f844b0dedf0ab0bea6"
