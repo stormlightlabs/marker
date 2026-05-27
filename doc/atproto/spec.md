@@ -338,46 +338,15 @@ Keep the full selector array locally so Marker can re-anchor highlights using al
 
 Marker stores highlight/underline style in an `AnnotationBodies` row with type `StyleHint`. `at.margin.note` has a `color` field, so the first implementation should map highlight color when the stored value is compatible. Keep underline and unsupported style hints local. Do not drop style data during remote import/export.
 
-## Generated local lexicons
+## Published lexicon packages
 
-Marker should vendor the Semble/Cosmik lexicon JSON and generate Dart types locally. Margin lexicons should come from the published `margin_poptart` package.
+Marker should use published Poptart lexicon packages instead of vendoring Semble/Cosmik JSON or committing generated lexicon output:
 
-Recommended Semble/Cosmik layout:
+- `cosmik_poptart` for `network.cosmik.*` records used by Semble/Cosmik bookmark sync;
+- `margin_poptart` for `at.margin.*` records used by annotation sync;
+- `poptart_lex` for `com.atproto.*` repo methods and common ATProto types.
 
-```text
-vendor/lexicons/semble/
-  VERSION
-  network/cosmik/card.json
-  network/cosmik/collection.json
-  network/cosmik/collectionLink.json
-  network/cosmik/collectionLinkRemoval.json
-  network/cosmik/connection.json
-  network/cosmik/defs.json
-  network/cosmik/follow.json
-```
-
-Recommended generated output:
-
-```text
-lib/features/atproto/lexicons/
-  network/cosmik/...
-```
-
-Add a script so generation is repeatable:
-
-```text
-tool/update_semble_lexicons.dart
-```
-
-The script should:
-
-1. Fetch or read pinned Semble/Cosmik lexicon JSON from `https://github.com/cosmik-network/semble` at commit `5efdaf0813d77faaf0c7be757ad1e6203d698a44`.
-2. Validate lexicon IDs match expected `network.cosmik.*` NSIDs.
-3. Run the chosen Poptart lexicon generation path.
-4. Fail if generated files differ from committed output unless run in update mode.
-5. Write the Semble commit SHA and source path to `vendor/lexicons/semble/VERSION`.
-
-Until generation is wired, repository calls may use raw JSON maps behind typed mapper classes. Raw JSON should be an implementation bridge only. Public sync code should depend on Marker-owned domain models and mappers.
+This keeps Marker out of the lexicon-codegen business. Public sync code should still depend on Marker-owned domain models and mappers, but the mapper implementations should build and parse `cosmik_poptart` / `margin_poptart` record types where possible. Raw JSON maps are acceptable only at repository boundaries such as generic `createRecord`, `putRecord`, `getRecord`, and `listRecords` wrappers.
 
 ## ATProto client layer
 
@@ -388,6 +357,7 @@ Use Poptart for auth/session/XRPC behavior and `margin_poptart` for Margin recor
 - `poptart_oauth`
 - `poptart_lex`
 - `margin_poptart`
+- `cosmik_poptart`
 - `flutter_secure_storage`
 
 Marker should hide Poptart behind app interfaces:
@@ -407,16 +377,13 @@ lib/features/atproto/
     atproto_account.dart
     sync_record_ref.dart
     sync_conflict.dart
-  lexicons/
-    network/cosmik/
-      ...generated Cosmik files...
 ```
 
 ### Session storage and OAuth client metadata
 
 Use `flutter_secure_storage` behind a Marker-owned session-store interface. The secure store should hold OAuth sessions, refresh tokens, DPoP key material, nonce state, and pending OAuth context. Drift should hold only account metadata such as DID, handle, PDS endpoint, and timestamps.
 
-Before shipping OAuth, replace the placeholder app identifiers with a stable ID such as `com.stormlightlabs.marker`. Host static OAuth client metadata from the Marker website and use that URL as the OAuth `client_id`, for example:
+Before shipping OAuth, replace the placeholder app identifiers with a stable ID such as `org.stormlightlabs.marker`. Host static OAuth client metadata from the Marker website and use that URL as the OAuth `client_id`, for example:
 
 ```text
 https://<marker-domain>/oauth/atproto/client-metadata.json

@@ -20,16 +20,12 @@
 - [x] Add tests for mirror uniqueness by local row and remote URI.
 - [x] Add tests for outbox enqueue in the same transaction as local writes.
 
-## Phase 3: local lexicons
+## Phase 3: lexicon packages
 
-- [ ] Vendor Semble/Cosmik lexicon JSON under `vendor/lexicons/semble/`.
-- [ ] Include `network.cosmik.*` lexicons.
-- [ ] Use `margin_poptart` for `at.margin.*` lexicons instead of vendoring Margin JSON.
-- [ ] Add a `VERSION` or metadata file with the Semble commit SHA `5efdaf0813d77faaf0c7be757ad1e6203d698a44`.
-- [ ] Add `tool/update_semble_lexicons.dart` or an equivalent repeatable generation script for Cosmik lexicons.
-- [ ] Generate Dart Cosmik lexicon types into `lib/features/atproto/lexicons/network/cosmik/`.
-- [ ] Add a CI/check mode that fails when generated files are stale.
-- [ ] Add mapper tests that use generated Cosmik types and `margin_poptart` types where possible.
+- [x] Use `cosmik_poptart` for `network.cosmik.*` lexicons instead of vendoring Semble/Cosmik JSON.
+- [x] Use `margin_poptart` for `at.margin.*` lexicons instead of vendoring Margin JSON.
+- [x] Remove local Semble/Cosmik code generation and vendored lexicon JSON.
+- [x] Add mapper/type tests that use `cosmik_poptart` and `margin_poptart` types where possible.
 
 ## Phase 4: auth and repo client
 
