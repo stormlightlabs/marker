@@ -2,24 +2,23 @@
 
 ## Phase 1: local model alignment
 
-- [ ] Add Drift table for `BookmarkCollectionLinks`.
-- [ ] Add `updatedAt` and `deletedAt` fields to bookmarks.
-- [ ] Add `description`, `accessType`, and `deletedAt` fields to bookmark folders if needed by the Semble mapper.
-- [ ] Backfill `BookmarkCollectionLinks` from existing `Bookmarks.folderId`.
-- [ ] Update bookmark repositories to read/write membership through `BookmarkCollectionLinks`.
-- [ ] Keep `Bookmarks.folderId` as a transition column until all reads are migrated.
-- [ ] Add migration tests for the backfill path.
-- [ ] Add repository tests for multi-collection bookmark membership.
+- [x] Add Drift table for `BookmarkCollectionLinks`.
+- [x] Add `updatedAt` and `deletedAt` fields to bookmarks.
+- [x] Add `description`, `accessType`, and `deletedAt` fields to bookmark folders if needed by the Semble mapper.
+- [x] Backfill `BookmarkCollectionLinks` from existing `Bookmarks.folderId`.
+- [x] Update bookmark repositories to read/write membership through `BookmarkCollectionLinks`.
+- [x] Keep `Bookmarks.folderId` as a transition column until all reads are migrated.
+- [x] Add repository tests for multi-collection bookmark membership.
 
 ## Phase 2: sync metadata
 
-- [ ] Add `AtprotoAccounts` table.
-- [ ] Add `AtprotoRecordMirrors` table.
-- [ ] Add `AtprotoSyncState` table.
-- [ ] Add `AtprotoSyncOutbox` table.
-- [ ] Add repository APIs for mirrors, cursors, and outbox operations.
-- [ ] Add tests for mirror uniqueness by local row and remote URI.
-- [ ] Add tests for outbox enqueue in the same transaction as local writes.
+- [x] Add `AtprotoAccounts` table.
+- [x] Add `AtprotoRecordMirrors` table.
+- [x] Add `AtprotoSyncState` table.
+- [x] Add `AtprotoSyncOutbox` table.
+- [x] Add repository APIs for mirrors, cursors, and outbox operations.
+- [x] Add tests for mirror uniqueness by local row and remote URI.
+- [x] Add tests for outbox enqueue in the same transaction as local writes.
 
 ## Phase 3: local lexicons
 

@@ -31,7 +31,6 @@ void main() {
 
     await tester.tap(find.text('Bookmarks'));
     await pumpRouteTransition(tester);
-
     expect(find.text('Bookmarks'), findsWidgets);
     expect(find.text('Library'), findsOneWidget);
     expect(find.text('Browser'), findsOneWidget);
@@ -41,7 +40,6 @@ void main() {
 
     await tester.tap(find.text('Example Article'));
     await pumpRouteTransition(tester);
-
     expect(find.text('Fake WebView'), findsOneWidget);
     expect(platform.controller.loadedUri, Uri.parse('https://example.com/article'));
   });
@@ -57,12 +55,10 @@ void main() {
     await pumpRouteTransition(tester);
     await tester.tap(find.text('Programming'));
     await pumpRouteTransition(tester);
-
     expect(find.text('Child Bookmark'), findsOneWidget);
 
     await tester.tap(find.byIcon(CupertinoIcons.info_circle));
     await pumpRouteTransition(tester);
-
     expect(find.text('Bookmark'), findsOneWidget);
     expect(find.text('Programming'), findsOneWidget);
   });
@@ -78,7 +74,6 @@ void main() {
     await pumpRouteTransition(tester);
     await tester.longPress(find.text('Example Article'));
     await pumpRouteTransition(tester);
-
     expect(find.text('Bookmark'), findsOneWidget);
     expect(find.text('https://example.com/article'), findsOneWidget);
   });
@@ -96,7 +91,6 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Example Article'));
     await tester.pump();
-
     expect(find.text('1 selected'), findsOneWidget);
 
     await tester.tap(find.text('Delete'));
@@ -104,7 +98,6 @@ void main() {
     await tester.tap(find.text('Delete').last);
     await tester.pump();
     await tester.pump();
-
     expect(find.text('Example Article'), findsNothing);
   });
 
@@ -143,7 +136,6 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-
     expect(find.text('Edit Bookmark'), findsOneWidget);
   });
 }
@@ -161,6 +153,7 @@ Future<void> _seedBookmarkManager(AppDatabase database) async {
           url: 'https://example.com/article',
           title: const Value('Example Article'),
           createdAt: now,
+          updatedAt: now,
         ),
       );
   await database
@@ -168,10 +161,21 @@ Future<void> _seedBookmarkManager(AppDatabase database) async {
       .insert(
         BookmarksCompanion.insert(
           id: 'child-bookmark',
-          folderId: const Value('folder'),
           url: 'https://example.com/child',
           title: const Value('Child Bookmark'),
           createdAt: now,
+          updatedAt: now,
+        ),
+      );
+  await database
+      .into(database.bookmarkCollectionLinks)
+      .insert(
+        BookmarkCollectionLinksCompanion.insert(
+          id: 'child-bookmark-folder',
+          bookmarkId: 'child-bookmark',
+          folderId: 'folder',
+          createdAt: now,
+          updatedAt: now,
         ),
       );
 }

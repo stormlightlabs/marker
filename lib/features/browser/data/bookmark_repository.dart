@@ -20,9 +20,11 @@ class BookmarkRepository {
   final DateTime Function() _now;
 
   Future<List<BrowserBookmark>> getBookmarks() async {
-    final rows = await (_database.select(
-      _database.bookmarks,
-    )..orderBy([(bookmark) => OrderingTerm.desc(bookmark.createdAt)])).get();
+    final rows =
+        await (_database.select(_database.bookmarks)
+              ..where((bookmark) => bookmark.deletedAt.isNull())
+              ..orderBy([(bookmark) => OrderingTerm.desc(bookmark.createdAt)]))
+            .get();
     return rows.map(_toDomain).toList(growable: false);
   }
 
@@ -31,6 +33,7 @@ class BookmarkRepository {
       _database.bookmarks,
     )..where((bookmark) => bookmark.url.equals(url.toString()))).getSingleOrNull();
     if (existing == null) {
+      final now = _now();
       await _database
           .into(_database.bookmarks)
           .insert(
@@ -39,12 +42,13 @@ class BookmarkRepository {
               url: url.toString(),
               title: Value(normalize(title)),
               sortOrder: Value(await _nextRootSortOrder()),
-              createdAt: _now(),
+              createdAt: now,
+              updatedAt: now,
             ),
           );
     } else {
       await (_database.update(_database.bookmarks)..where((bookmark) => bookmark.id.equals(existing.id))).write(
-        BookmarksCompanion(title: Value(normalize(title) ?? existing.title)),
+        BookmarksCompanion(title: Value(normalize(title) ?? existing.title), updatedAt: Value(_now())),
       );
     }
 
@@ -52,7 +56,15 @@ class BookmarkRepository {
   }
 
   Future<List<BrowserBookmark>> removeBookmark(Uri url) async {
-    await (_database.delete(_database.bookmarks)..where((bookmark) => bookmark.url.equals(url.toString()))).go();
+    final bookmark = await (_database.select(
+      _database.bookmarks,
+    )..where((row) => row.url.equals(url.toString()))).getSingleOrNull();
+    if (bookmark != null) {
+      await (_database.delete(
+        _database.bookmarkCollectionLinks,
+      )..where((link) => link.bookmarkId.equals(bookmark.id))).go();
+      await (_database.delete(_database.bookmarks)..where((row) => row.id.equals(bookmark.id))).go();
+    }
     return getBookmarks();
   }
 
@@ -64,7 +76,14 @@ class BookmarkRepository {
   );
 
   Future<int> _nextRootSortOrder() async {
-    final rows = await (_database.select(_database.bookmarks)..where((bookmark) => bookmark.folderId.isNull())).get();
-    return rows.fold<int>(-1, (max, bookmark) => bookmark.sortOrder > max ? bookmark.sortOrder : max) + 1;
+    final links = await (_database.select(
+      _database.bookmarkCollectionLinks,
+    )..where((link) => link.deletedAt.isNull())).get();
+    final linkedBookmarkIds = links.map((link) => link.bookmarkId).toSet();
+    final rows = await (_database.select(_database.bookmarks)..where((bookmark) => bookmark.deletedAt.isNull())).get();
+    return rows
+            .where((bookmark) => !linkedBookmarkIds.contains(bookmark.id))
+            .fold<int>(-1, (max, bookmark) => bookmark.sortOrder > max ? bookmark.sortOrder : max) +
+        1;
   }
 }

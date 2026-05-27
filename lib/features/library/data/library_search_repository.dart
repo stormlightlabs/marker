@@ -144,20 +144,20 @@ LIMIT ?
     );
   }
 
-  List<String> _fieldsFromRow(QueryRow row) {
-    return [
-      row.read<String>('title'),
-      row.read<String>('url'),
-      row.read<String>('description'),
-      row.read<String>('folder_path'),
-      row.read<String>('annotation_text'),
-      row.read<String>('note_text'),
-    ];
-  }
+  List<String> _fieldsFromRow(QueryRow row) => [
+    row.read<String>('title'),
+    row.read<String>('url'),
+    row.read<String>('description'),
+    row.read<String>('folder_path'),
+    row.read<String>('annotation_text'),
+    row.read<String>('note_text'),
+  ];
 
   Future<List<_LibrarySearchDocument>> _documents() async {
     final documents = <_LibrarySearchDocument>[];
-    final bookmarks = await _database.select(_database.bookmarks).get();
+    final bookmarks = await (_database.select(
+      _database.bookmarks,
+    )..where((bookmark) => bookmark.deletedAt.isNull())).get();
     final bookmarkByUrl = {for (final bookmark in bookmarks) bookmark.url: bookmark};
     final pagesById = {for (final page in await _database.select(_database.pages).get()) page.id: page};
     final pagesByUrl = {for (final page in pagesById.values) page.url: page};
@@ -189,9 +189,7 @@ LIMIT ?
           title: _fallbackTitle(page.title, sourceUrl),
           url: sourceUrl,
           description: page.description,
-          folderPath: await _bookmarkFolderPath(
-            bookmarkByUrl[sourceUrl]?.folderId ?? bookmarkByUrl[page.url]?.folderId,
-          ),
+          folderPath: await _bookmarkFolderPathForBookmark(bookmarkByUrl[sourceUrl]?.id ?? bookmarkByUrl[page.url]?.id),
           annotationText: _exactSelectorValue(target?.selectorJson),
           noteText: _noteValue(bodies),
         ),
@@ -208,7 +206,7 @@ LIMIT ?
           title: _fallbackTitle(bookmark.title ?? page?.title, bookmark.url),
           url: bookmark.url,
           description: page?.description,
-          folderPath: await _bookmarkFolderPath(bookmark.folderId),
+          folderPath: await _bookmarkFolderPathForBookmark(bookmark.id),
         ),
       );
     }
@@ -270,9 +268,7 @@ LIMIT ?
     return bestScore;
   }
 
-  String _fallbackTitle(String? title, String url) {
-    return normalize(title) ?? Uri.tryParse(url)?.host ?? url;
-  }
+  String _fallbackTitle(String? title, String url) => normalize(title) ?? Uri.tryParse(url)?.host ?? url;
 
   String? _noteValue(List<AnnotationBody> bodies) {
     for (final body in bodies) {
@@ -315,6 +311,18 @@ LIMIT ?
     return null;
   }
 
+  Future<String?> _bookmarkFolderPathForBookmark(String? bookmarkId) async {
+    if (bookmarkId == null) {
+      return null;
+    }
+    final link =
+        await (_database.select(_database.bookmarkCollectionLinks)
+              ..where((row) => row.bookmarkId.equals(bookmarkId) & row.deletedAt.isNull())
+              ..orderBy([(row) => OrderingTerm.asc(row.sortOrder), (row) => OrderingTerm.asc(row.createdAt)]))
+            .getSingleOrNull();
+    return _bookmarkFolderPath(link?.folderId);
+  }
+
   Future<String?> _bookmarkFolderPath(String? folderId) async {
     if (folderId == null) {
       return null;
@@ -338,13 +346,11 @@ LIMIT ?
     return names.isEmpty ? null : names.join(' / ');
   }
 
-  LibrarySearchResultType _typeFromName(String name) {
-    return switch (name) {
-      'page' => LibrarySearchResultType.page,
-      'annotation' => LibrarySearchResultType.annotation,
-      _ => LibrarySearchResultType.page,
-    };
-  }
+  LibrarySearchResultType _typeFromName(String name) => switch (name) {
+    'page' => LibrarySearchResultType.page,
+    'annotation' => LibrarySearchResultType.annotation,
+    _ => LibrarySearchResultType.page,
+  };
 }
 
 class LibrarySearchResult {

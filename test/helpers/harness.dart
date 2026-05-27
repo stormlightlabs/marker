@@ -100,6 +100,7 @@ Future<void> seedLibrary(AppDatabase database) async {
           url: 'https://example.com/saved',
           title: const Value('Saved Article'),
           createdAt: savedAt,
+          updatedAt: savedAt,
         ),
       );
   await database

@@ -62,7 +62,6 @@ void main() {
   test('opens a URL directly in a new tab', () {
     final controller = container.read(readerControllerProvider.notifier);
     final target = Uri.parse('https://example.com/new');
-
     expect(controller.openInNewTab(target), target);
 
     final state = container.read(readerControllerProvider);
@@ -111,6 +110,7 @@ void main() {
             url: 'https://news.ycombinator.com',
             title: const Value('Hacker News'),
             createdAt: DateTime.utc(2026, 5, 13),
+            updatedAt: DateTime.utc(2026, 5, 13),
           ),
         );
 

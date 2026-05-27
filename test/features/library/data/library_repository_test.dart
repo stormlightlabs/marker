@@ -161,10 +161,21 @@ Future<void> _seedLibrary(AppDatabase database) async {
       .insert(
         BookmarksCompanion.insert(
           id: 'bookmark',
-          folderId: const Value('reading-folder'),
           url: 'https://example.com/saved',
           title: const Value('Saved Article'),
           createdAt: savedAt,
+          updatedAt: savedAt,
+        ),
+      );
+  await database
+      .into(database.bookmarkCollectionLinks)
+      .insert(
+        BookmarkCollectionLinksCompanion.insert(
+          id: 'bookmark-reading-folder',
+          bookmarkId: 'bookmark',
+          folderId: 'reading-folder',
+          createdAt: savedAt,
+          updatedAt: savedAt,
         ),
       );
   await database

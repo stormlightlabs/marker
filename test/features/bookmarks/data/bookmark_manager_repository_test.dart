@@ -20,7 +20,6 @@ void main() {
   test('creates and lists bookmark folders with root bookmarks', () async {
     await _insertBookmark(database, id: 'bookmark', url: 'https://example.com', title: 'Example');
     final folder = await repository.createFolder(title: 'Programming');
-
     final contents = await repository.loadFolderContents();
 
     expect(contents.folders.single.id, folder.id);
@@ -44,7 +43,6 @@ void main() {
   test('moves bookmarks into a folder', () async {
     final folder = await repository.createFolder(title: 'Programming');
     await _insertBookmark(database, id: 'bookmark', url: 'https://dart.dev', title: 'Dart');
-
     await repository.moveBookmark(bookmarkId: 'bookmark', folderId: folder.id);
 
     final rootContents = await repository.loadFolderContents();
@@ -57,7 +55,6 @@ void main() {
   test('reorders mixed folder and bookmark entries', () async {
     final folder = await repository.createFolder(title: 'Programming');
     await _insertBookmark(database, id: 'bookmark', url: 'https://dart.dev', title: 'Dart');
-
     await repository.reorderEntries(
       folderId: null,
       entries: [
@@ -87,12 +84,25 @@ void main() {
     expect(rootContents.folders.map((folder) => folder.title), contains('Child'));
   });
 
+  test('supports bookmark membership in multiple folders', () async {
+    final first = await repository.createFolder(title: 'Programming');
+    final second = await repository.createFolder(title: 'Research');
+    await _insertBookmark(database, id: 'bookmark', url: 'https://dart.dev', title: 'Dart');
+    await repository.addBookmarkToFolder(bookmarkId: 'bookmark', folderId: first.id);
+    await repository.addBookmarkToFolder(bookmarkId: 'bookmark', folderId: second.id);
+
+    final firstContents = await repository.loadFolderContents(folderId: first.id);
+    final secondContents = await repository.loadFolderContents(folderId: second.id);
+    final rootContents = await repository.loadFolderContents();
+    expect(rootContents.bookmarks, isEmpty);
+    expect(firstContents.bookmarks.single.url, Uri.parse('https://dart.dev'));
+    expect(secondContents.bookmarks.single.url, Uri.parse('https://dart.dev'));
+  });
+
   test('deletes folders recursively with child bookmarks', () async {
     final folder = await repository.createFolder(title: 'Programming');
     await _insertBookmark(database, id: 'bookmark', folderId: folder.id, url: 'https://dart.dev', title: 'Dart');
-
     await repository.deleteEntries([BookmarkEntryRef(type: BookmarkEntryType.folder, id: folder.id)]);
-
     expect(await database.select(database.bookmarkFolders).get(), isEmpty);
     expect(await database.select(database.bookmarks).get(), isEmpty);
   });
@@ -109,7 +119,6 @@ void main() {
     await _insertBookmark(database, id: 'root', url: 'https://example.com/article', title: 'Example Article');
 
     final html = await repository.exportNetscapeBookmarks();
-
     expect(html, contains('<!DOCTYPE NETSCAPE-Bookmark-file-1>'));
     expect(html, contains('<DT><H3 ADD_DATE="1778673600" LAST_MODIFIED="1778673600">Programming &amp; Docs</H3>'));
     expect(
@@ -124,9 +133,7 @@ void main() {
   test('exports selected bookmark ids without unrelated rows', () async {
     await _insertBookmark(database, id: 'selected', url: 'https://selected.example', title: 'Selected');
     await _insertBookmark(database, id: 'other', url: 'https://other.example', title: 'Other');
-
     final html = await repository.exportNetscapeBookmarks(selectedIds: ['selected']);
-
     expect(html, contains('https://selected.example'));
     expect(html, isNot(contains('https://other.example')));
   });
@@ -138,16 +145,22 @@ Future<void> _insertBookmark(
   required String url,
   required String title,
   String? folderId,
-}) {
-  return database
+}) async {
+  final now = DateTime.utc(2026, 5, 13, 12);
+  await database
       .into(database.bookmarks)
-      .insert(
-        BookmarksCompanion.insert(
-          id: id,
-          folderId: Value(folderId),
-          url: url,
-          title: Value(title),
-          createdAt: DateTime.utc(2026, 5, 13, 12),
-        ),
-      );
+      .insert(BookmarksCompanion.insert(id: id, url: url, title: Value(title), createdAt: now, updatedAt: now));
+  if (folderId != null) {
+    await database
+        .into(database.bookmarkCollectionLinks)
+        .insert(
+          BookmarkCollectionLinksCompanion.insert(
+            id: 'link-$id-$folderId',
+            bookmarkId: id,
+            folderId: folderId,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+  }
 }

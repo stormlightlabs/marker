@@ -43,9 +43,3 @@ updated: 2026-05-13
 ### WebView
 
 - Make bookmarks & annotated pages bookmark folder aware
-
-### Address Bar
-
-- We need a refresh button in the address bar
-- Text input: resets when focus is lost, should retain the URL until the user starts typing a new one.
-- Fuzzy history search -> rely on favicon cache

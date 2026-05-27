@@ -19,7 +19,6 @@ void main() {
 
   test('creates and populates the fts table for library records', () async {
     await _seedSearchLibrary(database);
-
     await repository.rebuildIndex();
 
     final rows = await database.customSelect('SELECT document_type, title FROM library_search_fts').get();
@@ -106,10 +105,21 @@ Future<void> _seedSearchLibrary(AppDatabase database) async {
       .insert(
         BookmarksCompanion.insert(
           id: 'bookmark',
-          folderId: const Value('folder'),
           url: 'https://example.com/neural',
           title: const Value('Neural Notes'),
           createdAt: now,
+          updatedAt: now,
+        ),
+      );
+  await database
+      .into(database.bookmarkCollectionLinks)
+      .insert(
+        BookmarkCollectionLinksCompanion.insert(
+          id: 'bookmark-folder',
+          bookmarkId: 'bookmark',
+          folderId: 'folder',
+          createdAt: now,
+          updatedAt: now,
         ),
       );
   await database
