@@ -15,6 +15,7 @@
     "@astrojs/check": "^0.9.9",
     "@fontsource-variable/lora": "^5.2.8",
     "@fontsource-variable/sora": "^5.2.8",
+    "@resvg/resvg-js": "^2.6.2",
     "astro": "^6.3.6",
     "rough-notation": "^0.5.1",
     "typescript": "^6.0.3"
