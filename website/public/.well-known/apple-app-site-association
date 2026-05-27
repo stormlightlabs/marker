@@ -1,8 +1,6 @@
 {
   "applinks": {
     "apps": [],
-    "details": [
-      { "appID": "8TVR4TPL9Y.org.stormlightlabs.marker", "paths": ["/oauth/callback", "/oauth/atproto/callback"] }
-    ]
+    "details": [{ "appID": "8TVR4TPL9Y.org.stormlightlabs.marker", "paths": ["/oauth/callback"] }]
   }
 }

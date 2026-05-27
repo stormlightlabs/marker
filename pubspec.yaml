@@ -37,6 +37,7 @@ dependencies:
   poptart_lex: ^0.1.0
   margin_poptart: ^0.1.0
   flutter_secure_storage: ^10.3.0
+  flutter_web_auth_2: ^5.0.2
   freezed_annotation: ^3.1.0
   json_annotation: ^4.12.0
   cosmik_poptart: ^0.1.0

@@ -26,6 +26,11 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+        </activity>
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -34,10 +39,6 @@
                     android:scheme="https"
                     android:host="marker.stormlightlabs.org"
                     android:path="/oauth/callback" />
-                <data
-                    android:scheme="https"
-                    android:host="marker.stormlightlabs.org"
-                    android:path="/oauth/atproto/callback" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

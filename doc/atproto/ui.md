@@ -78,7 +78,7 @@ The current manual copy/paste callback flow should remain available only behind 
 Production callback:
 
 ```text
-https://marker.stormlightlabs.org/oauth/atproto/callback
+https://marker.stormlightlabs.org/oauth/callback
 ```
 
 Development fallback:
@@ -245,12 +245,12 @@ Imported collections become Marker folders. Synced private collections use CLOSE
 
 ### Login UX
 
-- [ ] Add a proper ATProto connect sheet/page.
-- [ ] Add optional handle input with validation and trimming.
-- [ ] Add browser launch + callback capture using `flutter_web_auth_2` or equivalent.
-- [ ] Wire callback URL to `AtprotoAuthRepository.completeConnect`.
-- [ ] Keep manual copy/paste callback only behind a debug flag, or remove it.
-- [ ] Add login state controller tests for success, cancel, interrupted state, and token failure.
+- [x] Add a proper ATProto connect sheet/page.
+- [x] Add optional handle input with validation and trimming.
+- [x] Add browser launch + callback capture using `flutter_web_auth_2` or equivalent.
+- [x] Wire callback URL to `AtprotoAuthRepository.completeConnect`.
+- [x] Keep manual copy/paste callback only behind a debug flag, or remove it.
+- [x] Add login state controller tests for success, cancel, interrupted state, and token failure.
 
 ### Connected settings
 

@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
+import 'package:marker/features/atproto/application/atproto_login_controller.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
@@ -226,7 +226,7 @@ class _AtprotoAccountRow extends ConsumerWidget {
             else
               CupertinoButton(
                 padding: EdgeInsets.zero,
-                onPressed: () => _showConnectDialog(context, ref),
+                onPressed: () => _showConnectSheet(context),
                 child: const Text('Connect'),
               ),
           ],
@@ -241,71 +241,151 @@ class _AtprotoAccountRow extends ConsumerWidget {
     AtprotoAuthDisconnected() => 'Connect a Bluesky or Atmosphere account',
   };
 
-  Future<void> _showConnectDialog(BuildContext context, WidgetRef ref) async {
-    final handleController = TextEditingController();
-    final callbackController = TextEditingController();
-    Uri? authUrl;
-    String? error;
+  Future<void> _showConnectSheet(BuildContext context) async {
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => const _AtprotoConnectSheet(),
+    );
+  }
+}
 
+class _AtprotoConnectSheet extends ConsumerStatefulWidget {
+  const _AtprotoConnectSheet();
+
+  @override
+  ConsumerState<_AtprotoConnectSheet> createState() => _AtprotoConnectSheetState();
+}
+
+class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
+  late final TextEditingController _handleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _handleController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _handleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loginState = ref.watch(atprotoLoginControllerProvider);
+    final isBusy = loginState.isBusy;
+    final errorMessage = loginState is AtprotoLoginFailed ? loginState.message : null;
+
+    return CupertinoPopupSurface(
+      isSurfacePainted: true,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(color: Color(0xFF151519)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Connect ATProto',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Use your Bluesky or Atmosphere account to import Semble/Cosmik bookmarks.',
+                    style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Bookmark sync publishes bookmark records to your ATProto repo. Browser history stays local.',
+                    style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  CupertinoTextField(
+                    controller: _handleController,
+                    enabled: !isBusy,
+                    placeholder: 'alice.bsky.social',
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    textCapitalization: TextCapitalization.none,
+                    keyboardType: TextInputType.url,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Optional. Leave blank to choose an account in the browser.',
+                    style: TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12),
+                  ),
+                  if (loginState is AtprotoLoginWaitingForCallback) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Waiting for sign in to finish in the browser…',
+                      style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 13),
+                    ),
+                  ],
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(errorMessage, style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 13)),
+                  ],
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CupertinoButton(
+                          color: const Color(0xFF2A2A30),
+                          disabledColor: const Color(0xFF2A2A30),
+                          onPressed: isBusy ? null : _cancel,
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: CupertinoButton.filled(
+                          onPressed: isBusy ? null : _continue,
+                          child: isBusy
+                              ? const CupertinoActivityIndicator(color: CupertinoColors.white)
+                              : const Text('Continue'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _cancel() {
+    ref.read(atprotoLoginControllerProvider.notifier).reset();
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _continue() async {
+    final account = await ref.read(atprotoLoginControllerProvider.notifier).connect(handle: _handleController.text);
+    if (!mounted || account == null) return;
+    Navigator.of(context).pop();
+    await _showImportPrompt(context);
+  }
+
+  Future<void> _showImportPrompt(BuildContext context) async {
     await showCupertinoDialog<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setState) => CupertinoAlertDialog(
-          title: const Text('Connect ATProto'),
-          content: Column(
-            children: [
-              const SizedBox(height: 8),
-              CupertinoTextField(controller: handleController, placeholder: 'handle.bsky.social (optional)'),
-              const SizedBox(height: 8),
-              if (authUrl != null) ...[
-                const Text('Open this URL in your browser, then paste the callback URL below.'),
-                const SizedBox(height: 6),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () => Clipboard.setData(ClipboardData(text: authUrl.toString())),
-                  child: const Text('Copy authorization URL'),
-                ),
-                CupertinoTextField(controller: callbackController, placeholder: 'Callback URL'),
-              ],
-              if (error != null) ...[
-                const SizedBox(height: 8),
-                Text(error!, style: const TextStyle(color: CupertinoColors.systemRed)),
-              ],
-            ],
-          ),
-          actions: [
-            CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
-            if (authUrl == null)
-              CupertinoDialogAction(
-                onPressed: () async {
-                  try {
-                    final url = await ref
-                        .read(atprotoAuthRepositoryProvider)
-                        .startConnect(handle: handleController.text);
-                    setState(() {
-                      authUrl = url;
-                      error = null;
-                    });
-                  } catch (exception) {
-                    setState(() => error = exception.toString());
-                  }
-                },
-                child: const Text('Start'),
-              )
-            else
-              CupertinoDialogAction(
-                onPressed: () async {
-                  try {
-                    await ref.read(atprotoAuthRepositoryProvider).completeConnect(callbackController.text);
-                    if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-                  } catch (exception) {
-                    setState(() => error = exception.toString());
-                  }
-                },
-                child: const Text('Complete'),
-              ),
-          ],
-        ),
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Import bookmarks now?'),
+        content: const Text('Marker can pull Semble/Cosmik bookmarks and collections from your ATProto repo.'),
+        actions: [
+          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Not now')),
+          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Import bookmarks')),
+        ],
       ),
     );
   }
