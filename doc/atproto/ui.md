@@ -115,14 +115,14 @@ Failures should keep the user in the connect sheet with retry and cancel actions
 
 Common error messages:
 
-| Cause | User message |
-| --- | --- |
-| OAuth start failed | `Could not start sign in. Check your connection and try again.` |
-| Browser/auth session canceled | `Sign in was canceled.` |
-| Missing pending context | `Sign in expired. Start again.` |
-| State mismatch | `Sign in could not be verified. Start again.` |
-| Token exchange failed | `Could not finish sign in. Try again.` |
-| Secure storage unavailable | `Marker could not save the session securely on this device.` |
+| Cause                         | User message                                                    |
+| ----------------------------- | --------------------------------------------------------------- |
+| OAuth start failed            | `Could not start sign in. Check your connection and try again.` |
+| Browser/auth session canceled | `Sign in was canceled.`                                         |
+| Missing pending context       | `Sign in expired. Start again.`                                 |
+| State mismatch                | `Sign in could not be verified. Start again.`                   |
+| Token exchange failed         | `Could not finish sign in. Try again.`                          |
+| Secure storage unavailable    | `Marker could not save the session securely on this device.`    |
 
 ## Connected settings UI
 
