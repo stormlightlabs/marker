@@ -33,6 +33,10 @@
                 <data
                     android:scheme="https"
                     android:host="marker.stormlightlabs.org"
+                    android:path="/oauth/callback" />
+                <data
+                    android:scheme="https"
+                    android:host="marker.stormlightlabs.org"
                     android:path="/oauth/atproto/callback" />
             </intent-filter>
             <intent-filter>
