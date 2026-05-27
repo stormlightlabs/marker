@@ -3,17 +3,10 @@
 ---
 
 <section class="cta-banner">
-  <svg class="sketch cta-banner__highlight" width="560" height="80" viewBox="0 0 560 80" fill="none" aria-hidden="true">
-    <path
-      d="M 40 55 C 120 42, 260 38, 400 44 C 470 47, 520 52, 530 58 C 520 64, 460 68, 400 66 C 260 62, 120 66, 40 60 Z"
-      fill="#FFD85A"
-      opacity="0.35"></path>
-  </svg>
-
-  <p class="eyebrow">Coming soon</p>
+  <p class="eyebrow" data-rough="circle" data-rough-color="#2d6cdf" data-rough-padding="7">Coming soon</p>
   <h2>
-    Read <span class="cta-banner__marked">more</span>.<br />
-    <span class="cta-banner__underlined">Remember more.</span>
+    Read <span class="cta-banner__marked" data-rough="highlight" data-rough-color="#FFD85A" data-rough-padding="3" data-rough-stroke="4">more</span>.<br />
+    <span class="cta-banner__underlined" data-rough="underline" data-rough-color="#FFD85A" data-rough-padding="2">Remember more.</span>
   </h2>
   <p>Launching on the App Store. Your data never leaves your device.</p>
   <span class="button button--primary button--large button--disabled" aria-label="Not yet available">
@@ -31,14 +24,6 @@
     padding-top: 6rem;
     padding-bottom: 6rem;
     text-align: center;
-
-    .cta-banner__highlight {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      z-index: 0;
-      transform: translate(-50%, -56%);
-    }
 
     .eyebrow,
     h2,
@@ -62,29 +47,10 @@
       letter-spacing: 0;
     }
 
-    .cta-banner__marked {
+    .cta-banner__marked,
+    .cta-banner__underlined {
       position: relative;
       display: inline-block;
-
-      &::after {
-        content: '';
-        position: absolute;
-        right: -0.08em;
-        bottom: 0.08em;
-        left: -0.08em;
-        z-index: -1;
-        height: 0.32em;
-        border-radius: 2px;
-        background: var(--highlight);
-        opacity: 0.7;
-      }
-    }
-
-    .cta-banner__underlined {
-      text-decoration: underline;
-      text-decoration-color: var(--highlight);
-      text-decoration-thickness: 0.12em;
-      text-underline-offset: 0.13em;
     }
 
     p {

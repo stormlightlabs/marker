@@ -114,6 +114,9 @@ importers:
       astro:
         specifier: ^6.3.6
         version: 6.3.7(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.60.4)(yaml@2.9.0)
+      rough-notation:
+        specifier: ^0.5.1
+        version: 0.5.1
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -2944,6 +2947,9 @@ packages:
     resolution: {integrity: sha512-WHeFSbZYsPu3+bLoNRUuAO+wavNlocOPf3wSHTP7hcFKVnJeWsYlCDbr3mTS14FCizf9ccIxXA8sGL8zKeQN3g==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
+
+  rough-notation@0.5.1:
+    resolution: {integrity: sha512-ITHofTzm13cWFVfoGsh/4c/k2Mg8geKgBCwex71UZLnNuw403tCRjYPQ68jSAd37DMbZIePXPjDgY0XdZi9HPw==}
 
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
@@ -7027,6 +7033,8 @@ snapshots:
       '@rollup/rollup-win32-x64-gnu': 4.60.4
       '@rollup/rollup-win32-x64-msvc': 4.60.4
       fsevents: 2.3.3
+
+  rough-notation@0.5.1: {}
 
   run-parallel@1.2.0:
     dependencies:

@@ -8,7 +8,7 @@
     <div class="phone-showcase__caption phone-showcase__caption--left">
       <p>
         Marker turns each page into a<br />
-        <strong>working document.</strong><br />
+        <strong data-rough="underline" data-rough-color="#2d6cdf" data-rough-padding="2">working document.</strong><br />
         Highlights persist across sessions.
       </p>
     </div>
@@ -58,7 +58,7 @@
               <p><mark>Review and simplify.</mark></p>
             </div>
 
-            <div class="annotation-card">
+            <div class="annotation-card" data-rough="circle" data-rough-color="#2477d4" data-rough-padding="8">
               <div class="annotation-card__level" aria-label="Note">N</div>
               <div class="annotation-card__word">Feynman</div>
               <div class="annotation-card__meaning">Nobel physicist and legendary teacher</div>
@@ -118,22 +118,6 @@
     </div>
   </div>
 
-  <svg
-    class="sketch phone-showcase__circle"
-    width="320"
-    height="280"
-    viewBox="0 0 320 280"
-    fill="none"
-    aria-hidden="true">
-    <path
-      d="M 160 12 C 220 6, 300 40, 310 120 C 320 200, 270 268, 190 274 C 110 280, 30 244, 14 164 C -2 84, 40 20, 160 12 Z"
-      stroke="#2477d4"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-dasharray="6 5"
-      fill="none"
-      opacity="0.6"></path>
-  </svg>
 </section>
 
 <style>
@@ -213,13 +197,6 @@
       padding-left: 2rem;
     }
 
-    .phone-showcase__circle {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-170px, -120px);
-      opacity: 0.55;
-    }
   }
 
   .phone-frame {

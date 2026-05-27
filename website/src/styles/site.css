@@ -137,11 +137,6 @@ strong {
   border: 0;
 }
 
-.sketch {
-  pointer-events: none;
-  user-select: none;
-}
-
 .eyebrow {
   font-size: var(--size-sm);
   font-weight: 700;
@@ -246,14 +241,6 @@ strong {
   .annotations-demo__visual {
     position: relative;
   }
-
-  .annotations-demo__bracket {
-    position: absolute;
-    top: 50%;
-    left: -2rem;
-    transform: translateY(-50%);
-    opacity: 0.5;
-  }
 }
 
 /* Responsive rules */
@@ -288,8 +275,4 @@ strong {
     margin: 0 auto;
   }
 
-  .phone-showcase .phone-showcase__circle,
-  .annotations-demo .annotations-demo__bracket {
-    display: none;
-  }
 }

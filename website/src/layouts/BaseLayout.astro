@@ -27,5 +27,41 @@ const { title, description } = Astro.props;
       <slot />
     </main>
     <SiteFooter />
+    <script>
+      import { annotate, annotationGroup } from 'rough-notation';
+      import type { RoughAnnotationType } from 'rough-notation/lib/model';
+
+      const roughDefaults = { animate: true, animationDuration: 900, iterations: 2, padding: 5, strokeWidth: 2 };
+
+      const initRoughAnnotations = () => {
+        const elements = Array.from(document.querySelectorAll('[data-rough]')).filter(
+          (element) => element instanceof HTMLElement && element.dataset.roughReady !== 'true',
+        );
+        if (elements.length === 0) return;
+
+        const annotations = (elements as Array<HTMLElement>).map((element) => {
+          element.dataset.roughReady = 'true';
+          return annotate(element, {
+            ...roughDefaults,
+            type: (element.dataset.rough as RoughAnnotationType) || 'underline',
+            color: element.dataset.roughColor ?? '#2d6cdf',
+            padding: Number(element.dataset.roughPadding ?? roughDefaults.padding),
+            strokeWidth: Number(element.dataset.roughStroke ?? roughDefaults.strokeWidth),
+            iterations: Number(element.dataset.roughIterations ?? roughDefaults.iterations),
+            animationDuration: Number(element.dataset.roughDuration ?? roughDefaults.animationDuration),
+            multiline: element.dataset.roughMultiline === 'true',
+          });
+        });
+
+        window.setTimeout(() => annotationGroup(annotations).show(), 250);
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initRoughAnnotations, { once: true });
+      } else {
+        initRoughAnnotations();
+      }
+      document.addEventListener('astro:page-load', initRoughAnnotations);
+    </script>
   </body>
 </html>

@@ -11,7 +11,7 @@ import Logo from './Logo.astro';
 
   <h1>
     Read with<br />
-    <span>intention.</span>
+    <span data-rough="highlight" data-rough-color="#FFD85A" data-rough-padding="2" data-rough-stroke="4">intention.</span>
   </h1>
 
   <p class="hero__copy">
@@ -63,19 +63,6 @@ import Logo from './Logo.astro';
         position: relative;
         display: inline-block;
         white-space: nowrap;
-
-        &::after {
-          content: '';
-          position: absolute;
-          right: -0.03em;
-          bottom: 0.06em;
-          left: -0.03em;
-          z-index: -1;
-          height: 0.32em;
-          border-radius: 2px;
-          background: var(--highlight);
-          opacity: 0.65;
-        }
       }
     }
 
