@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "org.stormlightlabs.marker",
+      "sha256_cert_fingerprints": [
+        "63:86:09:5D:D0:5A:ED:B8:65:7B:CF:C1:ED:C1:1C:0E:A6:FA:F4:89:04:71:1B:63:C4:1F:8D:37:B8:D4:0E:0E"
+      ]
+    }
+  }
+]

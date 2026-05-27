@@ -1,0 +1,16 @@
+{
+  "client_id": "https://marker.stormlightlabs.org/client-metadata.json",
+  "application_type": "native",
+  "client_name": "Marker",
+  "client_uri": "https://marker.stormlightlabs.org",
+  "redirect_uris": [
+    "https://marker.stormlightlabs.org/oauth/atproto/callback",
+    "http://127.0.0.1/oauth/atproto/callback",
+    "http://localhost/oauth/atproto/callback"
+  ],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "scope": "atproto transition:generic",
+  "token_endpoint_auth_method": "none",
+  "dpop_bound_access_tokens": true
+}

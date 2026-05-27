@@ -21,6 +21,20 @@ class AtprotoSyncRepository {
     return _database.transaction(() => action(this));
   }
 
+  Future<List<AtprotoAccount>> accounts() {
+    return (_database.select(
+      _database.atprotoAccounts,
+    )..orderBy([(account) => OrderingTerm.desc(account.updatedAt)])).get();
+  }
+
+  Future<AtprotoAccount?> accountByDid(String did) {
+    return (_database.select(_database.atprotoAccounts)..where((account) => account.did.equals(did))).getSingleOrNull();
+  }
+
+  Future<void> deleteAccount(String did) async {
+    await (_database.delete(_database.atprotoAccounts)..where((account) => account.did.equals(did))).go();
+  }
+
   Future<AtprotoAccount> upsertAccount({
     required String did,
     required String authMethod,

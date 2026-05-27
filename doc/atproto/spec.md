@@ -386,7 +386,7 @@ Use `flutter_secure_storage` behind a Marker-owned session-store interface. The 
 Before shipping OAuth, replace the placeholder app identifiers with a stable ID such as `org.stormlightlabs.marker`. Host static OAuth client metadata from the Marker website and use that URL as the OAuth `client_id`, for example:
 
 ```text
-https://<marker-domain>/oauth/atproto/client-metadata.json
+https://<marker-domain>/client-metadata.json
 ```
 
 The initial metadata should describe a native public client with DPoP-bound access tokens, `authorization_code` and `refresh_token` grants, `token_endpoint_auth_method: "none"`, and scope `atproto transition:generic`. Prefer HTTPS app/universal links for the callback on iOS and Android. A custom scheme is acceptable only as a development fallback.

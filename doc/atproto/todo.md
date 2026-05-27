@@ -29,30 +29,19 @@
 
 ## Phase 4: auth and repo client
 
-- [ ] Add ATProto auth repository behind Marker-owned interfaces.
-- [ ] Add a Marker-owned secure session store backed by `flutter_secure_storage`.
-- [ ] Store sensitive OAuth/session material in `flutter_secure_storage`, not Drift.
-- [ ] Replace placeholder app identifiers with stable Marker identifiers before OAuth wiring.
-- [ ] Host static OAuth client metadata from the Marker website and use its HTTPS URL as `client_id`.
-- [ ] Configure iOS and Android OAuth callbacks with HTTPS app/universal links, with custom scheme only as a dev fallback.
-- [ ] Add account connect/disconnect flows.
-- [ ] Add repo client wrapper for `createRecord`, `putRecord`, `deleteRecord`, `getRecord`, and `listRecords`.
-- [ ] Add fake repo client for tests.
-- [ ] Add settings UI for account connection and sync status.
-- [ ] Add auth/session restore tests.
+- [x] Add ATProto auth repository behind Marker-owned interfaces.
+- [x] Add a Marker-owned secure session store backed by `flutter_secure_storage`.
+- [x] Store sensitive OAuth/session material in `flutter_secure_storage`, not Drift.
+- [x] Replace placeholder app identifiers with stable Marker identifiers before OAuth wiring.
+- [x] Host static OAuth client metadata from the Marker website and use its HTTPS URL as `client_id`.
+- [x] Configure iOS and Android OAuth callbacks with HTTPS app/universal links, with custom scheme only as a dev fallback.
+- [x] Add account connect/disconnect flows.
+- [x] Add repo client wrapper for `createRecord`, `putRecord`, `deleteRecord`, `getRecord`, and `listRecords`.
+- [x] Add fake repo client for tests.
+- [x] Add settings UI for account connection and sync status.
+- [x] Add auth/session restore tests.
 
-## Phase 5: Semble bookmark push
-
-- [ ] Map `Bookmarks` to `network.cosmik.card` URL records.
-- [ ] Map `BookmarkFolders` to `network.cosmik.collection` records.
-- [ ] Map `BookmarkCollectionLinks` to `network.cosmik.collectionLink` records.
-- [ ] Enqueue outbox records when bookmarks, folders, or memberships change.
-- [ ] Implement outbox worker for create/update writes.
-- [ ] Store URI, rkey, CID, JSON hash, and sync time in mirrors.
-- [ ] Add retry/backoff and useful error messages.
-- [ ] Add idempotency tests for partially completed writes.
-
-## Phase 6: Semble bookmark pull
+## Phase 5: Semble bookmark pull
 
 - [ ] Pull `network.cosmik.card` records with `listRecords`.
 - [ ] Pull `network.cosmik.collection` records.
@@ -65,7 +54,7 @@
 - [ ] Add conflict handling for local dirty rows.
 - [ ] Add importer tests for new, duplicate, updated, malformed, and conflicting records.
 
-## Phase 7: deletion sync
+## Phase 6: deletion sync
 
 - [ ] Use local soft deletes for synced bookmarks, folders, memberships, and annotations.
 - [ ] Push local deletes through `com.atproto.repo.deleteRecord`.
@@ -76,16 +65,27 @@
 - [ ] Mark local rows deleted when remote `getRecord` returns not found and no local dirty edit exists.
 - [ ] Add deletion tests for local deletes, remote not found, and link removal records.
 
+## Phase 7: Semble bookmark push
+
+- [ ] Map `Bookmarks` to `network.cosmik.card` URL records.
+- [ ] Map `BookmarkFolders` to `network.cosmik.collection` records.
+- [ ] Map `BookmarkCollectionLinks` to `network.cosmik.collectionLink` records.
+- [ ] Enqueue outbox records when bookmarks, folders, or memberships change.
+- [ ] Implement outbox worker for create/update writes.
+- [ ] Store URI, rkey, CID, JSON hash, and sync time in mirrors.
+- [ ] Add retry/backoff and useful error messages.
+- [ ] Add idempotency tests for partially completed writes.
+
 ## Phase 8: Margin note sync
 
+- [ ] Pull remote `at.margin.note` records.
+- [ ] Import remote notes without aggressive dedupe.
 - [ ] Map Marker annotations, highlights, underlines, and notes to `at.margin.note`.
 - [ ] Use `margin_poptart` `NoteRecord`, `Target`, `Selector`, and `Body` types in the mapper.
 - [ ] Choose remote selector shape from Marker's local selector array.
 - [ ] Preserve full local selector arrays even when the remote record stores one selector.
 - [ ] Map highlight color to `NoteRecord.color` when available and keep unsupported style hints local.
 - [ ] Push notes through the outbox worker.
-- [ ] Pull remote `at.margin.note` records.
-- [ ] Import remote notes without aggressive dedupe.
 - [ ] Add tests for highlight, underline, note, malformed selector, and duplicate note cases.
 
 ## Phase 9: product polish
