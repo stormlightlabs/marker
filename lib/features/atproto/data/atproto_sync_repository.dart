@@ -21,11 +21,8 @@ class AtprotoSyncRepository {
     return _database.transaction(() => action(this));
   }
 
-  Future<List<AtprotoAccount>> accounts() {
-    return (_database.select(
-      _database.atprotoAccounts,
-    )..orderBy([(account) => OrderingTerm.desc(account.updatedAt)])).get();
-  }
+  Future<List<AtprotoAccount>> accounts() =>
+      (_database.select(_database.atprotoAccounts)..orderBy([(account) => OrderingTerm.desc(account.updatedAt)])).get();
 
   Future<AtprotoAccount?> accountByDid(String did) {
     return (_database.select(_database.atprotoAccounts)..where((account) => account.did.equals(did))).getSingleOrNull();
@@ -204,6 +201,13 @@ class AtprotoSyncRepository {
     return (_database.select(
       _database.atprotoSyncState,
     )..where((state) => state.accountDid.equals(accountDid) & state.collection.equals(collection))).getSingleOrNull();
+  }
+
+  Future<List<AtprotoSyncStateData>> syncStatesForAccount(String accountDid) {
+    return (_database.select(_database.atprotoSyncState)
+          ..where((state) => state.accountDid.equals(accountDid))
+          ..orderBy([(state) => OrderingTerm.asc(state.collection)]))
+        .get();
   }
 
   Future<AtprotoSyncStateData> saveCursor({

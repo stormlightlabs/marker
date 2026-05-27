@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
+import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
+import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
 
@@ -200,6 +202,10 @@ final _atprotoAuthStateProvider = StreamProvider<AtprotoAuthState>((ref) {
   return ref.watch(atprotoAuthRepositoryProvider).watchAuthState();
 });
 
+final _atprotoSyncStatesProvider = FutureProvider.family<List<AtprotoSyncStateData>, String>((ref, accountDid) {
+  return ref.watch(atprotoSyncRepositoryProvider).syncStatesForAccount(accountDid);
+});
+
 class _AtprotoAccountRow extends ConsumerWidget {
   const _AtprotoAccountRow({required this.state});
 
@@ -207,6 +213,10 @@ class _AtprotoAccountRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (state case AtprotoAuthConnected(:final account)) {
+      return _ConnectedAtprotoAccountCard(account: account);
+    }
+
     return _SettingsRowFrame(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
@@ -217,18 +227,11 @@ class _AtprotoAccountRow extends ConsumerWidget {
             Expanded(
               child: _SettingsRowText(title: 'ATProto Sync', subtitle: _subtitle),
             ),
-            if (state case AtprotoAuthConnected(:final account))
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () => ref.read(atprotoAuthRepositoryProvider).disconnect(account.did),
-                child: const Text('Disconnect'),
-              )
-            else
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () => _showConnectSheet(context),
-                child: const Text('Connect'),
-              ),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => _showConnectSheet(context),
+              child: const Text('Connect'),
+            ),
           ],
         ),
       ),
@@ -236,17 +239,176 @@ class _AtprotoAccountRow extends ConsumerWidget {
   }
 
   String get _subtitle => switch (state) {
-    AtprotoAuthConnected(:final account) => 'Connected as ${account.handle ?? account.did}',
     AtprotoAuthFailure(:final message) => message,
     AtprotoAuthDisconnected() => 'Connect a Bluesky or Atmosphere account',
+    AtprotoAuthConnected() => 'Connected',
   };
 
   Future<void> _showConnectSheet(BuildContext context) async {
-    await showCupertinoModalPopup<void>(
-      context: context,
-      builder: (sheetContext) => const _AtprotoConnectSheet(),
+    await showCupertinoModalPopup<void>(context: context, builder: (sheetContext) => const _AtprotoConnectSheet());
+  }
+}
+
+class _ConnectedAtprotoAccountCard extends ConsumerWidget {
+  const _ConnectedAtprotoAccountCard({required this.account});
+
+  final AtprotoAccount account;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final syncStates = ref.watch(_atprotoSyncStatesProvider(account.did)).value ?? const <AtprotoSyncStateData>[];
+    final lastImport = _latestSuccessfulSync(syncStates);
+    final lastError = _latestError(syncStates);
+
+    return _SettingsRowFrame(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(CupertinoIcons.cloud, color: CupertinoColors.activeBlue, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _SettingsRowText(title: 'ATProto Sync', subtitle: 'Connected as ${_accountLabel(account)}'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Bookmark sync writes Semble/Cosmik bookmark records to your ATProto repo. Browser history stays local. Annotation sync is separate and off by default.',
+              style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, height: 1.35),
+            ),
+            const SizedBox(height: 12),
+            _AtprotoDetailRow(label: 'Account DID', value: account.did),
+            if (account.handle?.trim().isNotEmpty == true)
+              _AtprotoDetailRow(label: 'Handle', value: '@${account.handle!.trim()}'),
+            if (account.pdsEndpoint?.trim().isNotEmpty == true)
+              _AtprotoDetailRow(label: 'PDS endpoint', value: account.pdsEndpoint!.trim()),
+            _AtprotoDetailRow(label: 'Last bookmark import', value: _formatDateTime(lastImport)),
+            if (lastError != null) _AtprotoDetailRow(label: 'Last error', value: lastError, isError: true),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    color: const Color(0xFF2A2A30),
+                    onPressed: () => _showImportPendingDialog(context),
+                    child: const Text('Import bookmarks'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    color: CupertinoColors.systemRed,
+                    onPressed: () => _confirmDisconnect(context, ref),
+                    child: const Text('Disconnect'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
+
+  static String _accountLabel(AtprotoAccount account) {
+    final handle = account.handle?.trim();
+    if (handle != null && handle.isNotEmpty) return '@$handle';
+    return account.did;
+  }
+
+  static DateTime? _latestSuccessfulSync(List<AtprotoSyncStateData> states) {
+    DateTime? latest;
+    for (final state in states) {
+      final syncedAt = state.lastSuccessfulSyncAt;
+      if (syncedAt == null) continue;
+      if (latest == null || syncedAt.isAfter(latest)) latest = syncedAt;
+    }
+    return latest;
+  }
+
+  static String? _latestError(List<AtprotoSyncStateData> states) {
+    for (final state in states) {
+      final error = state.lastError?.trim();
+      if (error != null && error.isNotEmpty) return error;
+    }
+    return null;
+  }
+
+  static String _formatDateTime(DateTime? value) {
+    if (value == null) return 'Never';
+    final local = value.toLocal();
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+    return '${local.year}-${twoDigits(local.month)}-${twoDigits(local.day)} ${twoDigits(local.hour)}:${twoDigits(local.minute)}';
+  }
+
+  Future<void> _confirmDisconnect(BuildContext context, WidgetRef ref) async {
+    final shouldDisconnect = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Disconnect ATProto?'),
+        content: const Text('Marker will remove the saved sign-in session. Imported bookmarks stay on this device.'),
+        actions: [
+          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Disconnect'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDisconnect != true) return;
+    await ref.read(atprotoAuthRepositoryProvider).disconnect(account.did);
+  }
+
+  Future<void> _showImportPendingDialog(BuildContext context) async {
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Import bookmarks'),
+        content: const Text('Bookmark import controls are coming in the next sync step.'),
+        actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+      ),
+    );
+  }
+}
+
+class _AtprotoDetailRow extends StatelessWidget {
+  const _AtprotoDetailRow({required this.label, required this.value, this.isError = false});
+
+  final String label;
+  final String value;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 126,
+          child: Text(label, style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12)),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(color: isError ? CupertinoColors.systemRed : CupertinoColors.white, fontSize: 12),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _AtprotoConnectSheet extends ConsumerStatefulWidget {
@@ -376,17 +538,18 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
     await _showImportPrompt(context);
   }
 
-  Future<void> _showImportPrompt(BuildContext context) async {
-    await showCupertinoDialog<void>(
-      context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
-        title: const Text('Import bookmarks now?'),
-        content: const Text('Marker can pull Semble/Cosmik bookmarks and collections from your ATProto repo.'),
-        actions: [
-          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Not now')),
-          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Import bookmarks')),
-        ],
-      ),
-    );
-  }
+  Future<void> _showImportPrompt(BuildContext context) async => await showCupertinoDialog<void>(
+    context: context,
+    builder: (dialogContext) => CupertinoAlertDialog(
+      title: const Text('Import bookmarks now?'),
+      content: const Text('Marker can pull Semble/Cosmik bookmarks and collections from your ATProto repo.'),
+      actions: [
+        CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Not now')),
+        CupertinoDialogAction(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Import bookmarks'),
+        ),
+      ],
+    ),
+  );
 }

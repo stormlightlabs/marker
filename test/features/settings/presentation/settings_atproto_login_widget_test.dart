@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,8 +11,12 @@ import 'package:poptart/poptart.dart';
 
 import '../../../helpers/harness.dart';
 
+const fakeContext = OAuthContext(codeVerifier: 'verifier-1', state: 'state-1', dpopNonce: 'nonce-1');
+
 void main() {
   late AppDatabase database;
+  late AtprotoSyncRepository syncRepository;
+  late MemoryAtprotoSessionStore sessionStore;
   late AtprotoAuthRepository authRepository;
   late FakeAtprotoOAuthClient oauthClient;
   late FakeAtprotoOAuthBrowser browser;
@@ -19,11 +24,13 @@ void main() {
   setUp(() {
     FakeWebViewPlatform();
     database = AppDatabase(NativeDatabase.memory());
+    syncRepository = AtprotoSyncRepository(database, now: () => DateTime.utc(2026, 5, 26, 12));
+    sessionStore = MemoryAtprotoSessionStore();
     oauthClient = FakeAtprotoOAuthClient();
     browser = FakeAtprotoOAuthBrowser();
     authRepository = AtprotoAuthRepository(
-      syncRepository: AtprotoSyncRepository(database, now: () => DateTime.utc(2026, 5, 26, 12)),
-      sessionStore: MemoryAtprotoSessionStore(),
+      syncRepository: syncRepository,
+      sessionStore: sessionStore,
       oauthClient: oauthClient,
       now: () => DateTime.utc(2026, 5, 26, 12),
     );
@@ -73,6 +80,70 @@ void main() {
 
     expect(find.text('Connected as did:plc:alice'), findsOneWidget);
   });
+
+  testWidgets('shows connected account details and confirms disconnect without deleting local data', (tester) async {
+    final now = DateTime.utc(2026, 5, 26, 12);
+    await syncRepository.upsertAccount(
+      did: 'did:plc:alice',
+      handle: 'alice.bsky.social',
+      pdsEndpoint: 'https://pds.example',
+      authMethod: 'oauth',
+    );
+    await syncRepository.saveCursor(
+      accountDid: 'did:plc:alice',
+      collection: 'network.cosmik.card',
+      lastSuccessfulSyncAt: now,
+      lastError: 'rate limited',
+    );
+    await sessionStore.saveOAuthSession('did:plc:alice', await oauthClient.callback(callbackUrl: '', context: fakeContext));
+    await database
+        .into(database.bookmarks)
+        .insert(
+          BookmarksCompanion.insert(
+            id: 'local-bookmark',
+            url: 'https://example.com/saved',
+            title: const Value('Saved locally'),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await authRepository.restore();
+
+    await tester.pumpWidget(
+      markerTestApp(
+        database: database,
+        additionalOverrides: [atprotoAuthRepositoryProvider.overrideWithValue(authRepository)],
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Settings'));
+    await pumpRouteTransition(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Connected as @alice.bsky.social'), findsOneWidget);
+    expect(find.text('Account DID'), findsOneWidget);
+    expect(find.text('did:plc:alice'), findsOneWidget);
+    expect(find.text('Handle'), findsOneWidget);
+    expect(find.text('@alice.bsky.social'), findsOneWidget);
+    expect(find.text('PDS endpoint'), findsOneWidget);
+    expect(find.text('https://pds.example'), findsOneWidget);
+    expect(find.text('Last bookmark import'), findsOneWidget);
+    expect(find.text('Last error'), findsOneWidget);
+    expect(find.text('rate limited'), findsOneWidget);
+
+    await tester.tap(find.text('Disconnect'));
+    await tester.pumpAndSettle();
+    expect(find.text('Disconnect ATProto?'), findsOneWidget);
+    await tester.tap(find.text('Disconnect').last);
+    await tester.pumpAndSettle();
+
+    expect(sessionStore.sessions, isEmpty);
+    expect((await syncRepository.accounts()).single.did, 'did:plc:alice');
+    expect((await database.select(database.bookmarks).get()).single.id, 'local-bookmark');
+    expect(find.text('Connect a Bluesky or Atmosphere account'), findsOneWidget);
+  });
 }
 
 class FakeAtprotoOAuthBrowser implements AtprotoOAuthBrowser {
@@ -93,7 +164,7 @@ class FakeAtprotoOAuthClient implements AtprotoOAuthClient {
     authorizedHandle = handle;
     return (
       Uri.parse('https://bsky.social/oauth/authorize?request_uri=abc'),
-      const OAuthContext(codeVerifier: 'verifier-1', state: 'state-1', dpopNonce: 'nonce-1'),
+      fakeContext,
     );
   }
 

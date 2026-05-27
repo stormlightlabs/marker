@@ -254,10 +254,10 @@ Imported collections become Marker folders. Synced private collections use CLOSE
 
 ### Connected settings
 
-- [ ] Replace the current minimal Settings row with connected/disconnected detail states.
-- [ ] Show DID, handle, PDS endpoint, last import time, and last error.
-- [ ] Add disconnect confirmation.
-- [ ] Verify disconnect clears secure session material and leaves local data intact.
+- [x] Replace the current minimal Settings row with connected/disconnected detail states.
+- [x] Show DID, handle, PDS endpoint, last import time, and last error.
+- [x] Add disconnect confirmation.
+- [x] Verify disconnect clears secure session material and leaves local data intact.
 
 ### Bookmark import
 
