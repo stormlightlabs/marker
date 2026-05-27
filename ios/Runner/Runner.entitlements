@@ -5,6 +5,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:marker.stormlightlabs.org</string>
+		<string>webcredentials:marker.stormlightlabs.org</string>
 	</array>
 </dict>
 </plist>
