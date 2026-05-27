@@ -4,7 +4,11 @@
   "client_name": "Marker",
   "client_uri": "https://marker.stormlightlabs.org",
   "redirect_uris": [
+    "https://marker.stormlightlabs.org/oauth/callback",
     "https://marker.stormlightlabs.org/oauth/atproto/callback",
+    "marker-dev://oauth-callback",
+    "http://127.0.0.1/oauth/callback",
+    "http://localhost/oauth/callback",
     "http://127.0.0.1/oauth/atproto/callback",
     "http://localhost/oauth/atproto/callback"
   ],

@@ -1,0 +1,46 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Opening Marker…" description="Finish ATProto sign in by opening Marker.">
+  <section class="oauth-callback" data-oauth-callback>
+    <div class="oauth-callback__card">
+      <p class="eyebrow">ATProto sign in</p>
+      <h1>Opening Marker…</h1>
+      <p>
+        Marker should open automatically to finish connecting your Bluesky or Atmosphere account. If nothing happens,
+        use one of the links below.
+      </p>
+      <div class="oauth-callback__actions" aria-label="OAuth callback actions">
+        <a class="button button--primary button--large" href="/" data-universal-link>Open Marker</a>
+        <a class="button button--secondary button--large" href="marker-dev://oauth-callback" data-custom-link>
+          Open development build
+        </a>
+      </div>
+      <p class="oauth-callback__hint">
+        You can close this page after Marker opens. Do not share this URL; it contains a short-lived sign-in code.
+      </p>
+    </div>
+  </section>
+  <script>
+    const callbackUrl = new URL(window.location.href);
+    const callbackSuffix = `${callbackUrl.search}${callbackUrl.hash}`;
+    const universalUrl = `${callbackUrl.origin}/oauth/callback${callbackSuffix}`;
+    const customUrl = `marker-dev://oauth-callback${callbackSuffix}`;
+
+    const universalLink = document.querySelector('[data-universal-link]');
+    const customLink = document.querySelector('[data-custom-link]');
+
+    if (universalLink instanceof HTMLAnchorElement) {
+      universalLink.href = universalUrl;
+    }
+
+    if (customLink instanceof HTMLAnchorElement) {
+      customLink.href = customUrl;
+    }
+
+    window.setTimeout(() => {
+      window.location.href = customUrl;
+    }, 250);
+  </script>
+</BaseLayout>

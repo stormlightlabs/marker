@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Opening Marker…</title>
+  </head>
+  <body>
+    <p>Opening Marker… <a href="/oauth/callback" data-callback-link>Continue</a></p>
+    <script>
+      const target = new URL('/oauth/callback', window.location.origin);
+      target.search = window.location.search;
+      target.hash = window.location.hash;
+
+      const link = document.querySelector('[data-callback-link]');
+      if (link instanceof HTMLAnchorElement) {
+        link.href = target.href;
+      }
+
+      window.location.replace(target.href);
+    </script>
+  </body>
+</html>
