@@ -91,46 +91,44 @@ class _HistoryRow extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onPressed,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFF151519),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-          child: Row(
-            children: [
-              const Icon(CupertinoIcons.globe, color: CupertinoColors.systemTeal, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: CupertinoColors.white, fontSize: 15, letterSpacing: 0),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, letterSpacing: 0),
-                    ),
-                  ],
-                ),
+  Widget build(BuildContext context) => CupertinoButton(
+    padding: EdgeInsets.zero,
+    onPressed: onPressed,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF151519),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+        child: Row(
+          children: [
+            const Icon(CupertinoIcons.globe, color: CupertinoColors.systemTeal, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: CupertinoColors.white, fontSize: 15, letterSpacing: 0),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, letterSpacing: 0),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }

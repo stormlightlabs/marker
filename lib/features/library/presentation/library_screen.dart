@@ -208,21 +208,17 @@ class _LibraryPageSection extends StatelessWidget {
   final ValueChanged<String> onOpenPage;
 
   @override
-  Widget build(BuildContext context) {
-    if (pages.isEmpty) {
-      return const SliverToBoxAdapter(child: SizedBox.shrink());
-    }
-
-    return SliverToBoxAdapter(
-      child: _SectionFrame(
-        title: title,
-        children: [
-          for (final page in pages)
-            _PageRow(page: page, icon: icon, accentColor: accentColor, onPressed: () => onOpenPage(page.id)),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => pages.isEmpty
+      ? const SliverToBoxAdapter(child: SizedBox.shrink())
+      : SliverToBoxAdapter(
+          child: _SectionFrame(
+            title: title,
+            children: [
+              for (final page in pages)
+                _PageRow(page: page, icon: icon, accentColor: accentColor, onPressed: () => onOpenPage(page.id)),
+            ],
+          ),
+        );
 }
 
 class _AnnotationSection extends StatelessWidget {
@@ -237,22 +233,18 @@ class _AnnotationSection extends StatelessWidget {
   final VoidCallback onOpenAnnotations;
 
   @override
-  Widget build(BuildContext context) {
-    if (annotations.isEmpty) {
-      return const SliverToBoxAdapter(child: SizedBox.shrink());
-    }
-
-    return SliverToBoxAdapter(
-      child: _SectionFrame(
-        title: 'Recent Annotations',
-        children: [
-          _AllAnnotationsRow(onPressed: onOpenAnnotations),
-          for (final annotation in annotations)
-            _AnnotationRow(annotation: annotation, onPressed: () => onOpenAnnotation(annotation.id)),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => annotations.isEmpty
+      ? const SliverToBoxAdapter(child: SizedBox.shrink())
+      : SliverToBoxAdapter(
+          child: _SectionFrame(
+            title: 'Recent Annotations',
+            children: [
+              _AllAnnotationsRow(onPressed: onOpenAnnotations),
+              for (final annotation in annotations)
+                _AnnotationRow(annotation: annotation, onPressed: () => onOpenAnnotation(annotation.id)),
+            ],
+          ),
+        );
 }
 
 class AllAnnotationsScreen extends ConsumerStatefulWidget {
@@ -408,57 +400,55 @@ class _AllAnnotationsContent extends StatelessWidget {
   final ValueChanged<String> onToggleSelection;
 
   @override
-  Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        CupertinoSliverNavigationBar(
-          largeTitle: const Text('Annotations'),
-          backgroundColor: CupertinoColors.black,
-          border: null,
-          previousPageTitle: 'Library',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: onExportAll,
-                child: const Icon(CupertinoIcons.square_arrow_up, size: 21),
-              ),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: onToggleEditing,
-                child: Text(isEditing ? 'Done' : 'Edit'),
-              ),
-            ],
-          ),
+  Widget build(BuildContext context) => CustomScrollView(
+    slivers: [
+      CupertinoSliverNavigationBar(
+        largeTitle: const Text('Annotations'),
+        backgroundColor: CupertinoColors.black,
+        border: null,
+        previousPageTitle: 'Library',
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: onExportAll,
+              child: const Icon(CupertinoIcons.square_arrow_up, size: 21),
+            ),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: onToggleEditing,
+              child: Text(isEditing ? 'Done' : 'Edit'),
+            ),
+          ],
         ),
-        SliverToBoxAdapter(
-          child: _AnnotationFilterBar(filter: filter, onChanged: onFilterChanged),
-        ),
-        if (groups.isEmpty)
-          const SliverFillRemaining(hasScrollBody: false, child: _EmptyAnnotations())
-        else ...[
-          for (final group in groups)
-            if (group.annotations.any(filter.matches))
-              SliverToBoxAdapter(
-                child: _LibraryGroupFrame(
-                  children: [
-                    _AnnotationPageRow(group: group, onPressed: () => onOpenPage(group.id)),
-                    for (final annotation in group.annotations.where(filter.matches))
-                      _AnnotationRow(
-                        annotation: annotation,
-                        isEditing: isEditing,
-                        isSelected: selectedIds.contains(annotation.id),
-                        onPressed: () => isEditing ? onToggleSelection(annotation.id) : onOpenAnnotation(annotation.id),
-                      ),
-                  ],
-                ),
+      ),
+      SliverToBoxAdapter(
+        child: _AnnotationFilterBar(filter: filter, onChanged: onFilterChanged),
+      ),
+      if (groups.isEmpty)
+        const SliverFillRemaining(hasScrollBody: false, child: _EmptyAnnotations())
+      else ...[
+        for (final group in groups)
+          if (group.annotations.any(filter.matches))
+            SliverToBoxAdapter(
+              child: _LibraryGroupFrame(
+                children: [
+                  _AnnotationPageRow(group: group, onPressed: () => onOpenPage(group.id)),
+                  for (final annotation in group.annotations.where(filter.matches))
+                    _AnnotationRow(
+                      annotation: annotation,
+                      isEditing: isEditing,
+                      isSelected: selectedIds.contains(annotation.id),
+                      onPressed: () => isEditing ? onToggleSelection(annotation.id) : onOpenAnnotation(annotation.id),
+                    ),
+                ],
               ),
-          const SliverToBoxAdapter(child: SizedBox(height: 18)),
-        ],
+            ),
+        const SliverToBoxAdapter(child: SizedBox(height: 18)),
       ],
-    );
-  }
+    ],
+  );
 }
 
 class _LibraryGroupFrame extends StatelessWidget {
@@ -467,19 +457,17 @@ class _LibraryGroupFrame extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFF151519),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-        ),
-        child: Column(children: children),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF151519),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
       ),
-    );
-  }
+      child: Column(children: children),
+    ),
+  );
 }
 
 class _SectionFrame extends StatelessWidget {
@@ -489,36 +477,34 @@ class _SectionFrame extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 7),
-            child: Text(
-              title.toUpperCase(),
-              style: const TextStyle(
-                color: CupertinoColors.systemGrey,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-              ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 7),
+          child: Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              color: CupertinoColors.systemGrey,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0,
             ),
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFF151519),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-            ),
-            child: Column(children: children),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF151519),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
           ),
-        ],
-      ),
-    );
-  }
+          child: Column(children: children),
+        ),
+      ],
+    ),
+  );
 }
 
 class _PageRow extends StatelessWidget {
@@ -552,14 +538,12 @@ class _AllAnnotationsRow extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return _LibraryRowButton(
-      onPressed: onPressed,
-      leading: const _LibraryIcon(icon: CupertinoIcons.book, color: CupertinoColors.systemPurple),
-      title: 'All Annotations',
-      subtitle: 'Browse every highlight and note',
-    );
-  }
+  Widget build(BuildContext context) => _LibraryRowButton(
+    onPressed: onPressed,
+    leading: const _LibraryIcon(icon: CupertinoIcons.book, color: CupertinoColors.systemPurple),
+    title: 'All Annotations',
+    subtitle: 'Browse every highlight and note',
+  );
 }
 
 class _AnnotationPageRow extends StatelessWidget {
@@ -597,19 +581,17 @@ class _AnnotationRow extends StatelessWidget {
   final bool isSelected;
 
   @override
-  Widget build(BuildContext context) {
-    return _LibraryRowButton(
-      onPressed: onPressed,
-      leading: isEditing
-          ? _SelectionDot(isSelected: isSelected)
-          : _LibraryIcon(
-              icon: annotation.isNote ? CupertinoIcons.chat_bubble_text : CupertinoIcons.pencil,
-              color: annotation.isNote ? CupertinoColors.activeBlue : CupertinoColors.systemYellow,
-            ),
-      title: annotation.excerpt,
-      subtitle: '${annotation.typeLabel} · ${annotation.pageTitle}',
-    );
-  }
+  Widget build(BuildContext context) => _LibraryRowButton(
+    onPressed: onPressed,
+    leading: isEditing
+        ? _SelectionDot(isSelected: isSelected)
+        : _LibraryIcon(
+            icon: annotation.isNote ? CupertinoIcons.chat_bubble_text : CupertinoIcons.pencil,
+            color: annotation.isNote ? CupertinoColors.activeBlue : CupertinoColors.systemYellow,
+          ),
+    title: annotation.excerpt,
+    subtitle: '${annotation.typeLabel} · ${annotation.pageTitle}',
+  );
 }
 
 class _SearchResultRow extends StatelessWidget {
@@ -639,18 +621,16 @@ class _SelectionDot extends StatelessWidget {
   final bool isSelected;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: isSelected ? CupertinoColors.activeBlue : const Color(0xFF24242A),
-        shape: BoxShape.circle,
-        border: Border.all(color: isSelected ? CupertinoColors.activeBlue : const Color(0xFF3A3A42), width: 1),
-      ),
-      child: isSelected ? const Icon(CupertinoIcons.check_mark, color: CupertinoColors.white, size: 16) : null,
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    width: 28,
+    height: 28,
+    decoration: BoxDecoration(
+      color: isSelected ? CupertinoColors.activeBlue : const Color(0xFF24242A),
+      shape: BoxShape.circle,
+      border: Border.all(color: isSelected ? CupertinoColors.activeBlue : const Color(0xFF3A3A42), width: 1),
+    ),
+    child: isSelected ? const Icon(CupertinoIcons.check_mark, color: CupertinoColors.white, size: 16) : null,
+  );
 }
 
 class _AnnotationGroupFavicon extends StatelessWidget {
@@ -702,53 +682,51 @@ class _LibraryRowButton extends StatelessWidget {
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onPressed,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 66),
-        padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFF26262C), width: 0.5)),
-        ),
-        child: Row(
-          children: [
-            leading,
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: CupertinoColors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey2, size: 17),
-          ],
-        ),
+  Widget build(BuildContext context) => CupertinoButton(
+    padding: EdgeInsets.zero,
+    onPressed: onPressed,
+    child: Container(
+      constraints: const BoxConstraints(minHeight: 66),
+      padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFF26262C), width: 0.5)),
       ),
-    );
-  }
+      child: Row(
+        children: [
+          leading,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: CupertinoColors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey2, size: 17),
+        ],
+      ),
+    ),
+  );
 }
 
 class _LibraryIcon extends StatelessWidget {
@@ -758,15 +736,13 @@ class _LibraryIcon extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
-      alignment: Alignment.center,
-      child: Icon(icon, color: color, size: 19),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    width: 36,
+    height: 36,
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+    alignment: Alignment.center,
+    child: Icon(icon, color: color, size: 19),
+  );
 }
 
 class _PageFavicon extends StatelessWidget {
@@ -812,15 +788,13 @@ class _FaviconFrame extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(color: const Color(0xFF24242A), borderRadius: BorderRadius.circular(8)),
-      child: child,
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    width: 36,
+    height: 36,
+    padding: const EdgeInsets.all(6),
+    decoration: BoxDecoration(color: const Color(0xFF24242A), borderRadius: BorderRadius.circular(8)),
+    child: child,
+  );
 }
 
 class _DomainPlaceholder extends StatelessWidget {
@@ -871,15 +845,13 @@ enum LibraryAnnotationFilter {
 
   final String label;
 
-  bool matches(LibraryAnnotationItem annotation) {
-    return switch (this) {
-      LibraryAnnotationFilter.all => true,
-      LibraryAnnotationFilter.highlights =>
-        !annotation.isNote && annotation.visualStyle == AnnotationVisualStyle.highlight,
-      LibraryAnnotationFilter.notes => annotation.isNote,
-      LibraryAnnotationFilter.underlines => annotation.visualStyle == AnnotationVisualStyle.underline,
-    };
-  }
+  bool matches(LibraryAnnotationItem annotation) => switch (this) {
+    LibraryAnnotationFilter.all => true,
+    LibraryAnnotationFilter.highlights =>
+      !annotation.isNote && annotation.visualStyle == AnnotationVisualStyle.highlight,
+    LibraryAnnotationFilter.notes => annotation.isNote,
+    LibraryAnnotationFilter.underlines => annotation.visualStyle == AnnotationVisualStyle.underline,
+  };
 }
 
 class LibraryPageDetailScreen extends ConsumerStatefulWidget {
@@ -1219,27 +1191,25 @@ class _AnnotationFilterBar extends StatelessWidget {
   final ValueChanged<LibraryAnnotationFilter> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Row(
-        children: [
-          for (final candidate in LibraryAnnotationFilter.values)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                color: filter == candidate ? CupertinoColors.activeBlue : const Color(0xFF1C1C20),
-                borderRadius: BorderRadius.circular(8),
-                onPressed: () => onChanged(candidate),
-                child: Text(candidate.label, style: const TextStyle(fontSize: 13, letterSpacing: 0)),
-              ),
+  Widget build(BuildContext context) => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+    child: Row(
+      children: [
+        for (final candidate in LibraryAnnotationFilter.values)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              color: filter == candidate ? CupertinoColors.activeBlue : const Color(0xFF1C1C20),
+              borderRadius: BorderRadius.circular(8),
+              onPressed: () => onChanged(candidate),
+              child: Text(candidate.label, style: const TextStyle(fontSize: 13, letterSpacing: 0)),
             ),
-        ],
-      ),
-    );
-  }
+          ),
+      ],
+    ),
+  );
 }
 
 class _AnnotationEditBar extends StatelessWidget {
@@ -1258,50 +1228,48 @@ class _AnnotationEditBar extends StatelessWidget {
   final VoidCallback? onDelete;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: Color(0xFF111115),
-        border: Border(top: BorderSide(color: Color(0xFF2A2A30), width: 0.5)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '$selectedCount selected',
-                  style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
-                ),
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      color: Color(0xFF111115),
+      border: Border(top: BorderSide(color: Color(0xFF2A2A30), width: 0.5)),
+    ),
+    child: SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '$selectedCount selected',
+                style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
               ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                onPressed: onEdit,
-                child: const Text('Edit'),
-              ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                onPressed: onExportMarkdown,
-                child: const Text('Markdown'),
-              ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                onPressed: onExportJson,
-                child: const Text('JSON'),
-              ),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                onPressed: onDelete,
-                child: const Text('Delete', style: TextStyle(color: CupertinoColors.systemRed)),
-              ),
-            ],
-          ),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: onEdit,
+              child: const Text('Edit'),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: onExportMarkdown,
+              child: const Text('Markdown'),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: onExportJson,
+              child: const Text('JSON'),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: onDelete,
+              child: const Text('Delete', style: TextStyle(color: CupertinoColors.systemRed)),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _PageDetailFavicon extends StatelessWidget {
@@ -1310,8 +1278,8 @@ class _PageDetailFavicon extends StatelessWidget {
   final LibraryPageDetail detail;
 
   @override
-  Widget build(BuildContext context) {
-    final page = LibraryPageItem(
+  Widget build(BuildContext context) => _PageFavicon(
+    page: LibraryPageItem(
       id: detail.id,
       url: detail.url,
       title: detail.title,
@@ -1322,9 +1290,10 @@ class _PageDetailFavicon extends StatelessWidget {
       annotationPreview: null,
       annotationCount: detail.annotations.length,
       timestamp: DateTime.now(),
-    );
-    return _PageFavicon(page: page, fallbackIcon: CupertinoIcons.globe, fallbackColor: CupertinoColors.systemTeal);
-  }
+    ),
+    fallbackIcon: CupertinoIcons.globe,
+    fallbackColor: CupertinoColors.systemTeal,
+  );
 }
 
 class _GroupedRows extends StatelessWidget {
@@ -1333,16 +1302,14 @@ class _GroupedRows extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF151519),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-      ),
-      child: Column(children: children),
-    );
-  }
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xFF151519),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
+    ),
+    child: Column(children: children),
+  );
 }
 
 class _PlainActionRow extends StatelessWidget {
@@ -1353,110 +1320,102 @@ class _PlainActionRow extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onPressed,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFF26262C), width: 0.5)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: CupertinoColors.activeBlue, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(label, style: const TextStyle(color: CupertinoColors.white, fontSize: 15, letterSpacing: 0)),
-            ),
-            const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey2, size: 17),
-          ],
-        ),
+  Widget build(BuildContext context) => CupertinoButton(
+    padding: EdgeInsets.zero,
+    onPressed: onPressed,
+    child: Container(
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFF26262C), width: 0.5)),
       ),
-    );
-  }
+      child: Row(
+        children: [
+          Icon(icon, color: CupertinoColors.activeBlue, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label, style: const TextStyle(color: CupertinoColors.white, fontSize: 15, letterSpacing: 0)),
+          ),
+          const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey2, size: 17),
+        ],
+      ),
+    ),
+  );
 }
 
 class _EmptySearch extends StatelessWidget {
   const _EmptySearch();
 
   @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 42),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(CupertinoIcons.search, size: 42, color: CupertinoColors.systemGrey),
-          SizedBox(height: 14),
-          Text(
-            'No Matches',
-            style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 42),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(CupertinoIcons.search, size: 42, color: CupertinoColors.systemGrey),
+        SizedBox(height: 14),
+        Text(
+          'No Matches',
+          style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
 }
 
 class _EmptyLibrary extends StatelessWidget {
   const _EmptyLibrary();
 
   @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 42),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(CupertinoIcons.book, size: 42, color: CupertinoColors.systemGrey),
-          SizedBox(height: 14),
-          Text(
-            'No Saved Pages',
-            style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Open a webpage in the browser tab to start reading and annotating.',
-            style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 15, letterSpacing: 0, height: 1.25),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 42),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(CupertinoIcons.book, size: 42, color: CupertinoColors.systemGrey),
+        SizedBox(height: 14),
+        Text(
+          'No Saved Pages',
+          style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 8),
+        Text(
+          'Open a webpage in the browser tab to start reading and annotating.',
+          style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 15, letterSpacing: 0, height: 1.25),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
 }
 
 class _EmptyAnnotations extends StatelessWidget {
   const _EmptyAnnotations();
 
   @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 42),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(CupertinoIcons.pencil, size: 42, color: CupertinoColors.systemGrey),
-          SizedBox(height: 14),
-          Text(
-            'No Annotations',
-            style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Annotations you add in the browser will appear here grouped by page.',
-            style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 15, letterSpacing: 0, height: 1.25),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 42),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(CupertinoIcons.pencil, size: 42, color: CupertinoColors.systemGrey),
+        SizedBox(height: 14),
+        Text(
+          'No Annotations',
+          style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 8),
+        Text(
+          'Annotations you add in the browser will appear here grouped by page.',
+          style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 15, letterSpacing: 0, height: 1.25),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
 }
 
 class _LibraryError extends StatelessWidget {
@@ -1465,16 +1424,14 @@ class _LibraryError extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          message,
-          style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 14, letterSpacing: 0),
-          textAlign: TextAlign.center,
-        ),
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(
+        message,
+        style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 14, letterSpacing: 0),
+        textAlign: TextAlign.center,
       ),
-    );
-  }
+    ),
+  );
 }

@@ -7,9 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
-import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/features/atproto/data/atproto_actor_search_repository.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -401,13 +401,11 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
     await ref.read(atprotoAuthRepositoryProvider).disconnect(account.did);
   }
 
-  Future<void> _showImportSheet(BuildContext context) async {
-    await showCupertinoModalPopup<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (sheetContext) => _AtprotoImportSheet(accountDid: account.did),
-    );
-  }
+  Future<void> _showImportSheet(BuildContext context) async => showCupertinoModalPopup<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (sheetContext) => _AtprotoImportSheet(accountDid: account.did),
+  );
 }
 
 class _ExpandableSettingsSection extends StatefulWidget {
@@ -425,40 +423,38 @@ class _ExpandableSettingsSectionState extends State<_ExpandableSettingsSection> 
   late var _isExpanded = widget.initiallyExpanded;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F0F13),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            onPressed: () => setState(() => _isExpanded = !_isExpanded),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: const TextStyle(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xFF0F0F13),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          onPressed: () => setState(() => _isExpanded = !_isExpanded),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.title,
+                  style: const TextStyle(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
-                Icon(
-                  _isExpanded ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down,
-                  color: CupertinoColors.systemGrey2,
-                  size: 16,
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                _isExpanded ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down,
+                color: CupertinoColors.systemGrey2,
+                size: 16,
+              ),
+            ],
           ),
-          if (_isExpanded) Padding(padding: const EdgeInsets.fromLTRB(10, 0, 10, 10), child: widget.child),
-        ],
-      ),
-    );
-  }
+        ),
+        if (_isExpanded) Padding(padding: const EdgeInsets.fromLTRB(10, 0, 10, 10), child: widget.child),
+      ],
+    ),
+  );
 }
 
 class _AtprotoDiagnosticsSection extends StatelessWidget {
@@ -1019,73 +1015,72 @@ class _AtprotoHandleSuggestions extends StatelessWidget {
   final List<AtprotoActorSuggestion> suggestions;
   final ValueChanged<AtprotoActorSuggestion>? onSelected;
 
+  static const double _rowHeight = 58.0;
+
   @override
-  Widget build(BuildContext context) {
-    const rowHeight = 58.0;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF202026),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF33333A)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: rowHeight * 3),
-          child: ListView.separated(
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            itemCount: suggestions.length,
-            separatorBuilder: (context, index) => Container(height: 0.5, color: const Color(0xFF33333A)),
-            itemBuilder: (context, index) {
-              final suggestion = suggestions[index];
-              return SizedBox(
-                height: rowHeight,
-                child: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: onSelected == null ? null : () => onSelected!(suggestion),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Row(
-                      children: [
-                        _AtprotoActorAvatar(suggestion: suggestion),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xFF202026),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFF33333A)),
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: _rowHeight * 3),
+        child: ListView.separated(
+          padding: EdgeInsets.zero,
+          shrinkWrap: true,
+          itemCount: suggestions.length,
+          separatorBuilder: (context, index) => Container(height: 0.5, color: const Color(0xFF33333A)),
+          itemBuilder: (context, index) {
+            final suggestion = suggestions[index];
+            return SizedBox(
+              height: _rowHeight,
+              child: CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: onSelected == null ? null : () => onSelected!(suggestion),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      _AtprotoActorAvatar(suggestion: suggestion),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '@${suggestion.handle}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: CupertinoColors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (suggestion.displayName?.isNotEmpty == true) ...[
+                              const SizedBox(height: 2),
                               Text(
-                                '@${suggestion.handle}',
+                                suggestion.displayName!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: CupertinoColors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12),
                               ),
-                              if (suggestion.displayName?.isNotEmpty == true) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  suggestion.displayName!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 12),
-                                ),
-                              ],
                             ],
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
-    );
-  }
+    ),
+  );
 }
