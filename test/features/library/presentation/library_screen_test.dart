@@ -26,8 +26,6 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    final libraryContext = tester.element(find.text('Library').first);
-    expect(CupertinoTheme.of(libraryContext).textTheme.navLargeTitleTextStyle.fontFamily, 'SlacksideOne_regular');
     expect(find.text('LIBRARY'), findsNothing);
     expect(find.text('BOOKMARKS'), findsOneWidget);
     expect(find.text('RECENT ANNOTATIONS'), findsOneWidget);

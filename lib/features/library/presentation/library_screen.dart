@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
+import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/browser/presentation/note_editor_sheet.dart';
@@ -509,13 +510,19 @@ class _SectionFrame extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 7),
-          child: Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              color: CupertinoColors.systemGrey,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0,
+          child: Funnotation(
+            kind: FunnotationKind.underline,
+            color: CupertinoColors.systemYellow,
+            strokeWidth: 1.4,
+            padding: 2,
+            child: Text(
+              title.toUpperCase(),
+              style: const TextStyle(
+                color: CupertinoColors.systemGrey,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+              ),
             ),
           ),
         ),
@@ -633,6 +640,22 @@ class _SearchResultRow extends StatelessWidget {
           : CupertinoColors.activeBlue,
     ),
     title: result.title,
+    titleWidget: Funnotation(
+      kind: FunnotationKind.highlight,
+      color: CupertinoColors.systemYellow.withValues(alpha: 0.28),
+      padding: 2,
+      child: Text(
+        result.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: CupertinoColors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0,
+        ),
+      ),
+    ),
     subtitle: result.subtitle,
   );
 }
@@ -696,12 +719,14 @@ class _LibraryRowButton extends StatelessWidget {
     required this.leading,
     required this.title,
     required this.subtitle,
+    this.titleWidget,
   });
 
   final VoidCallback onPressed;
   final Widget leading;
   final String title;
   final String subtitle;
+  final Widget? titleWidget;
 
   @override
   Widget build(BuildContext context) => CupertinoButton(
@@ -722,17 +747,18 @@ class _LibraryRowButton extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: CupertinoColors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0,
-                  ),
-                ),
+                titleWidget ??
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: CupertinoColors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0,
+                      ),
+                    ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
@@ -1353,10 +1379,13 @@ class _EmptySearch extends StatelessWidget {
       children: [
         Icon(CupertinoIcons.search, size: 42, color: CupertinoColors.systemGrey),
         SizedBox(height: 14),
-        Text(
-          'No Matches',
-          style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
-          textAlign: TextAlign.center,
+        Funnotation(
+          kind: FunnotationKind.underline,
+          child: Text(
+            'No Matches',
+            style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
+            textAlign: TextAlign.center,
+          ),
         ),
       ],
     ),
@@ -1374,10 +1403,13 @@ class _EmptyLibrary extends StatelessWidget {
       children: [
         Icon(CupertinoIcons.book, size: 42, color: CupertinoColors.systemGrey),
         SizedBox(height: 14),
-        Text(
-          'No Saved Pages',
-          style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
-          textAlign: TextAlign.center,
+        Funnotation(
+          kind: FunnotationKind.underline,
+          child: Text(
+            'No Saved Pages',
+            style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
+            textAlign: TextAlign.center,
+          ),
         ),
         SizedBox(height: 8),
         Text(
@@ -1401,10 +1433,13 @@ class _EmptyAnnotations extends StatelessWidget {
       children: [
         Icon(CupertinoIcons.pencil, size: 42, color: CupertinoColors.systemGrey),
         SizedBox(height: 14),
-        Text(
-          'No Annotations',
-          style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
-          textAlign: TextAlign.center,
+        Funnotation(
+          kind: FunnotationKind.underline,
+          child: Text(
+            'No Annotations',
+            style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
+            textAlign: TextAlign.center,
+          ),
         ),
         SizedBox(height: 8),
         Text(

@@ -10,6 +10,7 @@ import 'package:marker/app/routes.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/atproto_utils.dart';
+import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
 import 'package:marker/features/atproto/data/atproto_actor_search_repository.dart';
@@ -59,8 +60,17 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 12),
                           _SettingsSwitchRow(
-                            icon: CupertinoIcons.sparkles,
+                            icon: funEnabled ? CupertinoIcons.scribble : CupertinoIcons.wand_rays,
                             title: 'Fun',
+                            titleWidget: const Funnotation(
+                              kind: FunnotationKind.circle,
+                              color: CupertinoColors.systemGreen,
+                              padding: 8,
+                              child: Text(
+                                'Fun',
+                                style: TextStyle(color: CupertinoColors.white, fontSize: 16, letterSpacing: 0),
+                              ),
+                            ),
                             subtitle: 'Use playful titles and hand-drawn scribbles',
                             value: funEnabled,
                             onChanged: (value) {
@@ -165,6 +175,7 @@ class _SettingsSwitchRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.value,
+    this.titleWidget,
     required this.onChanged,
   });
 
@@ -172,6 +183,7 @@ class _SettingsSwitchRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool value;
+  final Widget? titleWidget;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -183,7 +195,7 @@ class _SettingsSwitchRow extends StatelessWidget {
           Icon(icon, color: CupertinoColors.activeBlue, size: 20),
           const SizedBox(width: 12),
           Expanded(
-            child: _SettingsRowText(title: title, subtitle: subtitle),
+            child: _SettingsRowText(title: title, subtitle: subtitle, titleWidget: titleWidget),
           ),
           CupertinoSwitch(value: value, onChanged: onChanged),
         ],
@@ -193,16 +205,17 @@ class _SettingsSwitchRow extends StatelessWidget {
 }
 
 class _SettingsRowText extends StatelessWidget {
-  const _SettingsRowText({required this.title, required this.subtitle});
+  const _SettingsRowText({required this.title, required this.subtitle, this.titleWidget});
 
   final String title;
   final String subtitle;
+  final Widget? titleWidget;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(title, style: const TextStyle(color: CupertinoColors.white, fontSize: 16, letterSpacing: 0)),
+      titleWidget ?? Text(title, style: const TextStyle(color: CupertinoColors.white, fontSize: 16, letterSpacing: 0)),
       const SizedBox(height: 3),
       Text(subtitle, style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, letterSpacing: 0)),
     ],
@@ -822,6 +835,7 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
     final progress = importState is AtprotoBookmarkImportRunning
         ? importState.progress
         : const SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 5, description: 'Starting sync');
+    // TODO: why do we do this?
     final failureMessage = _failureMessage;
     final result = _result;
 
@@ -837,6 +851,7 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // TODO: remove the nested ternary
                 Text(
                   failureMessage != null
                       ? 'Sync failed'

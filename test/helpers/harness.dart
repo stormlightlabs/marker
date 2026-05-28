@@ -16,6 +16,7 @@ import 'package:marker/features/browser/application/native_share_controller.dart
 import 'package:marker/features/browser/data/favicon_cache.dart';
 import 'package:marker/features/browser/webview/browser_webview.dart';
 import 'package:marker/features/browser/webview/reader_webview_bridge.dart';
+import 'package:marker/features/settings/data/settings_repository.dart';
 
 FakeWebViewPlatform? _activeFakeWebViewPlatform;
 
@@ -24,6 +25,7 @@ Widget markerTestApp({
   NativeUrlShare? nativeUrlShare,
   FaviconCache? faviconCache,
   CompiledAdBlockRules? compiledAdBlockRules,
+  bool? funEnabled = false,
   List<dynamic> additionalOverrides = const [],
 }) {
   GoogleFonts.config.allowRuntimeFetching = false;
@@ -50,6 +52,7 @@ Widget markerTestApp({
     faviconCacheProvider.overrideWithValue(faviconCache ?? FaviconCache(fetcher: (_) async => null)),
     browserWebViewControllerFactoryProvider.overrideWithValue(() => fakeWebViewController),
     browserWebViewBuilderProvider.overrideWithValue((context, controller) => const Center(child: Text('Fake WebView'))),
+    if (funEnabled != null) funEnabledProvider.overrideWith(() => _TestFunEnabledController(funEnabled)),
     if (nativeUrlShare != null) nativeUrlShareProvider.overrideWithValue(nativeUrlShare),
     ...additionalOverrides,
   ];
@@ -68,6 +71,20 @@ Future<void> pumpRouteTransition(WidgetTester tester) async {
 }
 
 ReaderWebViewBridge testReaderBridge() => ReaderWebViewBridge(assetBundle: _StringAssetBundle());
+
+class _TestFunEnabledController extends FunEnabledController {
+  _TestFunEnabledController(this._initialValue);
+
+  final bool _initialValue;
+
+  @override
+  Future<bool> build() async => _initialValue;
+
+  @override
+  Future<void> setEnabled(bool enabled) async {
+    state = AsyncData(enabled);
+  }
+}
 
 Future<void> seedLibrary(AppDatabase database) async {
   final savedAt = DateTime.utc(2026, 5, 13, 10);

@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/browser/application/selection_capture_controller.dart';
 
 class AnnotationToolbar extends StatelessWidget {
@@ -109,7 +110,13 @@ class _AnnotationToolbarButton extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: CupertinoColors.white, fontSize: 11, letterSpacing: 0)),
+          Funnotation(
+            kind: label == 'Remove' ? FunnotationKind.box : FunnotationKind.underline,
+            color: color,
+            strokeWidth: 1.2,
+            padding: 2,
+            child: Text(label, style: const TextStyle(color: CupertinoColors.white, fontSize: 11, letterSpacing: 0)),
+          ),
         ],
       ),
     ),

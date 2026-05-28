@@ -94,7 +94,7 @@ void main() {
   });
 
   testWidgets('about screen uses rough notation while fun is enabled', (tester) async {
-    await tester.pumpWidget(markerTestApp(database: database));
+    await tester.pumpWidget(markerTestApp(database: database, funEnabled: true));
 
     await tester.pump();
     await tester.pump();
@@ -109,7 +109,7 @@ void main() {
   });
 
   testWidgets('toggles fun and opens about screen', (tester) async {
-    await tester.pumpWidget(markerTestApp(database: database));
+    await tester.pumpWidget(markerTestApp(database: database, funEnabled: null));
 
     await tester.pump();
     await tester.pump();

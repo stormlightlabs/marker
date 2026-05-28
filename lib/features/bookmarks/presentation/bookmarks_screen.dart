@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
+import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
@@ -501,8 +502,7 @@ class _BookmarkTitle extends StatelessWidget {
   final String text;
   final bool funEnabled;
 
-  @override
-  Widget build(BuildContext context) => Text(
+  Widget get _title => Text(
     text,
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
@@ -515,6 +515,17 @@ class _BookmarkTitle extends StatelessWidget {
           )
         : const TextStyle(color: CupertinoColors.white, fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0),
   );
+
+  @override
+  Widget build(BuildContext context) => !funEnabled
+      ? _title
+      : Funnotation(
+          kind: FunnotationKind.underline,
+          color: CupertinoColors.activeBlue,
+          strokeWidth: 2,
+          padding: 3,
+          child: _title,
+        );
 }
 
 class _BookmarkItemBlock extends ConsumerWidget {

@@ -11,7 +11,6 @@ class MarkerApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final funEnabled = ref.watch(funEnabledProvider).value ?? true;
-
     return CupertinoApp.router(
       title: 'Marker',
       debugShowCheckedModeBanner: false,
