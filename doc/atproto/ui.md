@@ -272,11 +272,88 @@ Imported collections become Marker folders. Synced private collections use CLOSE
 - [x] Add sync status section listing tracked collections.
 - [x] Show `AtprotoSyncState.lastSuccessfulSyncAt` and `lastError`.
 
+## Bookmark push UI
+
+Push starts after account connection and stays opt-in with bookmark sync. Do not add a separate "publish everything" button unless push is disabled by default; the safer default is to show status and let the sync worker run from explicit sync actions until background sync exists.
+
+### Status in connected settings
+
+Add a compact push status block under ATProto Sync:
+
+- `Local changes pending: N`
+- `Last push: <timestamp or Never>`
+- `Last push error: <message or None>`
+- `Retrying after: <timestamp>` when backoff is active
+
+Use plain-language operation labels:
+
+| Operation | Label                         |
+| --------- | ----------------------------- |
+| create    | `New remote record`           |
+| update    | `Update remote record`        |
+| delete    | `Delete remote record`        |
+
+Avoid raw JSON payloads in the normal settings UI.
+
+### Manual sync action
+
+Rename `Import bookmarks` to `Sync bookmarks` when push exists. The action should:
+
+1. Push pending local bookmark, folder, and folder-link changes.
+2. Pull remote Semble/Cosmik records.
+3. Run remote deletion verification.
+4. Show one combined result summary.
+
+Button states:
+
+- idle: `Sync bookmarks`
+- running: `Syncing bookmarks...`
+- disabled when disconnected or when another sync is running
+
+### Result summary
+
+Show separate pull and push counts:
+
+```text
+Published 3 bookmark changes and 1 delete.
+Imported 2 bookmarks, 1 folder, and 3 folder links.
+Applied 2 remote deletes.
+Skipped 1 conflict and 0 malformed records.
+```
+
+For no changes:
+
+```text
+Bookmarks are up to date.
+```
+
+### Outbox diagnostics
+
+In diagnostics, show aggregate outbox health:
+
+- pending creates
+- pending updates
+- pending deletes
+- failed attempts
+- oldest pending change time
+- next retry time, when available
+
+For failed items, show local type, operation, attempt count, and a short error. Do not show record JSON, OAuth material, DPoP material, or raw session state.
+
+### Error recovery
+
+If a push fails, keep local data unchanged and leave the outbox item queued. Show:
+
+- primary action: `Retry sync`
+- secondary action: `View sync issues`
+
+Record-level conflict resolution should wait until push, pull, and deletion paths all report enough information to explain the conflict.
+
 ### Later UI, after push/deletion phases
 
 - [ ] Add local-change push status.
 - [ ] Add retry queue/outbox status.
-- [ ] Add delete sync status.
+- [x] Add delete sync status.
 - [ ] Add annotation sync opt-in and Margin note import/export status.
 - [ ] Add conflict resolution UI only after both pull and push exist.
 - [ ] Add non-secret diagnostics export

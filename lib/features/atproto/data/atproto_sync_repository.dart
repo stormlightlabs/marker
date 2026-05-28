@@ -198,9 +198,9 @@ class AtprotoSyncRepository {
   }
 
   Future<void> markMirrorDirty({required String id, DateTime? dirtyAt}) async {
-    await (_database.update(_database.atprotoRecordMirrors)..where((mirror) => mirror.id.equals(id))).write(
-      AtprotoRecordMirrorsCompanion(dirtyAt: Value(dirtyAt ?? _now())),
-    );
+    await (_database.update(
+      _database.atprotoRecordMirrors,
+    )..where((mirror) => mirror.id.equals(id))).write(AtprotoRecordMirrorsCompanion(dirtyAt: Value(dirtyAt ?? _now())));
   }
 
   Future<void> markMirrorDeleted({required String id, DateTime? deletedAt}) async {
@@ -261,6 +261,17 @@ class AtprotoSyncRepository {
                   mirror.accountDid.equals(accountDid) & mirror.lastSyncedAt.isNotNull() & mirror.deletedAt.isNull(),
             ))
             .get();
+    return _countsByCollection(rows);
+  }
+
+  Future<Map<String, int>> deletedRecordCountsForAccount(String accountDid) async {
+    final rows = await (_database.select(
+      _database.atprotoRecordMirrors,
+    )..where((mirror) => mirror.accountDid.equals(accountDid) & mirror.deletedAt.isNotNull())).get();
+    return _countsByCollection(rows);
+  }
+
+  Map<String, int> _countsByCollection(List<AtprotoRecordMirror> rows) {
     final counts = <String, int>{};
     for (final row in rows) {
       counts[row.collection] = (counts[row.collection] ?? 0) + 1;

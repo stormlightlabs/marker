@@ -7,6 +7,13 @@ enum SembleSyncCollection {
   const SembleSyncCollection(this.value);
 
   final String value;
+
+  static Map<String, String> get trackedCollections => {
+    SembleSyncCollection.card.value: 'Cards / bookmarks',
+    SembleSyncCollection.collection.value: 'Collections / folders',
+    SembleSyncCollection.collectionLink.value: 'Collection links',
+    SembleSyncCollection.collectionLinkRemoval.value: 'Collection link removals',
+  };
 }
 
 enum SembleSyncLocalTable {

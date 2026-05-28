@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 
 final atprotoBookmarkImportControllerProvider =
@@ -10,7 +11,7 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
 
   Future<SembleBookmarkPullResult?> importBookmarks(String accountDid) async {
     state = const AtprotoBookmarkImportRunning(
-      SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 3, description: 'Starting import'),
+      SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 4, description: 'Starting import'),
     );
     try {
       final result = await ref
@@ -24,9 +25,7 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
     }
   }
 
-  void reset() {
-    state = const AtprotoBookmarkImportIdle();
-  }
+  void reset() => state = const AtprotoBookmarkImportIdle();
 }
 
 sealed class AtprotoBookmarkImportState {
@@ -60,7 +59,8 @@ final class AtprotoBookmarkImportFailed extends AtprotoBookmarkImportState {
 String sembleBookmarkPullSummary(SembleBookmarkPullResult result) {
   final importedTotal = result.cardsImported + result.collectionsImported + result.linksImported;
   final skippedTotal = result.duplicates + result.conflicts + result.malformed;
-  if (importedTotal == 0 && skippedTotal == 0) {
+  final changedTotal = importedTotal + result.deleted;
+  if (changedTotal == 0 && skippedTotal == 0) {
     return 'No new bookmarks found.';
   }
 
@@ -69,22 +69,24 @@ String sembleBookmarkPullSummary(SembleBookmarkPullResult result) {
     lines.add('No new bookmarks found.');
   } else {
     lines.add(
-      'Imported ${result.cardsImported} ${_plural(result.cardsImported, 'bookmark')}, '
-      '${result.collectionsImported} ${_plural(result.collectionsImported, 'folder')}, and '
-      '${result.linksImported} ${_plural(result.linksImported, 'folder link')}.',
+      'Imported ${result.cardsImported} ${plural(result.cardsImported, 'bookmark')}, '
+      '${result.collectionsImported} ${plural(result.collectionsImported, 'folder')}, and '
+      '${result.linksImported} ${plural(result.linksImported, 'folder link')}.',
     );
+  }
+
+  if (result.deleted > 0) {
+    lines.add('Applied ${result.deleted} remote ${plural(result.deleted, 'delete')}.');
   }
 
   if (skippedTotal > 0) {
     lines.add(
-      'Skipped ${result.duplicates} ${_plural(result.duplicates, 'duplicate')}, '
-      '${result.conflicts} ${_plural(result.conflicts, 'conflict')}, and '
-      '${result.malformed} malformed ${_plural(result.malformed, 'record')}.',
+      'Skipped ${result.duplicates} ${plural(result.duplicates, 'duplicate')}, '
+      '${result.conflicts} ${plural(result.conflicts, 'conflict')}, and '
+      '${result.malformed} malformed ${plural(result.malformed, 'record')}.',
     );
   }
   return lines.join('\n');
 }
 
 bool sembleBookmarkPullHasIssues(SembleBookmarkPullResult result) => result.conflicts > 0 || result.malformed > 0;
-
-String _plural(int count, String singular) => count == 1 ? singular : '${singular}s';

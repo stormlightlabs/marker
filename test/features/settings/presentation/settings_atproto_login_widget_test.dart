@@ -119,10 +119,32 @@ void main() {
     );
     await syncRepository.saveCursor(
       accountDid: 'did:plc:alice',
-      collection: 'network.cosmik.card',
+      collection: SembleSyncCollection.card.value,
       lastSuccessfulSyncAt: now,
       lastError: 'rate limited',
     );
+    await syncRepository.saveCursor(
+      accountDid: 'did:plc:alice',
+      collection: SembleSyncCollection.collectionLinkRemoval.value,
+      lastSuccessfulSyncAt: now,
+    );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarks.value,
+      localId: 'deleted-bookmark',
+      collection: SembleSyncCollection.card.value,
+      rkey: 'deleted-card',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/deleted-card',
+      deletedAt: now,
+    );
+    final deleteOutbox = await syncRepository.enqueueOutbox(
+      accountDid: 'did:plc:alice',
+      operation: 'delete',
+      localTable: SembleSyncLocalTable.bookmarks.value,
+      localId: 'pending-delete',
+      collection: SembleSyncCollection.card.value,
+    );
+    await syncRepository.markOutboxAttempt(id: deleteOutbox.id, attemptCount: 1, lastError: 'delete failed');
     await sessionStore.saveOAuthSession(
       'did:plc:alice',
       await oauthClient.callback(callbackUrl: '', context: fakeContext),
@@ -174,20 +196,28 @@ void main() {
     await tester.tap(find.text('Sync diagnostics'), warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.text('Cards / bookmarks'), findsOneWidget);
-    expect(find.text('network.cosmik.card'), findsOneWidget);
+    expect(find.text(SembleSyncCollection.card.value), findsOneWidget);
     expect(find.text('Collections / folders'), findsOneWidget);
-    expect(find.text('network.cosmik.collection'), findsOneWidget);
+    expect(find.text(SembleSyncCollection.collection.value), findsOneWidget);
     expect(find.text('Collection links'), findsOneWidget);
-    expect(find.text('network.cosmik.collectionLink'), findsOneWidget);
+    expect(find.text(SembleSyncCollection.collectionLink.value), findsOneWidget);
+    expect(find.text('Collection link removals'), findsOneWidget);
+    expect(find.text(SembleSyncCollection.collectionLinkRemoval.value), findsOneWidget);
+    expect(find.text('Delete sync'), findsOneWidget);
+    expect(find.text('Pending deletes: 1'), findsOneWidget);
+    expect(find.text('Failed delete attempts: 1'), findsOneWidget);
+    expect(find.text('Confirmed remote deletes: 1'), findsOneWidget);
     expect(find.textContaining('Last successful sync:'), findsWidgets);
     expect(find.text('Last error: rate limited'), findsOneWidget);
-    expect(find.text('Last error: None'), findsNWidgets(2));
-    expect(find.text('Records synced: 0'), findsNWidgets(3));
+    expect(find.text('Last error: None'), findsNWidgets(3));
+    expect(find.text('Records synced: 0'), findsNWidgets(4));
+    expect(find.text('Records deleted: 0'), findsNWidgets(3));
+    expect(find.text('Records deleted: 1'), findsOneWidget);
     expect(find.textContaining('access-token'), findsNothing);
     expect(find.textContaining('refresh-token'), findsNothing);
     expect(find.textContaining('private-key'), findsNothing);
 
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+    await tester.ensureVisible(find.text('Disconnect'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Disconnect'));
     await tester.pumpAndSettle();
@@ -238,6 +268,7 @@ void main() {
         duplicates: 1,
         conflicts: 1,
         malformed: 0,
+        deleted: 2,
       ),
     );
     await tester.pumpAndSettle();
@@ -246,7 +277,7 @@ void main() {
     expect(find.text('Bookmark import complete'), findsOneWidget);
     expect(
       find.text(
-        'Imported 2 bookmarks, 1 folder, and 3 folder links.\nSkipped 1 duplicate, 1 conflict, and 0 malformed records.',
+        'Imported 2 bookmarks, 1 folder, and 3 folder links.\nApplied 2 remote deletes.\nSkipped 1 duplicate, 1 conflict, and 0 malformed records.',
       ),
       findsOneWidget,
     );
@@ -306,7 +337,7 @@ class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
   Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
     this.accountDid = accountDid;
     onProgress?.call(
-      const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 3, description: 'Fetching cards'),
+      const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 4, description: 'Fetching cards'),
     );
     final error = this.error;
     if (error != null) throw error;

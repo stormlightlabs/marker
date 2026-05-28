@@ -12,6 +12,7 @@ import 'package:marker/features/atproto/application/atproto_login_controller.dar
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
 import 'package:marker/features/atproto/data/atproto_actor_search_repository.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
+import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
@@ -217,6 +218,14 @@ final _atprotoSyncedRecordCountsProvider = FutureProvider.family<Map<String, int
   return ref.watch(atprotoSyncRepositoryProvider).syncedRecordCountsForAccount(accountDid);
 });
 
+final _atprotoDeletedRecordCountsProvider = FutureProvider.family<Map<String, int>, String>((ref, accountDid) {
+  return ref.watch(atprotoSyncRepositoryProvider).deletedRecordCountsForAccount(accountDid);
+});
+
+final _atprotoPendingOutboxProvider = FutureProvider.family<List<AtprotoSyncOutboxData>, String>((ref, accountDid) {
+  return ref.watch(atprotoSyncRepositoryProvider).pendingOutbox(accountDid: accountDid);
+});
+
 class _AtprotoAccountRow extends ConsumerWidget {
   const _AtprotoAccountRow({required this.state});
 
@@ -270,6 +279,10 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
     final syncStates = ref.watch(_atprotoSyncStatesProvider(account.did)).value ?? const <AtprotoSyncStateData>[];
     final syncedRecordCounts =
         ref.watch(_atprotoSyncedRecordCountsProvider(account.did)).value ?? const <String, int>{};
+    final deletedRecordCounts =
+        ref.watch(_atprotoDeletedRecordCountsProvider(account.did)).value ?? const <String, int>{};
+    final pendingOutbox =
+        ref.watch(_atprotoPendingOutboxProvider(account.did)).value ?? const <AtprotoSyncOutboxData>[];
     final importState = ref.watch(atprotoBookmarkImportControllerProvider);
     final lastImport = _latestSuccessfulSync(syncStates);
     final lastError = _latestError(syncStates);
@@ -319,6 +332,8 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
             _AtprotoDiagnosticsSection(
               syncStates: syncStates,
               syncedRecordCounts: syncedRecordCounts,
+              deletedRecordCounts: deletedRecordCounts,
+              pendingOutbox: pendingOutbox,
               formatDateTime: _formatDateTime,
             ),
             const SizedBox(height: 12),
@@ -461,22 +476,23 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
   const _AtprotoDiagnosticsSection({
     required this.syncStates,
     required this.syncedRecordCounts,
+    required this.deletedRecordCounts,
+    required this.pendingOutbox,
     required this.formatDateTime,
   });
 
   final List<AtprotoSyncStateData> syncStates;
   final Map<String, int> syncedRecordCounts;
+  final Map<String, int> deletedRecordCounts;
+  final List<AtprotoSyncOutboxData> pendingOutbox;
   final String Function(DateTime? value) formatDateTime;
-
-  static final _trackedCollections = <String, String>{
-    SembleSyncCollection.card.value: 'Cards / bookmarks',
-    SembleSyncCollection.collection.value: 'Collections / folders',
-    SembleSyncCollection.collectionLink.value: 'Collection links',
-  };
 
   @override
   Widget build(BuildContext context) {
     final statesByCollection = {for (final state in syncStates) state.collection: state};
+    final pendingDeletes = pendingOutbox.where((item) => item.operation == atprotoDeleteOperation).toList();
+    final failedDeletes = pendingDeletes.where((item) => item.lastError?.trim().isNotEmpty == true).length;
+    final confirmedDeletes = deletedRecordCounts.values.fold<int>(0, (total, count) => total + count);
     return _ExpandableSettingsSection(
       title: 'Sync diagnostics',
       child: Column(
@@ -487,20 +503,63 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
             style: TextStyle(color: CupertinoColors.systemGrey2, fontSize: 11, height: 1.25),
           ),
           const SizedBox(height: 8),
-          for (final entry in _trackedCollections.entries) ...[
+          _AtprotoDeleteSyncStatus(
+            pendingDeleteCount: pendingDeletes.length,
+            failedDeleteCount: failedDeletes,
+            confirmedDeleteCount: confirmedDeletes,
+          ),
+          const SizedBox(height: 8),
+          for (final entry in SembleSyncCollection.trackedCollections.entries) ...[
             _AtprotoDiagnosticCollectionRow(
               collectionLabel: entry.value,
               collection: entry.key,
               syncState: statesByCollection[entry.key],
               syncedRecordCount: syncedRecordCounts[entry.key] ?? 0,
+              deletedRecordCount: deletedRecordCounts[entry.key] ?? 0,
               formatDateTime: formatDateTime,
             ),
-            if (entry.key != _trackedCollections.keys.last) const SizedBox(height: 8),
+            if (entry.key != SembleSyncCollection.trackedCollections.keys.last) const SizedBox(height: 8),
           ],
         ],
       ),
     );
   }
+}
+
+class _AtprotoDeleteSyncStatus extends StatelessWidget {
+  const _AtprotoDeleteSyncStatus({
+    required this.pendingDeleteCount,
+    required this.failedDeleteCount,
+    required this.confirmedDeleteCount,
+  });
+
+  final int pendingDeleteCount;
+  final int failedDeleteCount;
+  final int confirmedDeleteCount;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('Delete sync', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
+      const SizedBox(height: 2),
+      Text(
+        'Pending deletes: $pendingDeleteCount',
+        style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+      ),
+      Text(
+        'Failed delete attempts: $failedDeleteCount',
+        style: TextStyle(
+          color: failedDeleteCount == 0 ? CupertinoColors.systemGrey : CupertinoColors.systemRed,
+          fontSize: 11,
+        ),
+      ),
+      Text(
+        'Confirmed remote deletes: $confirmedDeleteCount',
+        style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+      ),
+    ],
+  );
 }
 
 class _AtprotoDiagnosticCollectionRow extends StatelessWidget {
@@ -509,6 +568,7 @@ class _AtprotoDiagnosticCollectionRow extends StatelessWidget {
     required this.collection,
     required this.syncState,
     required this.syncedRecordCount,
+    required this.deletedRecordCount,
     required this.formatDateTime,
   });
 
@@ -516,6 +576,7 @@ class _AtprotoDiagnosticCollectionRow extends StatelessWidget {
   final String collection;
   final AtprotoSyncStateData? syncState;
   final int syncedRecordCount;
+  final int deletedRecordCount;
   final String Function(DateTime? value) formatDateTime;
 
   @override
@@ -534,6 +595,10 @@ class _AtprotoDiagnosticCollectionRow extends StatelessWidget {
         ),
         Text(
           'Records synced: $syncedRecordCount',
+          style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+        ),
+        Text(
+          'Records deleted: $deletedRecordCount',
           style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
         ),
         Text(
@@ -601,7 +666,9 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
     if (!mounted) return;
     ref
       ..invalidate(_atprotoSyncStatesProvider(widget.accountDid))
-      ..invalidate(_atprotoSyncedRecordCountsProvider(widget.accountDid));
+      ..invalidate(_atprotoSyncedRecordCountsProvider(widget.accountDid))
+      ..invalidate(_atprotoDeletedRecordCountsProvider(widget.accountDid))
+      ..invalidate(_atprotoPendingOutboxProvider(widget.accountDid));
     final state = ref.read(atprotoBookmarkImportControllerProvider);
     setState(() {
       _result = result;

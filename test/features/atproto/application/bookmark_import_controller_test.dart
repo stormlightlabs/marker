@@ -54,6 +54,10 @@ void main() {
     );
     expect(sembleBookmarkPullSummary(const SembleBookmarkPullResult()), 'No new bookmarks found.');
     expect(
+      sembleBookmarkPullSummary(const SembleBookmarkPullResult(deleted: 2)),
+      'No new bookmarks found.\nApplied 2 remote deletes.',
+    );
+    expect(
       sembleBookmarkPullSummary(const SembleBookmarkPullResult(duplicates: 1)),
       'No new bookmarks found.\nSkipped 1 duplicate, 0 conflicts, and 0 malformed records.',
     );
@@ -73,7 +77,7 @@ class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
   Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
     this.accountDid = accountDid;
     onProgress?.call(
-      const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 3, description: 'Fetching cards'),
+      const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 4, description: 'Fetching cards'),
     );
     final error = this.error;
     if (error != null) throw error;

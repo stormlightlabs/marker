@@ -26,3 +26,6 @@ String stableJenkinsOneAtATimeHash(String value) {
   hash = 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
   return hash.toRadixString(16);
 }
+
+/// Simple pluralization helper for English nouns.
+String plural(int count, String singular) => count == 1 ? singular : '${singular}s';
