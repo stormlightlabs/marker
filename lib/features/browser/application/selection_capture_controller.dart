@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
 
 final selectionCaptureControllerProvider = NotifierProvider<SelectionCaptureController, SelectionCaptureState>(
   SelectionCaptureController.new,
@@ -106,8 +107,8 @@ class SelectionCapture {
   final String? cssSelector;
 
   static SelectionCapture? tryParse(Map<String, Object?> payload) {
-    final exact = _nonEmpty(payload['exact']);
-    final source = _nonEmpty(payload['sourceUrl']);
+    final exact = nonEmpty(payload['exact']);
+    final source = nonEmpty(payload['sourceUrl']);
     final sourceUrl = source == null ? null : Uri.tryParse(source);
     if (exact == null || sourceUrl == null || !sourceUrl.hasScheme || !sourceUrl.hasAuthority) {
       return null;
@@ -121,31 +122,24 @@ class SelectionCapture {
 
     return SelectionCapture(
       exact: exact,
-      prefix: _nonEmpty(payload['prefix']) ?? '',
-      suffix: _nonEmpty(payload['suffix']) ?? '',
+      prefix: nonEmpty(payload['prefix']) ?? '',
+      suffix: nonEmpty(payload['suffix']) ?? '',
       sourceUrl: sourceUrl,
       textPositionStart: start,
       textPositionEnd: end,
-      pageTitle: _nonEmpty(payload['pageTitle']),
-      cssSelector: _nonEmpty(payload['cssSelector']),
+      pageTitle: nonEmpty(payload['pageTitle']),
+      cssSelector: nonEmpty(payload['cssSelector']),
     );
   }
 
-  Map<String, Object?> toW3cTargetJson() {
-    return {
-      'source': sourceUrl.toString(),
-      'selector': [
-        {'type': 'TextQuoteSelector', 'exact': exact, 'prefix': prefix, 'suffix': suffix},
-        {'type': 'TextPositionSelector', 'start': textPositionStart, 'end': textPositionEnd},
-        if (cssSelector != null) {'type': 'CssSelector', 'value': cssSelector},
-      ],
-    };
-  }
-
-  static String? _nonEmpty(Object? value) {
-    final text = value?.toString().trim();
-    return text == null || text.isEmpty ? null : text;
-  }
+  Map<String, Object?> toW3cTargetJson() => {
+    'source': sourceUrl.toString(),
+    'selector': [
+      {'type': 'TextQuoteSelector', 'exact': exact, 'prefix': prefix, 'suffix': suffix},
+      {'type': 'TextPositionSelector', 'start': textPositionStart, 'end': textPositionEnd},
+      if (cssSelector != null) {'type': 'CssSelector', 'value': cssSelector},
+    ],
+  };
 
   static int? _intValue(Object? value) {
     if (value is int) {

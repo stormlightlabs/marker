@@ -272,6 +272,16 @@ class AtprotoSyncRepository {
     return _countsByCollection(rows);
   }
 
+  Future<DateTime?> latestMirrorSyncAtForAccount(String accountDid) async {
+    final rows =
+        await (_database.select(_database.atprotoRecordMirrors)
+              ..where((mirror) => mirror.accountDid.equals(accountDid) & mirror.lastSyncedAt.isNotNull())
+              ..orderBy([(mirror) => OrderingTerm.desc(mirror.lastSyncedAt)])
+              ..limit(1))
+            .get();
+    return rows.firstOrNull?.lastSyncedAt;
+  }
+
   Map<String, int> _countsByCollection(List<AtprotoRecordMirror> rows) {
     final counts = <String, int>{};
     for (final row in rows) {

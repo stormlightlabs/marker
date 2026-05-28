@@ -11,6 +11,7 @@ import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_session_store.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
+import 'package:marker/features/atproto/data/semble_bookmark_push_service.dart';
 import 'package:poptart/poptart.dart';
 
 import '../../../helpers/harness.dart';
@@ -25,6 +26,7 @@ void main() {
   late FakeAtprotoOAuthClient oauthClient;
   late FakeAtprotoOAuthBrowser browser;
   late FakeSembleBookmarkPullService bookmarkPullService;
+  late FakeSembleBookmarkPushService bookmarkPushService;
   late FakeAtprotoActorSearchRepository actorSearchRepository;
 
   setUp(() {
@@ -35,6 +37,7 @@ void main() {
     oauthClient = FakeAtprotoOAuthClient();
     browser = FakeAtprotoOAuthBrowser();
     bookmarkPullService = FakeSembleBookmarkPullService();
+    bookmarkPushService = FakeSembleBookmarkPushService();
     actorSearchRepository = FakeAtprotoActorSearchRepository();
     authRepository = AtprotoAuthRepository(
       syncRepository: syncRepository,
@@ -137,6 +140,23 @@ void main() {
       uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/deleted-card',
       deletedAt: now,
     );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarkFolders.value,
+      localId: 'synced-folder',
+      collection: SembleSyncCollection.collection.value,
+      rkey: 'synced-folder',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/synced-folder',
+      lastSyncedAt: now,
+    );
+    final pushOutbox = await syncRepository.enqueueOutbox(
+      accountDid: 'did:plc:alice',
+      operation: AtprotoSyncOperation.create.value,
+      localTable: SembleSyncLocalTable.bookmarks.value,
+      localId: 'pending-create',
+      collection: SembleSyncCollection.card.value,
+    );
+    await syncRepository.markOutboxAttempt(id: pushOutbox.id, attemptCount: 1, lastError: 'push failed');
     final deleteOutbox = await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.delete.value,
@@ -203,14 +223,24 @@ void main() {
     expect(find.text(SembleSyncCollection.collectionLink.value), findsOneWidget);
     expect(find.text('Collection link removals'), findsOneWidget);
     expect(find.text(SembleSyncCollection.collectionLinkRemoval.value), findsOneWidget);
+    expect(find.text('Push sync'), findsOneWidget);
+    expect(find.text('Local changes pending: 1'), findsOneWidget);
+    expect(find.textContaining('Last push:'), findsOneWidget);
+    expect(find.text('Last push error: push failed'), findsOneWidget);
+    expect(find.text('Outbox'), findsOneWidget);
+    expect(find.text('Pending creates: 1'), findsOneWidget);
+    expect(find.text('Pending updates: 0'), findsOneWidget);
+    expect(find.text('Pending deletes: 1'), findsWidgets);
+    expect(find.text('Failed attempts: 2'), findsOneWidget);
+    expect(find.textContaining('Oldest pending change:'), findsOneWidget);
     expect(find.text('Delete sync'), findsOneWidget);
-    expect(find.text('Pending deletes: 1'), findsOneWidget);
     expect(find.text('Failed delete attempts: 1'), findsOneWidget);
     expect(find.text('Confirmed remote deletes: 1'), findsOneWidget);
     expect(find.textContaining('Last successful sync:'), findsWidgets);
     expect(find.text('Last error: rate limited'), findsOneWidget);
     expect(find.text('Last error: None'), findsNWidgets(3));
-    expect(find.text('Records synced: 0'), findsNWidgets(4));
+    expect(find.text('Records synced: 0'), findsNWidgets(3));
+    expect(find.text('Records synced: 1'), findsOneWidget);
     expect(find.text('Records deleted: 0'), findsNWidgets(3));
     expect(find.text('Records deleted: 1'), findsOneWidget);
     expect(find.textContaining('access-token'), findsNothing);
@@ -234,6 +264,7 @@ void main() {
   testWidgets('imports bookmarks from the connected settings card and shows result summary', (tester) async {
     final importCompleter = Completer<SembleBookmarkPullResult>();
     bookmarkPullService.pendingResult = importCompleter.future;
+    bookmarkPushService.result = const SembleBookmarkPushResult(pushed: 2, created: 1, updated: 1);
     await seedConnectedAccount();
 
     await tester.pumpWidget(
@@ -242,6 +273,7 @@ void main() {
         additionalOverrides: [
           atprotoAuthRepositoryProvider.overrideWithValue(authRepository),
           sembleBookmarkPullServiceProvider.overrideWithValue(bookmarkPullService),
+          sembleBookmarkPushServiceProvider.overrideWithValue(bookmarkPushService),
         ],
       ),
     );
@@ -254,10 +286,10 @@ void main() {
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Import bookmarks'));
+    await tester.tap(find.text('Sync bookmarks'));
     await tester.pump();
     await tester.pump();
-    expect(find.text('Importing bookmarks'), findsOneWidget);
+    expect(find.text('Syncing bookmarks'), findsOneWidget);
     expect(find.textContaining('requests complete'), findsOneWidget);
     expect(find.textContaining('Fetching'), findsOneWidget);
     importCompleter.complete(
@@ -274,10 +306,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(bookmarkPullService.accountDid, 'did:plc:alice');
-    expect(find.text('Bookmark import complete'), findsOneWidget);
+    expect(find.text('Bookmark sync complete'), findsOneWidget);
     expect(
       find.text(
-        'Imported 2 bookmarks, 1 folder, and 3 folder links.\nApplied 2 remote deletes.\nSkipped 1 duplicate, 1 conflict, and 0 malformed records.',
+        'Published 2 bookmark changes (1 new, 1 updated).\nImported 2 bookmarks, 1 folder, and 3 folder links.\nApplied 2 remote deletes.\nSkipped 1 duplicate, 1 conflict, and 0 malformed records.',
       ),
       findsOneWidget,
     );
@@ -294,6 +326,7 @@ void main() {
         additionalOverrides: [
           atprotoAuthRepositoryProvider.overrideWithValue(authRepository),
           sembleBookmarkPullServiceProvider.overrideWithValue(bookmarkPullService),
+          sembleBookmarkPushServiceProvider.overrideWithValue(bookmarkPushService),
         ],
       ),
     );
@@ -306,11 +339,11 @@ void main() {
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Import bookmarks'));
+    await tester.tap(find.text('Sync bookmarks'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Import failed'), findsOneWidget);
-    expect(find.text('Could not import bookmarks. Check your connection and try again.'), findsOneWidget);
+    expect(find.text('Sync failed'), findsOneWidget);
+    expect(find.text('Could not sync bookmarks. Check your connection and try again.'), findsOneWidget);
   });
 }
 
@@ -325,6 +358,20 @@ class FakeAtprotoActorSearchRepository implements AtprotoActorSearchRepository {
     queries.add(query);
     return suggestions;
   }
+}
+
+class FakeSembleBookmarkPushService implements SembleBookmarkPushService {
+  SembleBookmarkPushResult result = const SembleBookmarkPushResult();
+  String? accountDid;
+
+  @override
+  Future<SembleBookmarkPushResult> pushPending(String accountDid, {int limit = 100}) async {
+    this.accountDid = accountDid;
+    return result;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeSembleBookmarkPullService implements SembleBookmarkPullService {

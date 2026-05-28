@@ -8,6 +8,7 @@ import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/logging/app_logger.dart';
+import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
 import 'package:marker/features/atproto/data/atproto_actor_search_repository.dart';
@@ -225,6 +226,10 @@ final _atprotoPendingOutboxProvider = FutureProvider.family<List<AtprotoSyncOutb
   return ref.watch(atprotoSyncRepositoryProvider).pendingOutbox(accountDid: accountDid);
 });
 
+final _atprotoLatestMirrorSyncProvider = FutureProvider.family<DateTime?, String>((ref, accountDid) {
+  return ref.watch(atprotoSyncRepositoryProvider).latestMirrorSyncAtForAccount(accountDid);
+});
+
 class _AtprotoAccountRow extends ConsumerWidget {
   const _AtprotoAccountRow({required this.state});
 
@@ -282,6 +287,7 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
         ref.watch(_atprotoDeletedRecordCountsProvider(account.did)).value ?? const <String, int>{};
     final pendingOutbox =
         ref.watch(_atprotoPendingOutboxProvider(account.did)).value ?? const <AtprotoSyncOutboxData>[];
+    final lastPush = ref.watch(_atprotoLatestMirrorSyncProvider(account.did)).value;
     final importState = ref.watch(atprotoBookmarkImportControllerProvider);
     final lastImport = _latestSuccessfulSync(syncStates);
     final lastError = _latestError(syncStates);
@@ -333,6 +339,7 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
               syncedRecordCounts: syncedRecordCounts,
               deletedRecordCounts: deletedRecordCounts,
               pendingOutbox: pendingOutbox,
+              lastPush: lastPush,
               formatDateTime: _formatDateTime,
             ),
             const SizedBox(height: 12),
@@ -344,7 +351,7 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
                     color: const Color(0xFF2A2A30),
                     disabledColor: const Color(0xFF2A2A30),
                     onPressed: isImporting ? null : () => _showImportSheet(context),
-                    child: const Text('Import bookmarks'),
+                    child: Text(isImporting ? 'Syncing bookmarks...' : 'Sync bookmarks'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -477,6 +484,7 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
     required this.syncedRecordCounts,
     required this.deletedRecordCounts,
     required this.pendingOutbox,
+    required this.lastPush,
     required this.formatDateTime,
   });
 
@@ -484,11 +492,19 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
   final Map<String, int> syncedRecordCounts;
   final Map<String, int> deletedRecordCounts;
   final List<AtprotoSyncOutboxData> pendingOutbox;
+  final DateTime? lastPush;
   final String Function(DateTime? value) formatDateTime;
 
   @override
   Widget build(BuildContext context) {
     final statesByCollection = {for (final state in syncStates) state.collection: state};
+    final pendingPushes = pendingOutbox
+        .where(
+          (item) =>
+              item.operation == AtprotoSyncOperation.create.value ||
+              item.operation == AtprotoSyncOperation.update.value,
+        )
+        .toList();
     final pendingDeletes = pendingOutbox.where((item) => item.operation == AtprotoSyncOperation.delete.value).toList();
     final failedDeletes = pendingDeletes.where((item) => item.lastError?.trim().isNotEmpty == true).length;
     final confirmedDeletes = deletedRecordCounts.values.fold<int>(0, (total, count) => total + count);
@@ -501,6 +517,10 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
             'Protocol state only. Tokens, keys, OAuth context, and refresh material are never shown.',
             style: TextStyle(color: CupertinoColors.systemGrey2, fontSize: 11, height: 1.25),
           ),
+          const SizedBox(height: 8),
+          _AtprotoPushSyncStatus(pendingPushes: pendingPushes, lastPush: lastPush, formatDateTime: formatDateTime),
+          const SizedBox(height: 8),
+          _AtprotoOutboxStatus(pendingOutbox: pendingOutbox, formatDateTime: formatDateTime),
           const SizedBox(height: 8),
           _AtprotoDeleteSyncStatus(
             pendingDeleteCount: pendingDeletes.length,
@@ -523,6 +543,100 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AtprotoPushSyncStatus extends StatelessWidget {
+  const _AtprotoPushSyncStatus({required this.pendingPushes, required this.lastPush, required this.formatDateTime});
+
+  final List<AtprotoSyncOutboxData> pendingPushes;
+  final DateTime? lastPush;
+  final String Function(DateTime? value) formatDateTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = pendingPushes.where((item) => item.lastError?.trim().isNotEmpty == true).toList();
+    final lastError = failed.isEmpty ? null : failed.first.lastError!.trim();
+    final nextRetry = _nextRetryAt(pendingPushes);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Push sync', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
+        const SizedBox(height: 2),
+        Text(
+          'Local changes pending: ${pendingPushes.length}',
+          style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+        ),
+        Text(
+          'Last push: ${formatDateTime(lastPush)}',
+          style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+        ),
+        Text(
+          lastError == null ? 'Last push error: None' : 'Last push error: $lastError',
+          style: TextStyle(
+            color: lastError == null ? CupertinoColors.systemGrey : CupertinoColors.systemRed,
+            fontSize: 11,
+          ),
+        ),
+        if (nextRetry != null)
+          Text(
+            'Retrying after: ${formatDateTime(nextRetry)}',
+            style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+          ),
+      ],
+    );
+  }
+}
+
+class _AtprotoOutboxStatus extends StatelessWidget {
+  const _AtprotoOutboxStatus({required this.pendingOutbox, required this.formatDateTime});
+
+  final List<AtprotoSyncOutboxData> pendingOutbox;
+  final String Function(DateTime? value) formatDateTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final creates = pendingOutbox.where((item) => item.operation == AtprotoSyncOperation.create.value).length;
+    final updates = pendingOutbox.where((item) => item.operation == AtprotoSyncOperation.update.value).length;
+    final deletes = pendingOutbox.where((item) => item.operation == AtprotoSyncOperation.delete.value).length;
+    final failed = pendingOutbox.where((item) => item.lastError?.trim().isNotEmpty == true).length;
+    final oldest = pendingOutbox.isEmpty
+        ? null
+        : pendingOutbox.map((item) => item.createdAt).reduce((a, b) => a.isBefore(b) ? a : b);
+    final nextRetry = _nextRetryAt(pendingOutbox);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Outbox', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
+        const SizedBox(height: 2),
+        Text('Pending creates: $creates', style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11)),
+        Text('Pending updates: $updates', style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11)),
+        Text('Pending deletes: $deletes', style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11)),
+        Text(
+          'Failed attempts: $failed',
+          style: TextStyle(color: failed == 0 ? CupertinoColors.systemGrey : CupertinoColors.systemRed, fontSize: 11),
+        ),
+        Text(
+          'Oldest pending change: ${formatDateTime(oldest)}',
+          style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+        ),
+        if (nextRetry != null)
+          Text(
+            'Next retry: ${formatDateTime(nextRetry)}',
+            style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+          ),
+      ],
+    );
+  }
+}
+
+DateTime? _nextRetryAt(List<AtprotoSyncOutboxData> outbox) {
+  DateTime? next;
+  for (final item in outbox) {
+    if (item.attemptCount <= 0) continue;
+    final retryAt = item.updatedAt.add(Duration(minutes: 1 << (item.attemptCount - 1).clamp(0, 5)));
+    if (next == null || retryAt.isBefore(next)) next = retryAt;
+  }
+  return next;
 }
 
 class _AtprotoDeleteSyncStatus extends StatelessWidget {
@@ -650,7 +764,7 @@ class _AtprotoImportSheet extends ConsumerStatefulWidget {
 }
 
 class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
-  SembleBookmarkPullResult? _result;
+  AtprotoBookmarkSyncResult? _result;
   String? _failureMessage;
 
   @override
@@ -661,20 +775,21 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
 
   Future<void> _startImport() async {
     final notifier = ref.read(atprotoBookmarkImportControllerProvider.notifier);
-    final result = await notifier.importBookmarks(widget.accountDid);
+    final result = await notifier.syncBookmarks(widget.accountDid);
     if (!mounted) return;
     ref
       ..invalidate(_atprotoSyncStatesProvider(widget.accountDid))
       ..invalidate(_atprotoSyncedRecordCountsProvider(widget.accountDid))
       ..invalidate(_atprotoDeletedRecordCountsProvider(widget.accountDid))
-      ..invalidate(_atprotoPendingOutboxProvider(widget.accountDid));
+      ..invalidate(_atprotoPendingOutboxProvider(widget.accountDid))
+      ..invalidate(_atprotoLatestMirrorSyncProvider(widget.accountDid));
     final state = ref.read(atprotoBookmarkImportControllerProvider);
     setState(() {
       _result = result;
       _failureMessage = result == null && state is AtprotoBookmarkImportFailed
           ? state.message
           : result == null
-          ? 'Could not import bookmarks. Check your connection and try again.'
+          ? 'Could not sync bookmarks. Check your connection and try again.'
           : null;
     });
   }
@@ -684,7 +799,7 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
     final importState = ref.watch(atprotoBookmarkImportControllerProvider);
     final progress = importState is AtprotoBookmarkImportRunning
         ? importState.progress
-        : const SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 3, description: 'Starting import');
+        : const SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 5, description: 'Starting sync');
     final failureMessage = _failureMessage;
     final result = _result;
 
@@ -702,10 +817,10 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
               children: [
                 Text(
                   failureMessage != null
-                      ? 'Import failed'
+                      ? 'Sync failed'
                       : result != null
-                      ? 'Bookmark import complete'
-                      : 'Importing bookmarks',
+                      ? 'Bookmark sync complete'
+                      : 'Syncing bookmarks',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700),
                 ),
@@ -740,7 +855,7 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
                   ),
                 ] else ...[
                   Text(
-                    sembleBookmarkPullSummary(result!),
+                    atprotoBookmarkSyncSummary(result!),
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 14, height: 1.35),
                   ),
@@ -906,7 +1021,7 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
       _ignoreNextHandleChange = false;
       return;
     }
-    final normalized = _normalizeHandle(_handleController.text);
+    final normalized = normalizeHandle(_handleController.text);
     _typeaheadDebounce?.cancel();
     _typeaheadGeneration += 1;
 
@@ -914,7 +1029,7 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
       _selectedHandle = null;
     }
 
-    if (normalized == null || normalized == _invalidHandleSentinel) {
+    if (normalized == null || normalized == invalidHandleSentinel) {
       if (_suggestions.isNotEmpty || _isSearchingHandles || _handleValidationMessage != null) {
         setState(() {
           _suggestions = const <AtprotoActorSuggestion>[];
@@ -972,14 +1087,14 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
   }
 
   String? _validatedHandleForSubmit() {
-    final normalized = _normalizeHandle(_handleController.text);
+    final normalized = normalizeHandle(_handleController.text);
     if (normalized == null) {
       setState(() => _handleValidationMessage = null);
       return null;
     }
-    if (normalized == _invalidHandleSentinel) {
+    if (normalized == invalidHandleSentinel) {
       setState(() => _handleValidationMessage = 'Enter a handle like alice.bsky.social, or leave it blank.');
-      return _invalidHandleSentinel;
+      return invalidHandleSentinel;
     }
     String? exactSuggestionHandle;
     for (final suggestion in _suggestions) {
@@ -991,22 +1106,10 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
     final validatedHandle = _selectedHandle == normalized ? normalized : exactSuggestionHandle;
     if (validatedHandle == null) {
       setState(() => _handleValidationMessage = 'Choose a handle from the suggestions so Marker can verify it.');
-      return _invalidHandleSentinel;
+      return invalidHandleSentinel;
     }
     setState(() => _handleValidationMessage = null);
     return validatedHandle;
-  }
-
-  static const _invalidHandleSentinel = '__marker_invalid_atproto_handle__';
-
-  static String? _normalizeHandle(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return null;
-    final withoutAt = trimmed.startsWith('@') ? trimmed.substring(1) : trimmed;
-    if (withoutAt.isEmpty || withoutAt.contains(RegExp(r'\s')) || withoutAt.contains('://')) {
-      return _invalidHandleSentinel;
-    }
-    return withoutAt;
   }
 
   void _cancel() {
@@ -1016,7 +1119,7 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
 
   Future<void> _continue() async {
     final handle = _validatedHandleForSubmit();
-    if (handle == _invalidHandleSentinel) return;
+    if (handle == invalidHandleSentinel) return;
     final navigator = Navigator.of(context);
     final promptContext = navigator.context;
     final account = await ref.read(atprotoLoginControllerProvider.notifier).connect(handle: handle);

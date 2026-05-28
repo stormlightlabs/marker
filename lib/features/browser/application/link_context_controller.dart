@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
 
 final linkContextControllerProvider = NotifierProvider<LinkContextController, LinkContextState>(
   LinkContextController.new,
@@ -74,8 +75,8 @@ class LinkContext {
   String get title => text ?? href.host;
 
   static LinkContext? tryParse(Map<String, Object?> payload) {
-    final hrefText = _nonEmpty(payload['href']);
-    final pageUrlText = _nonEmpty(payload['pageUrl']);
+    final hrefText = nonEmpty(payload['href']);
+    final pageUrlText = nonEmpty(payload['pageUrl']);
     final href = hrefText == null ? null : Uri.tryParse(hrefText);
     final pageUrl = pageUrlText == null ? null : Uri.tryParse(pageUrlText);
 
@@ -86,13 +87,8 @@ class LinkContext {
     return LinkContext(
       href: href,
       pageUrl: pageUrl,
-      text: _nonEmpty(payload['text']),
-      pageTitle: _nonEmpty(payload['pageTitle']),
+      text: nonEmpty(payload['text']),
+      pageTitle: nonEmpty(payload['pageTitle']),
     );
-  }
-
-  static String? _nonEmpty(Object? value) {
-    final text = value?.toString().trim();
-    return text == null || text.isEmpty ? null : text;
   }
 }

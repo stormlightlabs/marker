@@ -29,3 +29,11 @@ String stableJenkinsOneAtATimeHash(String value) {
 
 /// Simple pluralization helper for English nouns.
 String plural(int count, String singular) => count == 1 ? singular : '${singular}s';
+
+/// Converts empty or whitespace-only strings to null, and trims non-empty strings.
+String? emptyToNull(String? value) => normalize(value);
+
+String? nonEmpty(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? null : text;
+}

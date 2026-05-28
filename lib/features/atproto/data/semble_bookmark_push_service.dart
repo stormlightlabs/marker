@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cosmik_poptart/network/cosmik/card.dart' as cosmik_card;
 import 'package:cosmik_poptart/network/cosmik/collection.dart' as cosmik_collection;
 import 'package:cosmik_poptart/network/cosmik/collection_link.dart' as cosmik_link;
@@ -7,6 +5,8 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/shared/utils/atproto_utils.dart';
+import 'package:marker/core/shared/utils/json_utils.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -84,7 +84,7 @@ class SembleBookmarkPushService {
     );
     final rkey = mirror?.rkey ?? _rkeyForLocal(item.localTable, item.localId);
     final record = await _recordForItem(item);
-    final json = _canonicalJson(record);
+    final json = canonicalJson(record);
     final hash = stableJenkinsOneAtATimeHash(json);
     if (mirror?.lastSyncedHash == hash && mirror?.deletedAt == null) {
       if (mirror?.dirtyAt != null) {
@@ -116,7 +116,7 @@ class SembleBookmarkPushService {
       localTable: item.localTable,
       localId: item.localId,
       collection: item.collection,
-      rkey: _rkeyFromUri(write.uri),
+      rkey: rkeyFromUri(write.uri),
       uri: write.uri,
       cid: write.cid,
       lastSyncedRecordJson: json,
@@ -155,32 +155,30 @@ class SembleBookmarkPushService {
     throw StateError('Unsupported Semble bookmark push item: ${item.localTable} ${item.collection}.');
   }
 
-  Map<String, dynamic> mapBookmarkToSembleCard(Bookmark bookmark) {
-    return const cosmik_card.CardRecordConverter().toJson(
-      cosmik_card.CardRecord(
-        type: const cosmik_card.CardType.knownValue(data: cosmik_card.KnownCardType.uRL),
-        url: bookmark.url,
-        content: cosmik_card.UCardContent.urlContent(
-          data: cosmik_card.UrlContent(
-            url: bookmark.url,
-            metadata: cosmik_card.UrlMetadata(
-              title: _emptyToNull(bookmark.title),
-              description: _emptyToNull(bookmark.description),
-              retrievedAt: bookmark.updatedAt,
-            ),
+  Map<String, dynamic> mapBookmarkToSembleCard(Bookmark bookmark) => const cosmik_card.CardRecordConverter().toJson(
+    cosmik_card.CardRecord(
+      type: const cosmik_card.CardType.knownValue(data: cosmik_card.KnownCardType.uRL),
+      url: bookmark.url,
+      content: cosmik_card.UCardContent.urlContent(
+        data: cosmik_card.UrlContent(
+          url: bookmark.url,
+          metadata: cosmik_card.UrlMetadata(
+            title: emptyToNull(bookmark.title),
+            description: emptyToNull(bookmark.description),
+            retrievedAt: bookmark.updatedAt,
           ),
         ),
-        createdAt: bookmark.createdAt,
       ),
-    );
-  }
+      createdAt: bookmark.createdAt,
+    ),
+  );
 
   Map<String, dynamic> mapFolderToSembleCollection(BookmarkFolder folder) {
     final knownAccessType = cosmik_collection.KnownCollectionAccessType.valueOf(folder.accessType);
     return const cosmik_collection.CollectionRecordConverter().toJson(
       cosmik_collection.CollectionRecord(
         name: folder.title,
-        description: _emptyToNull(folder.description),
+        description: emptyToNull(folder.description),
         accessType: knownAccessType == null
             ? cosmik_collection.CollectionAccessType.unknown(data: folder.accessType)
             : cosmik_collection.CollectionAccessType.knownValue(data: knownAccessType),
@@ -227,24 +225,6 @@ class SembleBookmarkPushService {
     final safe = localId.replaceAll(RegExp(r'[^A-Za-z0-9._~-]'), '-');
     if (safe.isNotEmpty && safe.length <= 512 && !safe.startsWith('.')) return safe;
     return 'm-${stableJenkinsOneAtATimeHash('$localTable:$localId')}';
-  }
-
-  String _rkeyFromUri(String uri) {
-    final segments = Uri.tryParse(uri)?.pathSegments;
-    if (segments != null && segments.isNotEmpty) return segments.last;
-    return uri.substring(uri.lastIndexOf('/') + 1);
-  }
-
-  String? _emptyToNull(String? value) => normalize(value);
-
-  String _canonicalJson(Object? value) => jsonEncode(_sortJson(value));
-
-  Object? _sortJson(Object? value) {
-    if (value is Map) {
-      return {for (final key in value.keys.map((key) => key.toString()).toList()..sort()) key: _sortJson(value[key])};
-    }
-    if (value is Iterable) return value.map(_sortJson).toList(growable: false);
-    return value;
   }
 
   String _shortError(Object error) {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/logging/app_logger.dart';
+import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 
 const markerAtprotoOAuthCallbackScheme = 'https';
@@ -40,8 +41,8 @@ class AtprotoLoginController extends Notifier<AtprotoLoginState> {
   AtprotoLoginState build() => const AtprotoLoginIdle();
 
   Future<AtprotoAccount?> connect({String? handle}) async {
-    final normalizedHandle = _normalizeHandle(handle);
-    if (normalizedHandle == _invalidHandleSentinel) {
+    final normalizedHandle = normalizeHandle(handle);
+    if (normalizedHandle == invalidHandleSentinel) {
       state = const AtprotoLoginFailed('Enter a handle like alice.bsky.social, or leave it blank.');
       return null;
     }
@@ -88,18 +89,6 @@ class AtprotoLoginController extends Notifier<AtprotoLoginState> {
 
   void reset() {
     state = const AtprotoLoginIdle();
-  }
-
-  static const _invalidHandleSentinel = '__marker_invalid_atproto_handle__';
-
-  static String? _normalizeHandle(String? handle) {
-    final trimmed = handle?.trim();
-    if (trimmed == null || trimmed.isEmpty) return null;
-    final withoutAt = trimmed.startsWith('@') ? trimmed.substring(1) : trimmed;
-    if (withoutAt.isEmpty || withoutAt.contains(RegExp(r'\s')) || withoutAt.contains('://')) {
-      return _invalidHandleSentinel;
-    }
-    return withoutAt;
   }
 
   static String _startFailureMessage(Object error) {

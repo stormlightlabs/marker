@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cosmik_poptart/network/cosmik/card.dart' as cosmik_card;
 import 'package:cosmik_poptart/network/cosmik/collection/main.dart' as cosmik_collection;
 import 'package:cosmik_poptart/network/cosmik/collection_link/main.dart' as cosmik_link;
@@ -8,6 +6,8 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/shared/utils/atproto_utils.dart';
+import 'package:marker/core/shared/utils/json_utils.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
@@ -39,6 +39,12 @@ class SembleBookmarkPullProgress {
   final String description;
 
   double get fraction => totalRequests == 0 ? 0 : completedRequests / totalRequests;
+
+  SembleBookmarkPullProgress offsetBy(int completedOffset) => SembleBookmarkPullProgress(
+    completedRequests: completedRequests + completedOffset,
+    totalRequests: totalRequests + completedOffset,
+    description: description,
+  );
 }
 
 typedef SembleBookmarkPullProgressListener = void Function(SembleBookmarkPullProgress progress);
@@ -102,20 +108,18 @@ class SembleBookmarkPullService {
       String collection,
       String description,
       Future<SembleBookmarkPullResult> Function(String accountDid, AtprotoRepoRecord record) importRecord,
-    ) async {
-      return _pullCollection(
-        accountDid,
-        collection,
-        description,
-        importRecord,
-        onProgress: onProgress,
-        completedRequests: () => completedRequests,
-        totalRequests: () => totalRequests,
-        onRequestCompleted: () => completedRequests += 1,
-        onAdditionalRequestNeeded: () => totalRequests += 1,
-        onRecordSeen: (uri) => (seenUrisByCollection[collection] ??= <String>{}).add(uri),
-      );
-    }
+    ) async => _pullCollection(
+      accountDid,
+      collection,
+      description,
+      importRecord,
+      onProgress: onProgress,
+      completedRequests: () => completedRequests,
+      totalRequests: () => totalRequests,
+      onRequestCompleted: () => completedRequests += 1,
+      onAdditionalRequestNeeded: () => totalRequests += 1,
+      onRecordSeen: (uri) => (seenUrisByCollection[collection] ??= <String>{}).add(uri),
+    );
 
     result += await pullCollection(SembleSyncCollection.card.value, 'Fetching cards', _importCard);
     result += await pullCollection(SembleSyncCollection.collection.value, 'Fetching collections', _importCollection);
@@ -202,7 +206,7 @@ class SembleBookmarkPullService {
         return const SembleBookmarkPullResult(malformed: 1);
       }
 
-      final json = _canonicalJson(remote.value);
+      final json = canonicalJson(remote.value);
       final mirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: remote.uri);
       if (mirror?.dirtyAt != null) {
         return const SembleBookmarkPullResult(conflicts: 1);
@@ -210,8 +214,8 @@ class SembleBookmarkPullService {
 
       final existing = mirror == null ? await _bookmarkByNormalizedUrl(url) : await _bookmarkById(mirror.localId);
       final createdAt = record.createdAt ?? _now();
-      final title = _emptyToNull(content?.metadata?.title);
-      final description = _emptyToNull(content?.metadata?.description);
+      final title = emptyToNull(content?.metadata?.title);
+      final description = emptyToNull(content?.metadata?.description);
       late final String localId;
       var duplicates = 0;
       if (existing == null) {
@@ -250,7 +254,7 @@ class SembleBookmarkPullService {
           localTable: SembleSyncLocalTable.bookmarks.value,
           localId: localId,
           collection: SembleSyncCollection.card.value,
-          rkey: _rkeyFromUri(remote.uri),
+          rkey: rkeyFromUri(remote.uri),
           uri: remote.uri,
           cid: remote.cid,
           lastSyncedRecordJson: json,
@@ -267,8 +271,8 @@ class SembleBookmarkPullService {
   Future<SembleBookmarkPullResult> _importCollection(String accountDid, AtprotoRepoRecord remote) async {
     try {
       final record = const cosmik_collection.CollectionRecordConverter().fromJson(remote.value);
-      final title = _emptyToNull(record.name) ?? 'Untitled Collection';
-      final json = _canonicalJson(remote.value);
+      final title = emptyToNull(record.name) ?? 'Untitled Collection';
+      final json = canonicalJson(remote.value);
       final mirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: remote.uri);
       if (mirror?.dirtyAt != null) {
         return const SembleBookmarkPullResult(conflicts: 1);
@@ -286,7 +290,7 @@ class SembleBookmarkPullService {
                 id: localId,
                 parentId: const Value(null),
                 title: title,
-                description: Value(_emptyToNull(record.description)),
+                description: Value(emptyToNull(record.description)),
                 accessType: Value((record.toJson()['accessType'] as String?) ?? 'CLOSED'),
                 sortOrder: Value(await _nextRootFolderSortOrder()),
                 createdAt: record.createdAt ?? _now(),
@@ -313,7 +317,7 @@ class SembleBookmarkPullService {
           localTable: SembleSyncLocalTable.bookmarkFolders.value,
           localId: localId,
           collection: SembleSyncCollection.collection.value,
-          rkey: _rkeyFromUri(remote.uri),
+          rkey: rkeyFromUri(remote.uri),
           uri: remote.uri,
           cid: remote.cid,
           lastSyncedRecordJson: json,
@@ -379,14 +383,14 @@ class SembleBookmarkPullService {
         );
       }
 
-      final json = _canonicalJson(remote.value);
+      final json = canonicalJson(remote.value);
       if (duplicates == 0 || mirror != null) {
         await _syncRepository.upsertMirror(
           accountDid: accountDid,
           localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
           localId: localId,
           collection: SembleSyncCollection.collectionLink.value,
-          rkey: _rkeyFromUri(remote.uri),
+          rkey: rkeyFromUri(remote.uri),
           uri: remote.uri,
           cid: remote.cid,
           lastSyncedRecordJson: json,
@@ -432,11 +436,11 @@ class SembleBookmarkPullService {
         localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
         localId: removedLinkMirror.localId,
         collection: SembleSyncCollection.collectionLinkRemoval.value,
-        rkey: _rkeyFromUri(remote.uri),
+        rkey: rkeyFromUri(remote.uri),
         uri: remote.uri,
         cid: remote.cid,
-        lastSyncedRecordJson: _canonicalJson(remote.value),
-        lastSyncedHash: stableJenkinsOneAtATimeHash(_canonicalJson(remote.value)),
+        lastSyncedRecordJson: canonicalJson(remote.value),
+        lastSyncedHash: stableJenkinsOneAtATimeHash(canonicalJson(remote.value)),
         lastSyncedAt: _now(),
       );
       return const SembleBookmarkPullResult(deleted: 1);
@@ -521,15 +525,6 @@ class SembleBookmarkPullService {
     return links.fold<int>(-1, (max, link) => link.sortOrder > max ? link.sortOrder : max) + 1;
   }
 
-  String _rkeyFromUri(String uri) {
-    final parsed = Uri.tryParse(uri);
-    final segments = parsed?.pathSegments;
-    if (segments != null && segments.isNotEmpty) return segments.last;
-    final slash = uri.lastIndexOf('/');
-    if (slash >= 0 && slash < uri.length - 1) return uri.substring(slash + 1);
-    return uri;
-  }
-
   String _normalizeUrl(String url) {
     final uri = Uri.tryParse(url.trim());
     if (uri == null) return url.trim();
@@ -541,22 +536,7 @@ class SembleBookmarkPullService {
     return value;
   }
 
-  String? _emptyToNull(String? value) {
-    final trimmed = value?.trim();
-    return trimmed == null || trimmed.isEmpty ? null : trimmed;
-  }
-
-  String? _preferNonEmpty(String? current, String? remote) => _emptyToNull(current) ?? _emptyToNull(remote);
+  String? _preferNonEmpty(String? current, String? remote) => emptyToNull(current) ?? emptyToNull(remote);
 
   DateTime _newer(DateTime current, DateTime remote) => remote.isAfter(current) ? remote : current;
-
-  String _canonicalJson(Object? value) => jsonEncode(_sortJson(value));
-
-  Object? _sortJson(Object? value) {
-    if (value is Map) {
-      return {for (final key in value.keys.map((key) => key.toString()).toList()..sort()) key: _sortJson(value[key])};
-    }
-    if (value is Iterable) return value.map(_sortJson).toList(growable: false);
-    return value;
-  }
 }

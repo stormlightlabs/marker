@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
+import 'package:marker/features/atproto/data/semble_bookmark_push_service.dart';
 
 final atprotoBookmarkImportControllerProvider =
     NotifierProvider<AtprotoBookmarkImportController, AtprotoBookmarkImportState>(AtprotoBookmarkImportController.new);
@@ -9,18 +10,25 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
   @override
   AtprotoBookmarkImportState build() => const AtprotoBookmarkImportIdle();
 
-  Future<SembleBookmarkPullResult?> importBookmarks(String accountDid) async {
+  Future<AtprotoBookmarkSyncResult?> importBookmarks(String accountDid) => syncBookmarks(accountDid);
+
+  Future<AtprotoBookmarkSyncResult?> syncBookmarks(String accountDid) async {
     state = const AtprotoBookmarkImportRunning(
-      SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 4, description: 'Starting import'),
+      SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 5, description: 'Publishing local changes'),
     );
     try {
-      final result = await ref
+      final pushResult = await ref.read(sembleBookmarkPushServiceProvider).pushPending(accountDid);
+      state = const AtprotoBookmarkImportRunning(
+        SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 5, description: 'Fetching remote changes'),
+      );
+      final pullResult = await ref
           .read(sembleBookmarkPullServiceProvider)
-          .pull(accountDid, onProgress: (progress) => state = AtprotoBookmarkImportRunning(progress));
+          .pull(accountDid, onProgress: (progress) => state = AtprotoBookmarkImportRunning(progress.offsetBy(1)));
+      final result = AtprotoBookmarkSyncResult(push: pushResult, pull: pullResult);
       state = AtprotoBookmarkImportSucceeded(result);
       return result;
     } on Object {
-      state = const AtprotoBookmarkImportFailed('Could not import bookmarks. Check your connection and try again.');
+      state = const AtprotoBookmarkImportFailed('Could not sync bookmarks. Check your connection and try again.');
       return null;
     }
   }
@@ -47,13 +55,46 @@ final class AtprotoBookmarkImportRunning extends AtprotoBookmarkImportState {
 final class AtprotoBookmarkImportSucceeded extends AtprotoBookmarkImportState {
   const AtprotoBookmarkImportSucceeded(this.result);
 
-  final SembleBookmarkPullResult result;
+  final AtprotoBookmarkSyncResult result;
 }
 
 final class AtprotoBookmarkImportFailed extends AtprotoBookmarkImportState {
   const AtprotoBookmarkImportFailed(this.message);
 
   final String message;
+}
+
+class AtprotoBookmarkSyncResult {
+  const AtprotoBookmarkSyncResult({required this.push, required this.pull});
+
+  final SembleBookmarkPushResult push;
+  final SembleBookmarkPullResult pull;
+}
+
+String atprotoBookmarkSyncSummary(AtprotoBookmarkSyncResult result) {
+  final push = result.push;
+  final pull = result.pull;
+  if (push.pushed == 0 && push.failed == 0 && push.deferred == 0) {
+    final pullSummary = sembleBookmarkPullSummary(pull);
+    return pullSummary == 'No new bookmarks found.' ? 'Bookmarks are up to date.' : pullSummary;
+  }
+
+  final lines = <String>[];
+  if (push.pushed > 0) {
+    lines.add(
+      'Published ${push.pushed} bookmark ${plural(push.pushed, 'change')} '
+      '(${push.created} new, ${push.updated} updated).',
+    );
+  }
+  if (push.failed > 0 || push.deferred > 0) {
+    lines.add('Could not publish ${push.failed} ${plural(push.failed, 'change')}; ${push.deferred} waiting to retry.');
+  }
+
+  final pullSummary = sembleBookmarkPullSummary(pull);
+  if (pullSummary != 'No new bookmarks found.') {
+    lines.add(pullSummary);
+  }
+  return lines.isEmpty ? 'Bookmarks are up to date.' : lines.join('\n');
 }
 
 String sembleBookmarkPullSummary(SembleBookmarkPullResult result) {

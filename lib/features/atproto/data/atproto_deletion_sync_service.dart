@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/core/logging/app_logger.dart';
+import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_sync_constants.dart';
@@ -146,7 +147,7 @@ class AtprotoDeletionSyncService {
       localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
       localId: removedLink.localId,
       collection: SembleSyncCollection.collectionLinkRemoval.value,
-      rkey: _rkeyFromUri(result.uri),
+      rkey: rkeyFromUri(result.uri),
       uri: result.uri,
       cid: result.cid,
       lastSyncedRecordJson: jsonEncode(json),
@@ -183,10 +184,4 @@ class AtprotoDeletionSyncService {
   }
 
   String? _repoDid(String uri) => Uri.tryParse(uri)?.host;
-
-  String _rkeyFromUri(String uri) {
-    final segments = Uri.tryParse(uri)?.pathSegments;
-    if (segments != null && segments.isNotEmpty) return segments.last;
-    return uri.substring(uri.lastIndexOf('/') + 1);
-  }
 }

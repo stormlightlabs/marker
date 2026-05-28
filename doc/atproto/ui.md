@@ -351,8 +351,8 @@ Record-level conflict resolution should wait until push, pull, and deletion path
 
 ### Later UI, after push/deletion phases
 
-- [ ] Add local-change push status.
-- [ ] Add retry queue/outbox status.
+- [x] Add local-change push status.
+- [x] Add retry queue/outbox status.
 - [x] Add delete sync status.
 - [ ] Add annotation sync opt-in and Margin note import/export status.
 - [ ] Add conflict resolution UI only after both pull and push exist.

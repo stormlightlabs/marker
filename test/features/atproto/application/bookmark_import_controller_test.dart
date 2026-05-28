@@ -2,39 +2,52 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
+import 'package:marker/features/atproto/data/semble_bookmark_push_service.dart';
 
 void main() {
-  test('imports bookmarks and exposes success state', () async {
+  test('syncs bookmarks and exposes success state', () async {
+    final pushService = FakeSembleBookmarkPushService();
     final service = FakeSembleBookmarkPullService(
       result: const SembleBookmarkPullResult(cardsImported: 12, collectionsImported: 3, linksImported: 18),
     );
-    final container = ProviderContainer(overrides: [sembleBookmarkPullServiceProvider.overrideWithValue(service)]);
+    final container = ProviderContainer(
+      overrides: [
+        sembleBookmarkPullServiceProvider.overrideWithValue(service),
+        sembleBookmarkPushServiceProvider.overrideWithValue(pushService),
+      ],
+    );
     addTearDown(container.dispose);
 
     final result = await container
         .read(atprotoBookmarkImportControllerProvider.notifier)
-        .importBookmarks('did:plc:alice');
+        .syncBookmarks('did:plc:alice');
 
+    expect(pushService.accountDid, 'did:plc:alice');
     expect(service.accountDid, 'did:plc:alice');
-    expect(result?.cardsImported, 12);
+    expect(result?.pull.cardsImported, 12);
     expect(container.read(atprotoBookmarkImportControllerProvider), isA<AtprotoBookmarkImportSucceeded>());
   });
 
-  test('reports import failure with retry copy', () async {
+  test('reports sync failure with retry copy', () async {
     final service = FakeSembleBookmarkPullService(error: StateError('network down'));
-    final container = ProviderContainer(overrides: [sembleBookmarkPullServiceProvider.overrideWithValue(service)]);
+    final container = ProviderContainer(
+      overrides: [
+        sembleBookmarkPullServiceProvider.overrideWithValue(service),
+        sembleBookmarkPushServiceProvider.overrideWithValue(FakeSembleBookmarkPushService()),
+      ],
+    );
     addTearDown(container.dispose);
 
     final result = await container
         .read(atprotoBookmarkImportControllerProvider.notifier)
-        .importBookmarks('did:plc:alice');
+        .syncBookmarks('did:plc:alice');
 
     expect(result, isNull);
     final state = container.read(atprotoBookmarkImportControllerProvider);
     expect(state, isA<AtprotoBookmarkImportFailed>());
     expect(
       (state as AtprotoBookmarkImportFailed).message,
-      'Could not import bookmarks. Check your connection and try again.',
+      'Could not sync bookmarks. Check your connection and try again.',
     );
   });
 
@@ -64,6 +77,40 @@ void main() {
     expect(sembleBookmarkPullHasIssues(const SembleBookmarkPullResult(conflicts: 1)), isTrue);
     expect(sembleBookmarkPullHasIssues(const SembleBookmarkPullResult(malformed: 1)), isTrue);
   });
+
+  test('formats combined push and pull summaries', () {
+    expect(
+      atprotoBookmarkSyncSummary(
+        const AtprotoBookmarkSyncResult(
+          push: SembleBookmarkPushResult(pushed: 2, created: 1, updated: 1),
+          pull: SembleBookmarkPullResult(deleted: 1),
+        ),
+      ),
+      'Published 2 bookmark changes (1 new, 1 updated).\nNo new bookmarks found.\nApplied 1 remote delete.',
+    );
+    expect(
+      atprotoBookmarkSyncSummary(
+        const AtprotoBookmarkSyncResult(push: SembleBookmarkPushResult(), pull: SembleBookmarkPullResult()),
+      ),
+      'Bookmarks are up to date.',
+    );
+  });
+}
+
+class FakeSembleBookmarkPushService implements SembleBookmarkPushService {
+  FakeSembleBookmarkPushService({this.result = const SembleBookmarkPushResult()});
+
+  final SembleBookmarkPushResult result;
+  String? accountDid;
+
+  @override
+  Future<SembleBookmarkPushResult> pushPending(String accountDid, {int limit = 100}) async {
+    this.accountDid = accountDid;
+    return result;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
