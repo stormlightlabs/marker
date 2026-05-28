@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:margin_poptart/at/margin/note/body.dart' as margin_body;
 import 'package:margin_poptart/at/margin/note/main.dart' as margin_note;
@@ -8,6 +9,7 @@ import 'package:margin_poptart/at/margin/note/main_motivation.dart' as margin_mo
 import 'package:margin_poptart/at/margin/note/selector.dart' as margin_selector;
 import 'package:margin_poptart/at/margin/note/selector_type.dart' as margin_selector_type;
 import 'package:margin_poptart/at/margin/note/target.dart' as margin_target;
+import 'package:margin_poptart/at/margin/note/time_state.dart' as margin_time_state;
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/core/shared/utils/atproto_utils.dart';
@@ -158,6 +160,7 @@ class MarginNoteSyncService {
       final modifiedAt = note.modifiedAt ?? createdAt;
       final selectorJson = jsonEncode([if (note.target.selector != null) _selectorToLocalJson(note.target.selector!)]);
       final body = emptyToNull(note.body?.value);
+      final bodyUri = emptyToNull(note.body?.uri);
       final color = emptyToNull(note.color);
 
       await _database.transaction(() async {
@@ -169,6 +172,7 @@ class MarginNoteSyncService {
                   id: annotationId,
                   pageId: page.id,
                   motivation: motivation,
+                  marginMetadataJson: Value(_marginMetadataJson(remote.value)),
                   createdAt: createdAt,
                   modifiedAt: modifiedAt,
                 ),
@@ -178,6 +182,7 @@ class MarginNoteSyncService {
             AnnotationsCompanion(
               pageId: Value(page.id),
               motivation: Value(motivation),
+              marginMetadataJson: Value(_marginMetadataJson(remote.value)),
               modifiedAt: Value(modifiedAt),
               deletedAt: const Value(null),
             ),
@@ -197,10 +202,12 @@ class MarginNoteSyncService {
                 id: _uuid.v4(),
                 annotationId: annotationId,
                 sourceUrl: source,
+                sourceHash: Value(emptyToNull(note.target.sourceHash)),
                 selectorJson: selectorJson,
+                stateJson: Value(note.target.state == null ? null : jsonEncode(note.target.state!.toJson())),
               ),
             );
-        if (body != null) {
+        if (body != null || bodyUri != null) {
           await _database
               .into(_database.annotationBodies)
               .insert(
@@ -209,7 +216,8 @@ class MarginNoteSyncService {
                   annotationId: annotationId,
                   type: 'TextualBody',
                   format: Value(emptyToNull(note.body?.format) ?? 'text/plain'),
-                  value: body,
+                  value: body ?? '',
+                  uri: Value(bodyUri),
                 ),
               );
         }
@@ -241,7 +249,8 @@ class MarginNoteSyncService {
         lastSyncedAt: _now(),
       );
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
-    } on Object {
+    } on Object catch (error) {
+      debugPrint('Ignoring malformed Margin note record: $error');
       return const MarginNoteSyncResult(malformed: 1);
     }
   }
@@ -297,26 +306,28 @@ class MarginNoteSyncService {
     )..where((row) => row.annotationId.equals(annotation.id))).get();
     final local = PageAnnotation(annotation: annotation, target: target, bodies: bodies);
     final noteBody = local.note;
+    final textBody = _marginBody(bodies, noteBody);
 
-    return const margin_note.NoteRecordConverter().toJson(
+    final record = const margin_note.NoteRecordConverter().toJson(
       margin_note.NoteRecord(
         motivation: _noteMotivation(annotation.motivation),
         color: emptyToNull(local.colorHex),
-        body: noteBody == null
-            ? null
-            : margin_body.Body(
-                value: noteBody,
-                format: bodies.firstWhere((body) => body.type == 'TextualBody').format ?? 'text/markdown',
-              ),
+        body: textBody,
         target: margin_target.Target(
           source: target.sourceUrl,
+          sourceHash: emptyToNull(target.sourceHash),
           title: emptyToNull(page.title),
           selector: _chooseRemoteSelector(local.selectors),
+          state: _targetState(target.stateJson),
         ),
+        tags: _metadataList(annotation.marginMetadataJson, 'tags'),
+        rights: _metadataString(annotation.marginMetadataJson, 'rights'),
         createdAt: annotation.createdAt,
         modifiedAt: annotation.modifiedAt,
       ),
     );
+    _applyMarginMetadata(record, annotation.marginMetadataJson);
+    return record;
   }
 
   Future<Page> _upsertPage(String url, String? title) async {
@@ -381,6 +392,105 @@ class MarginNoteSyncService {
   margin_motivation.NoteMotivation _noteMotivation(String motivation) =>
       margin_motivation.NoteMotivation.valueOf(motivation) ??
       margin_motivation.NoteMotivation.unknown(data: motivation);
+
+  margin_body.Body? _marginBody(List<AnnotationBody> bodies, String? noteBody) {
+    for (final body in bodies) {
+      if (body.type != 'TextualBody') continue;
+      final uri = emptyToNull(body.uri);
+      if (noteBody == null && uri == null) return null;
+      return margin_body.Body(value: noteBody, format: body.format ?? 'text/markdown', uri: uri);
+    }
+    return null;
+  }
+
+  margin_time_state.TimeState? _targetState(String? stateJson) {
+    final trimmed = emptyToNull(stateJson);
+    if (trimmed == null) return null;
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map<String, Object?>) {
+        return margin_time_state.TimeState.fromJson(decoded);
+      }
+    } on Object catch (error) {
+      debugPrint('Ignoring malformed Margin target state: $error');
+      return null;
+    }
+    return null;
+  }
+
+  String? _marginMetadataJson(Map<String, dynamic> remoteValue) {
+    final metadata = <String, Object?>{};
+    for (final key in ['tags', 'facets', 'generator', 'rights', 'labels']) {
+      if (remoteValue.containsKey(key)) metadata[key] = remoteValue[key];
+    }
+    final unknown = <String, Object?>{};
+    const known = {
+      r'$type',
+      'motivation',
+      'color',
+      'body',
+      'target',
+      'tags',
+      'facets',
+      'generator',
+      'rights',
+      'labels',
+      'createdAt',
+      'modifiedAt',
+    };
+    for (final entry in remoteValue.entries) {
+      if (!known.contains(entry.key)) unknown[entry.key] = entry.value;
+    }
+    if (unknown.isNotEmpty) metadata['unknown'] = unknown;
+    return metadata.isEmpty ? null : jsonEncode(metadata);
+  }
+
+  List<String>? _metadataList(String? metadataJson, String key) {
+    final value = _metadataValue(metadataJson, key);
+    if (value is! List) return null;
+    final items = [
+      for (final item in value)
+        if (emptyToNull(item?.toString()) != null) item.toString().trim(),
+    ];
+    return items.isEmpty ? null : items;
+  }
+
+  String? _metadataString(String? metadataJson, String key) =>
+      emptyToNull(_metadataValue(metadataJson, key)?.toString());
+
+  Object? _metadataValue(String? metadataJson, String key) {
+    final trimmed = emptyToNull(metadataJson);
+    if (trimmed == null) return null;
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map<String, Object?>) return decoded[key];
+    } on Object catch (error) {
+      debugPrint('Ignoring malformed Margin metadata value: $error');
+      return null;
+    }
+    return null;
+  }
+
+  void _applyMarginMetadata(Map<String, dynamic> record, String? metadataJson) {
+    final trimmed = emptyToNull(metadataJson);
+    if (trimmed == null) return;
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is! Map<String, Object?>) return;
+      for (final key in ['tags', 'facets', 'generator', 'rights', 'labels']) {
+        if (decoded.containsKey(key) && decoded[key] != null) record[key] = decoded[key];
+      }
+      final unknown = decoded['unknown'];
+      if (unknown is Map<String, Object?>) {
+        for (final entry in unknown.entries) {
+          record.putIfAbsent(entry.key, () => entry.value);
+        }
+      }
+    } on Object catch (error) {
+      debugPrint('Ignoring malformed Margin metadata: $error');
+      return;
+    }
+  }
 
   bool _isDue(AtprotoSyncOutboxData item) {
     if (item.attemptCount <= 0) return true;

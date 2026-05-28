@@ -9,6 +9,7 @@ import 'package:margin_poptart/at/margin/note/main_motivation.dart' as margin_mo
 import 'package:margin_poptart/at/margin/note/selector.dart' as margin_selector;
 import 'package:margin_poptart/at/margin/note/selector_type.dart' as margin_selector_type;
 import 'package:margin_poptart/at/margin/note/target.dart' as margin_target;
+import 'package:margin_poptart/at/margin/note/time_state.dart' as margin_time_state;
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
@@ -76,6 +77,58 @@ void main() {
       uri: 'at://did:plc:alice/at.margin.note/note-1',
     );
     expect(mirror?.localId, annotations.single.id);
+  });
+
+  test('pull preserves Margin metadata that Marker does not model directly', () async {
+    final remoteValue = const margin_note.NoteRecordConverter().toJson(
+      margin_note.NoteRecord(
+        motivation: const margin_motivation.NoteMotivation.knownValue(
+          data: margin_motivation.KnownNoteMotivation.commenting,
+        ),
+        body: const margin_body.Body(value: 'Remote note', format: 'text/markdown', uri: 'https://example.com/body.md'),
+        target: margin_target.Target(
+          source: 'https://example.com/article',
+          sourceHash: 'sha256-url',
+          title: 'Remote title',
+          selector: _textQuoteSelector('quote'),
+          state: margin_time_state.TimeState(
+            sourceDate: DateTime.utc(2026, 5, 27),
+            cached: 'https://archive.example/article',
+          ),
+        ),
+        tags: ['research', 'later'],
+        rights: 'https://creativecommons.org/licenses/by/4.0/',
+        createdAt: DateTime.utc(2026, 5, 28, 12),
+      ),
+    )..['customField'] = 'kept';
+    repoClient.records['at://did:plc:alice/at.margin.note/note-meta'] = AtprotoRepoRecord(
+      uri: 'at://did:plc:alice/at.margin.note/note-meta',
+      cid: 'cid-note-meta',
+      value: remoteValue,
+    );
+
+    final result = await service.pull('did:plc:alice');
+
+    expect(result.imported, 1);
+    final annotation = await database.select(database.annotations).getSingle();
+    final metadata = jsonDecode(annotation.marginMetadataJson!) as Map<String, Object?>;
+    expect(metadata['tags'], ['research', 'later']);
+    expect(metadata['rights'], 'https://creativecommons.org/licenses/by/4.0/');
+    expect(metadata['unknown'], {'customField': 'kept'});
+    final target = await database.select(database.annotationTargets).getSingle();
+    expect(target.sourceHash, 'sha256-url');
+    expect(jsonDecode(target.stateJson!), containsPair('cached', 'https://archive.example/article'));
+    final body = await database.select(database.annotationBodies).getSingle();
+    expect(body.uri, 'https://example.com/body.md');
+
+    final mapped = await service.mapLocalAnnotationToMarginNote(annotation.id);
+    expect(mapped['tags'], ['research', 'later']);
+    expect(mapped['rights'], 'https://creativecommons.org/licenses/by/4.0/');
+    expect(mapped['customField'], 'kept');
+    expect((mapped['body'] as Map<String, Object?>)['uri'], 'https://example.com/body.md');
+    final mappedTarget = mapped['target'] as Map<String, Object?>;
+    expect(mappedTarget['sourceHash'], 'sha256-url');
+    expect((mappedTarget['state'] as Map<String, Object?>)['cached'], 'https://archive.example/article');
   });
 
   test('pull does not aggressively dedupe notes on the same URL and quote', () async {

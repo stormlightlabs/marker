@@ -21,6 +21,7 @@ class Annotations extends Table {
   TextColumn get id => text()();
   TextColumn get pageId => text().references(Pages, #id)();
   TextColumn get motivation => text()();
+  TextColumn get marginMetadataJson => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get modifiedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
@@ -33,7 +34,9 @@ class AnnotationTargets extends Table {
   TextColumn get id => text()();
   TextColumn get annotationId => text().references(Annotations, #id)();
   TextColumn get sourceUrl => text()();
+  TextColumn get sourceHash => text().nullable()();
   TextColumn get selectorJson => text()();
+  TextColumn get stateJson => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -45,6 +48,7 @@ class AnnotationBodies extends Table {
   TextColumn get type => text()();
   TextColumn get format => text().nullable()();
   TextColumn get value => text()();
+  TextColumn get uri => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -211,7 +215,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -256,6 +260,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 12) {
         await m.addColumn(bookmarks, bookmarks.description);
+      }
+      if (from < 13) {
+        await m.addColumn(annotations, annotations.marginMetadataJson);
+        await m.addColumn(annotationTargets, annotationTargets.sourceHash);
+        await m.addColumn(annotationTargets, annotationTargets.stateJson);
+        await m.addColumn(annotationBodies, annotationBodies.uri);
       }
     },
     beforeOpen: (details) async {
