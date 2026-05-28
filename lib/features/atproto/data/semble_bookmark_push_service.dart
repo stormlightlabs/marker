@@ -9,8 +9,8 @@ import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/core/shared/utils/json_utils.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
-import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:poptart_core/poptart_core.dart';
 import 'package:poptart_lex/com/atproto/repo/strong_ref.dart';
 

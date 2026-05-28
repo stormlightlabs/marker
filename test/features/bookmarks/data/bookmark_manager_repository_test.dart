@@ -2,8 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
-import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
 
 void main() {

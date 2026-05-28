@@ -226,6 +226,8 @@ void main() {
     expect(find.text(SembleSyncCollection.collectionLink.value), findsOneWidget);
     expect(find.text('Collection link removals'), findsOneWidget);
     expect(find.text(SembleSyncCollection.collectionLinkRemoval.value), findsOneWidget);
+    expect(find.text('Margin notes / annotations'), findsOneWidget);
+    expect(find.text(MarginSyncCollection.note.value), findsOneWidget);
     expect(find.text('Push sync'), findsOneWidget);
     expect(find.text('Local changes pending: 1'), findsOneWidget);
     expect(find.textContaining('Last push:'), findsOneWidget);
@@ -241,10 +243,10 @@ void main() {
     expect(find.text('Confirmed remote deletes: 1'), findsOneWidget);
     expect(find.textContaining('Last successful sync:'), findsWidgets);
     expect(find.text('Last error: rate limited'), findsOneWidget);
-    expect(find.text('Last error: None'), findsNWidgets(3));
-    expect(find.text('Records synced: 0'), findsNWidgets(3));
+    expect(find.text('Last error: None'), findsNWidgets(4));
+    expect(find.text('Records synced: 0'), findsNWidgets(4));
     expect(find.text('Records synced: 1'), findsOneWidget);
-    expect(find.text('Records deleted: 0'), findsNWidgets(3));
+    expect(find.text('Records deleted: 0'), findsNWidgets(4));
     expect(find.text('Records deleted: 1'), findsOneWidget);
     expect(find.textContaining('access-token'), findsNothing);
     expect(find.textContaining('refresh-token'), findsNothing);

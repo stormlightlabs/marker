@@ -3,9 +3,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_push_service.dart';
-import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 
 void main() {
   late AppDatabase database;

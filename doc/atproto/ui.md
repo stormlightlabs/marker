@@ -1,6 +1,6 @@
 # ATProto sync UI plan
 
-This document covers the UI needed for the current ATProto integration: OAuth connection, bookmark pull, sync status, privacy copy, and diagnostics. It intentionally does not include push UI beyond labels for later phases.
+This document covers the UI needed for the current ATProto integration: OAuth connection, bookmark sync, Margin annotation sync, status, privacy copy, and diagnostics.
 
 ## Current integration state
 
@@ -28,6 +28,7 @@ Current UI gap:
 - Explain that bookmark sync publishes records to the user's ATProto repo.
 - Keep browser history out of sync copy and controls.
 - Keep annotation sync separate from bookmark sync.
+- Default Margin annotation sync to off until the user opts in.
 - Prefer clear recovery actions over raw protocol errors.
 - Never show tokens, refresh material, DPoP keys, or OAuth context in UI or diagnostics.
 
@@ -348,6 +349,98 @@ If a push fails, keep local data unchanged and leave the outbox item queued. Sho
 - secondary action: `View sync issues`
 
 Record-level conflict resolution should wait until push, pull, and deletion paths all report enough information to explain the conflict.
+
+## Margin annotation sync UI
+
+Margin integration syncs Marker annotations with `at.margin.note` records. Treat this as a separate product surface from bookmark sync because annotations can include highlighted text, underlines, comments, colors, and the page URL.
+
+### Settings entry
+
+Location: Settings → Sync → ATProto Sync → `Annotations`.
+
+When connected, show an annotation sync card below bookmark sync:
+
+- title: `Annotations`
+- subtitle when disabled: `Off. Sync highlights and notes with Margin.`
+- subtitle when enabled: `Syncing highlights and notes as Margin records.`
+- toggle: `Sync annotations`
+- actions when enabled:
+  - `Sync annotations now`
+  - `View annotation sync issues` when conflicts, malformed records, or failed outbox items exist
+
+The toggle should be independent from bookmark sync. Turning it on should not immediately publish annotations without a confirmation step.
+
+### Opt-in confirmation
+
+Before enabling annotation sync, show:
+
+- title: `Sync annotations?`
+- body: `Marker will import and publish Margin note records in your ATProto repo. Synced records can include page URLs, selected text, notes, and highlight colors.`
+- primary action: `Enable annotation sync`
+- secondary action: `Cancel`
+
+After enabling, offer:
+
+- primary action: `Sync annotations now`
+- secondary action: `Not now`
+
+### Manual sync action
+
+`Sync annotations now` should:
+
+1. Push pending local `at.margin.note` changes.
+2. Pull remote `at.margin.note` records.
+3. Show a short result summary.
+
+Button states:
+
+- idle: `Sync annotations now`
+- running: `Syncing annotations...`
+- disabled when disconnected, annotation sync is off, or another annotation sync is running
+
+Suggested summary copy:
+
+```text
+Published 3 annotation changes.
+Imported 2 Margin notes.
+Skipped 1 malformed record.
+```
+
+For no changes:
+
+```text
+Annotations are up to date.
+```
+
+### Status and diagnostics
+
+In the ATProto diagnostics section, include `at.margin.note` with:
+
+- last successful annotation sync time
+- last annotation sync error
+- pending annotation changes
+- failed annotation pushes
+- malformed remote notes skipped by the last run, if retained by a future diagnostics model
+
+For failed annotation items, show local annotation ID, operation, attempt count, and a short error. Do not show full selector JSON, note body text, OAuth material, DPoP material, or raw record JSON in the standard UI. A later explicit diagnostics export may include non-secret record metadata after a separate privacy review.
+
+### Annotation sync issues
+
+Initial issue UI can stay aggregate-only:
+
+- `Malformed remote notes: N`
+- `Local conflicts skipped: N`
+- `Failed pushes: N`
+
+Record-by-record conflict resolution should wait until the app can explain both sides safely. If a local annotation is dirty and a remote note also changed, keep the local row unchanged and show the conflict count.
+
+### Reader and annotation UI hooks
+
+Reader screens should not add protocol labels beside every highlight. Add a small sync indicator only where users already manage annotations:
+
+- annotation detail screen: optional `Synced with Margin` / `Pending sync` line
+- annotation list/sidebar: no per-row status unless there is an error
+- delete confirmation: if annotation sync is enabled, say `This also deletes the synced Margin note on the next sync.`
 
 ### Later UI, after push/deletion phases
 

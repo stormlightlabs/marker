@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
-import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:uuid/uuid.dart';
 
 final bookmarkManagerRepositoryProvider = Provider<BookmarkManagerRepository>((ref) {

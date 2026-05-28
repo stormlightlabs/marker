@@ -80,15 +80,15 @@ See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth
 
 ## Phase 8: Margin note sync
 
-- [ ] Pull remote `at.margin.note` records.
-- [ ] Import remote notes without aggressive dedupe.
-- [ ] Map Marker annotations, highlights, underlines, and notes to `at.margin.note`.
-- [ ] Use `margin_poptart` `NoteRecord`, `Target`, `Selector`, and `Body` types in the mapper.
-- [ ] Choose remote selector shape from Marker's local selector array.
-- [ ] Preserve full local selector arrays even when the remote record stores one selector.
-- [ ] Map highlight color to `NoteRecord.color` when available and keep unsupported style hints local.
-- [ ] Push notes through the outbox worker.
-- [ ] Add tests for highlight, underline, note, malformed selector, and duplicate note cases.
+- [x] Pull remote `at.margin.note` records.
+- [x] Import remote notes without aggressive dedupe.
+- [x] Map Marker annotations, highlights, underlines, and notes to `at.margin.note`.
+- [x] Use `margin_poptart` `NoteRecord`, `Target`, `Selector`, and `Body` types in the mapper.
+- [x] Choose remote selector shape from Marker's local selector array.
+- [x] Preserve full local selector arrays even when the remote record stores one selector.
+- [x] Map highlight color to `NoteRecord.color` when available and keep unsupported style hints local.
+- [x] Push notes through the outbox worker.
+- [x] Add tests for highlight, underline, note, malformed selector, and duplicate note cases.
 
 ## Phase 9: product polish
 

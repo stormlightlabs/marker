@@ -11,12 +11,12 @@ import 'package:marker/core/shared/utils/json_utils.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
-import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:marker/features/atproto/domain/atproto_repo_models.dart';
 import 'package:uuid/uuid.dart';
 
-export 'package:marker/features/atproto/data/semble_sync_constants.dart';
+export 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 
 final sembleBookmarkPullServiceProvider = Provider<SembleBookmarkPullService>((ref) {
   final database = ref.watch(databaseProvider);

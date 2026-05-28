@@ -28,7 +28,18 @@ enum SembleSyncCollection {
     SembleSyncCollection.collection.value: 'Collections / folders',
     SembleSyncCollection.collectionLink.value: 'Collection links',
     SembleSyncCollection.collectionLinkRemoval.value: 'Collection link removals',
+    ...MarginSyncCollection.trackedCollections,
   };
+}
+
+enum MarginSyncCollection {
+  note;
+
+  String get value => switch (this) {
+    MarginSyncCollection.note => 'at.margin.note',
+  };
+
+  static Map<String, String> get trackedCollections => {MarginSyncCollection.note.value: 'Margin notes / annotations'};
 }
 
 enum SembleSyncLocalTable {
