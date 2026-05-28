@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:margin_poptart/at/margin/note/body.dart' as margin_body;
+import 'package:margin_poptart/at/margin/collection/main.dart' as margin_collection;
+import 'package:margin_poptart/at/margin/collection_item/main.dart' as margin_collection_item;
 import 'package:margin_poptart/at/margin/note/generator.dart' as margin_generator;
 import 'package:margin_poptart/at/margin/note/main.dart' as margin_note;
 import 'package:margin_poptart/at/margin/note/main_motivation.dart' as margin_motivation;
@@ -21,6 +23,7 @@ import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/domain/atproto_repo_models.dart';
+import 'package:poptart_core/poptart_core.dart';
 import 'package:uuid/uuid.dart';
 
 const markerMarginGeneratorId = 'app.marker';
@@ -91,23 +94,35 @@ class MarginNoteSyncService {
 
   Future<MarginNoteSyncResult> pull(String accountDid) async {
     var result = const MarginNoteSyncResult();
+    result += await _pullCollection(accountDid, MarginSyncCollection.collection, _importCollection);
+    result += await _pullCollection(accountDid, MarginSyncCollection.note, _importNote);
+    result += await _pullCollection(accountDid, MarginSyncCollection.collectionItem, _importCollectionItem);
+    return result;
+  }
+
+  Future<MarginNoteSyncResult> _pullCollection(
+    String accountDid,
+    MarginSyncCollection collection,
+    Future<MarginNoteSyncResult> Function(String accountDid, AtprotoRepoRecord record) importRecord,
+  ) async {
+    var result = const MarginNoteSyncResult();
     String? cursor;
     do {
       final page = await _repoClient.listRecords(
         did: accountDid,
-        collection: MarginSyncCollection.note.value,
+        collection: collection.value,
         cursor: cursor,
         limit: 100,
       );
       for (final record in page.records) {
-        result += await _importNote(accountDid, record);
+        result += await importRecord(accountDid, record);
       }
       cursor = page.cursor;
     } while (cursor != null);
 
     await _syncRepository.saveCursor(
       accountDid: accountDid,
-      collection: MarginSyncCollection.note.value,
+      collection: collection.value,
       cursor: null,
       lastSuccessfulSyncAt: _now(),
     );
@@ -119,8 +134,7 @@ class MarginNoteSyncService {
     var result = const MarginNoteSyncResult();
     for (final item in pending.where(
       (item) =>
-          item.localTable == SembleSyncLocalTable.annotations.value &&
-          item.collection == MarginSyncCollection.note.value &&
+          _isMarginOutboxItem(item) &&
           (item.operation == AtprotoSyncOperation.create.value || item.operation == AtprotoSyncOperation.update.value),
     )) {
       if (!_isDue(item)) {
@@ -141,6 +155,146 @@ class MarginNoteSyncService {
       }
     }
     return result;
+  }
+
+  bool _isMarginOutboxItem(AtprotoSyncOutboxData item) {
+    if (item.localTable == SembleSyncLocalTable.annotations.value &&
+        item.collection == MarginSyncCollection.note.value) {
+      return true;
+    }
+    if (item.localTable == SembleSyncLocalTable.annotationCollections.value &&
+        item.collection == MarginSyncCollection.collection.value) {
+      return true;
+    }
+    if (item.localTable == SembleSyncLocalTable.annotationCollectionItems.value &&
+        item.collection == MarginSyncCollection.collectionItem.value) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<MarginNoteSyncResult> _importCollection(String accountDid, AtprotoRepoRecord remote) async {
+    try {
+      final record = const margin_collection.CollectionRecordConverter().fromJson(remote.value);
+      final mirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: remote.uri);
+      if (mirror?.dirtyAt != null) return const MarginNoteSyncResult(conflicts: 1);
+      final json = canonicalJson(remote.value);
+      final hash = stableJenkinsOneAtATimeHash(json);
+      if (mirror != null && mirror.lastSyncedHash == hash && mirror.deletedAt == null) {
+        return const MarginNoteSyncResult(duplicates: 1);
+      }
+      final localId = mirror?.localId ?? _uuid.v4();
+      final now = _now();
+      await _database.transaction(() async {
+        if (mirror == null) {
+          await _database
+              .into(_database.annotationCollections)
+              .insert(
+                AnnotationCollectionsCompanion.insert(
+                  id: localId,
+                  name: record.name,
+                  description: Value(emptyToNull(record.description)),
+                  icon: Value(emptyToNull(record.icon)),
+                  createdAt: record.createdAt,
+                  updatedAt: now,
+                ),
+              );
+        } else {
+          await (_database.update(_database.annotationCollections)..where((row) => row.id.equals(localId))).write(
+            AnnotationCollectionsCompanion(
+              name: Value(record.name),
+              description: Value(emptyToNull(record.description)),
+              icon: Value(emptyToNull(record.icon)),
+              updatedAt: Value(now),
+              deletedAt: const Value(null),
+            ),
+          );
+        }
+      });
+      await _syncRepository.upsertMirror(
+        accountDid: accountDid,
+        localTable: SembleSyncLocalTable.annotationCollections.value,
+        localId: localId,
+        collection: MarginSyncCollection.collection.value,
+        rkey: rkeyFromUri(remote.uri),
+        uri: remote.uri,
+        cid: remote.cid,
+        lastSyncedRecordJson: json,
+        lastSyncedHash: hash,
+        lastSyncedAt: _now(),
+      );
+      return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
+    } on Object catch (error) {
+      debugPrint('Ignoring malformed Margin collection record: $error');
+      return const MarginNoteSyncResult(malformed: 1);
+    }
+  }
+
+  Future<MarginNoteSyncResult> _importCollectionItem(String accountDid, AtprotoRepoRecord remote) async {
+    try {
+      final record = const margin_collection_item.CollectionItemRecordConverter().fromJson(remote.value);
+      final collectionMirror = await _syncRepository.mirrorForUri(
+        accountDid: accountDid,
+        uri: record.collection.toString(),
+      );
+      final annotationMirror = await _syncRepository.mirrorForUri(
+        accountDid: accountDid,
+        uri: record.annotation.toString(),
+      );
+      if (collectionMirror == null || annotationMirror == null) return const MarginNoteSyncResult(malformed: 1);
+      final mirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: remote.uri);
+      if (mirror?.dirtyAt != null) return const MarginNoteSyncResult(conflicts: 1);
+      final json = canonicalJson(remote.value);
+      final hash = stableJenkinsOneAtATimeHash(json);
+      if (mirror != null && mirror.lastSyncedHash == hash && mirror.deletedAt == null) {
+        return const MarginNoteSyncResult(duplicates: 1);
+      }
+      final localId = mirror?.localId ?? _uuid.v4();
+      final now = _now();
+      await _database.transaction(() async {
+        if (mirror == null) {
+          await _database
+              .into(_database.annotationCollectionItems)
+              .insert(
+                AnnotationCollectionItemsCompanion.insert(
+                  id: localId,
+                  collectionId: collectionMirror.localId,
+                  annotationId: annotationMirror.localId,
+                  position: Value(record.position),
+                  createdAt: record.createdAt,
+                  updatedAt: now,
+                ),
+                mode: InsertMode.insertOrIgnore,
+              );
+        } else {
+          await (_database.update(_database.annotationCollectionItems)..where((row) => row.id.equals(localId))).write(
+            AnnotationCollectionItemsCompanion(
+              collectionId: Value(collectionMirror.localId),
+              annotationId: Value(annotationMirror.localId),
+              position: Value(record.position),
+              updatedAt: Value(now),
+              deletedAt: const Value(null),
+            ),
+          );
+        }
+      });
+      await _syncRepository.upsertMirror(
+        accountDid: accountDid,
+        localTable: SembleSyncLocalTable.annotationCollectionItems.value,
+        localId: localId,
+        collection: MarginSyncCollection.collectionItem.value,
+        rkey: rkeyFromUri(remote.uri),
+        uri: remote.uri,
+        cid: remote.cid,
+        lastSyncedRecordJson: json,
+        lastSyncedHash: hash,
+        lastSyncedAt: _now(),
+      );
+      return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
+    } on Object catch (error) {
+      debugPrint('Ignoring malformed Margin collection item record: $error');
+      return const MarginNoteSyncResult(malformed: 1);
+    }
   }
 
   Future<MarginNoteSyncResult> _importNote(String accountDid, AtprotoRepoRecord remote) async {
@@ -292,7 +446,7 @@ class MarginNoteSyncService {
       localId: item.localId,
       collection: item.collection,
     );
-    final record = await mapLocalAnnotationToMarginNote(item.localId);
+    final record = await _recordForItem(item);
     final json = canonicalJson(record);
     final hash = stableJenkinsOneAtATimeHash(json);
     if (mirror?.lastSyncedHash == hash && mirror?.deletedAt == null) return;
@@ -316,6 +470,73 @@ class MarginNoteSyncService {
       lastSyncedRecordJson: json,
       lastSyncedHash: hash,
       lastSyncedAt: _now(),
+    );
+  }
+
+  Future<Map<String, dynamic>> _recordForItem(AtprotoSyncOutboxData item) async {
+    if (item.localTable == SembleSyncLocalTable.annotations.value &&
+        item.collection == MarginSyncCollection.note.value) {
+      return mapLocalAnnotationToMarginNote(item.localId);
+    }
+    if (item.localTable == SembleSyncLocalTable.annotationCollections.value &&
+        item.collection == MarginSyncCollection.collection.value) {
+      return mapLocalAnnotationCollectionToMargin(item.localId);
+    }
+    if (item.localTable == SembleSyncLocalTable.annotationCollectionItems.value &&
+        item.collection == MarginSyncCollection.collectionItem.value) {
+      return _mapLocalAnnotationCollectionItemToMargin(accountDid: item.accountDid, itemId: item.localId);
+    }
+    throw StateError('Unsupported Margin push item: ${item.localTable} ${item.collection}.');
+  }
+
+  Future<Map<String, dynamic>> mapLocalAnnotationCollectionToMargin(String collectionId) async {
+    final collection = await (_database.select(
+      _database.annotationCollections,
+    )..where((row) => row.id.equals(collectionId) & row.deletedAt.isNull())).getSingleOrNull();
+    if (collection == null) throw StateError('Annotation collection no longer exists locally.');
+    return const margin_collection.CollectionRecordConverter().toJson(
+      margin_collection.CollectionRecord(
+        name: collection.name,
+        description: emptyToNull(collection.description),
+        icon: emptyToNull(collection.icon),
+        createdAt: collection.createdAt,
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _mapLocalAnnotationCollectionItemToMargin({
+    required String accountDid,
+    required String itemId,
+  }) async {
+    final item = await (_database.select(
+      _database.annotationCollectionItems,
+    )..where((row) => row.id.equals(itemId) & row.deletedAt.isNull())).getSingleOrNull();
+    if (item == null) throw StateError('Annotation collection item no longer exists locally.');
+    final collectionMirror = await _syncRepository.mirrorForLocal(
+      accountDid: accountDid,
+      localTable: SembleSyncLocalTable.annotationCollections.value,
+      localId: item.collectionId,
+      collection: MarginSyncCollection.collection.value,
+    );
+    final annotationMirror = await _syncRepository.mirrorForLocal(
+      accountDid: accountDid,
+      localTable: SembleSyncLocalTable.annotations.value,
+      localId: item.annotationId,
+      collection: MarginSyncCollection.note.value,
+    );
+    if (collectionMirror == null || collectionMirror.deletedAt != null) {
+      throw StateError('Sync the annotation collection before its collection item.');
+    }
+    if (annotationMirror == null || annotationMirror.deletedAt != null) {
+      throw StateError('Sync the annotation before its collection item.');
+    }
+    return const margin_collection_item.CollectionItemRecordConverter().toJson(
+      margin_collection_item.CollectionItemRecord(
+        collection: AtUri(collectionMirror.uri),
+        annotation: AtUri(annotationMirror.uri),
+        position: item.position,
+        createdAt: item.createdAt,
+      ),
     );
   }
 
@@ -584,7 +805,7 @@ class MarginNoteSyncService {
   String _rkeyForLocal(String localId) {
     final safe = localId.replaceAll(RegExp(r'[^A-Za-z0-9._~-]'), '-');
     if (safe.isNotEmpty && safe.length <= 512 && !safe.startsWith('.')) return safe;
-    return 'm-${stableJenkinsOneAtATimeHash('annotations:$localId')}';
+    return 'm-${stableJenkinsOneAtATimeHash('margin:$localId')}';
   }
 
   String _shortError(Object error) {

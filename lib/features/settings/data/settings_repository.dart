@@ -4,6 +4,7 @@ import 'package:marker/core/database/database_provider.dart';
 
 const String adBlockEnabledSettingKey = 'ad_block_enabled';
 const String funEnabledSettingKey = 'fun_enabled';
+const String annotationSyncEnabledSettingKey = 'annotation_sync_enabled';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return SettingsRepository(ref.watch(databaseProvider));
@@ -34,6 +35,18 @@ class SettingsRepository {
   }
 
   Future<void> setFunEnabled(bool enabled) => _setBool(funEnabledSettingKey, enabled);
+
+  Future<bool> isAnnotationSyncEnabled() async => _getBool(annotationSyncEnabledSettingKey, defaultValue: false);
+
+  Future<void> setAnnotationSyncEnabled(bool enabled) => _setBool(annotationSyncEnabledSettingKey, enabled);
+
+  Future<bool> _getBool(String key, {required bool defaultValue}) async {
+    final row = await (_database.select(
+      _database.appSettings,
+    )..where((setting) => setting.key.equals(key))).getSingleOrNull();
+    if (row == null) return defaultValue;
+    return row.value == 'true';
+  }
 
   Future<void> _setBool(String key, bool enabled) async {
     await _database

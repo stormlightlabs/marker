@@ -33,20 +33,30 @@ enum SembleSyncCollection {
 }
 
 enum MarginSyncCollection {
-  note;
+  note,
+  collection,
+  collectionItem;
 
   String get value => switch (this) {
     MarginSyncCollection.note => 'at.margin.note',
+    MarginSyncCollection.collection => 'at.margin.collection',
+    MarginSyncCollection.collectionItem => 'at.margin.collectionItem',
   };
 
-  static Map<String, String> get trackedCollections => {MarginSyncCollection.note.value: 'Margin notes / annotations'};
+  static Map<String, String> get trackedCollections => {
+    MarginSyncCollection.note.value: 'Margin notes / annotations',
+    MarginSyncCollection.collection.value: 'Margin annotation collections',
+    MarginSyncCollection.collectionItem.value: 'Margin annotation collection items',
+  };
 }
 
 enum SembleSyncLocalTable {
   bookmarks('bookmarks'),
   bookmarkFolders('bookmark_folders'),
   bookmarkCollectionLinks('bookmark_collection_links'),
-  annotations('annotations');
+  annotations('annotations'),
+  annotationCollections('annotation_collections'),
+  annotationCollectionItems('annotation_collection_items');
 
   const SembleSyncLocalTable(this.value);
 

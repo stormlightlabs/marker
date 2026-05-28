@@ -415,11 +415,11 @@ Annotations are up to date.
 
 ### Status and diagnostics
 
-In the ATProto diagnostics section, include `at.margin.note` with:
+In the ATProto diagnostics section, include `at.margin.note`, `at.margin.collection`, and `at.margin.collectionItem` with:
 
 - last successful annotation sync time
 - last annotation sync error
-- pending annotation changes
+- pending annotation and annotation-collection changes
 - failed annotation pushes
 - malformed remote notes skipped by the last run, if retained by a future diagnostics model
 
@@ -444,6 +444,7 @@ Reader screens should not add protocol labels beside every highlight. Add a smal
 - delete confirmation: if annotation sync is enabled, say `This also deletes the synced Margin note on the next sync.`
 - tag editor: allow adding/removing annotation tags; tags sync through `at.margin.note.tags`.
 - tag filters: support filtering/searching annotations by tag.
+- collection editor: allow users to create curated annotation collections and add/remove annotations; these sync through `at.margin.collection` and `at.margin.collectionItem`.
 
 ### Deferred Margin UI
 
@@ -452,14 +453,13 @@ Keep these out of the first annotation sync UI:
 - editing rich-text facets directly;
 - editing rights/license metadata;
 - editing labels/content warnings;
-- showing generator metadata;
-- curated annotation collections backed by `at.margin.collection` and `at.margin.collectionItem`.
+- showing generator metadata.
 
 ### Later UI, after push/deletion phases
 
 - [x] Add local-change push status.
 - [x] Add retry queue/outbox status.
 - [x] Add delete sync status.
-- [ ] Add annotation sync opt-in and Margin note import/export status.
+- [x] Add annotation sync opt-in and Margin note import/export status.
 - [ ] Add conflict resolution UI only after both pull and push exist.
 - [ ] Add non-secret diagnostics export

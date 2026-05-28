@@ -93,18 +93,18 @@ See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth
 ## Phase 9: product polish
 
 - [ ] Add first-class annotation tag editor and tag filters in annotation UI.
-- [ ] Add annotation sync opt-in and automatic outbox enqueue for local annotation creates, updates, tag edits, body edits, style edits, and deletes.
+- [x] Add annotation sync opt-in and automatic outbox enqueue for local annotation creates, updates, tag edits, body edits, style edits, and deletes.
 - [ ] Add combined ATProto `Sync now` action that runs enabled sync domains while preserving separate bookmark and annotation result summaries.
 - [ ] Add manual sync button and last-sync timestamp.
 - [ ] Show per-account sync errors in settings.
 - [ ] Add account disconnect behavior that leaves local data intact.
 - [ ] Add privacy copy for what sync publishes.
-- [ ] Add separate opt-in controls for annotation sync.
+- [x] Add separate opt-in controls for annotation sync.
 - [ ] Add lightweight diagnostics export for sync state without secrets.
 
 ## Later work
 
-- [ ] Add curated annotation collections backed by `at.margin.collection` and `at.margin.collectionItem`.
+- [x] Add curated annotation collections backed by `at.margin.collection` and `at.margin.collectionItem`.
 - [ ] Add UI for imported/preserved Margin facets, rights, labels, and generator metadata only if users need to inspect or edit them.
 - [ ] Expand Markdown-to-facet generation beyond basic Markdown links if Margin clients need richer interop.
 - [ ] Add feeds from followed collections/users using `network.cosmik.follow`.

@@ -228,6 +228,10 @@ void main() {
     expect(find.text(SembleSyncCollection.collectionLinkRemoval.value), findsOneWidget);
     expect(find.text('Margin notes / annotations'), findsOneWidget);
     expect(find.text(MarginSyncCollection.note.value), findsOneWidget);
+    expect(find.text('Margin annotation collections'), findsOneWidget);
+    expect(find.text(MarginSyncCollection.collection.value), findsOneWidget);
+    expect(find.text('Margin annotation collection items'), findsOneWidget);
+    expect(find.text(MarginSyncCollection.collectionItem.value), findsOneWidget);
     expect(find.text('Push sync'), findsOneWidget);
     expect(find.text('Local changes pending: 1'), findsOneWidget);
     expect(find.textContaining('Last push:'), findsOneWidget);
@@ -243,10 +247,10 @@ void main() {
     expect(find.text('Confirmed remote deletes: 1'), findsOneWidget);
     expect(find.textContaining('Last successful sync:'), findsWidgets);
     expect(find.text('Last error: rate limited'), findsOneWidget);
-    expect(find.text('Last error: None'), findsNWidgets(4));
-    expect(find.text('Records synced: 0'), findsNWidgets(4));
+    expect(find.text('Last error: None'), findsNWidgets(6));
+    expect(find.text('Records synced: 0'), findsNWidgets(6));
     expect(find.text('Records synced: 1'), findsOneWidget);
-    expect(find.text('Records deleted: 0'), findsNWidgets(4));
+    expect(find.text('Records deleted: 0'), findsNWidgets(6));
     expect(find.text('Records deleted: 1'), findsOneWidget);
     expect(find.textContaining('access-token'), findsNothing);
     expect(find.textContaining('refresh-token'), findsNothing);
@@ -422,21 +426,19 @@ class FakeAtprotoOAuthClient implements AtprotoOAuthClient {
   }
 
   @override
-  Future<OAuthSession> callback({required String callbackUrl, required OAuthContext context}) async {
-    return OAuthSession(
-      accessToken: 'access-token-1',
-      refreshToken: 'refresh-token-1',
-      tokenType: 'DPoP',
-      scope: 'atproto transition:generic',
-      expiresAt: DateTime.utc(2026, 5, 26, 13),
-      sub: 'did:plc:alice',
-      $clientId: markerAtprotoOAuthClientId,
-      $pdsEndpoint: 'porcini.us-east.host.bsky.network',
-      $dPoPNonce: 'nonce-1',
-      $publicKey: 'public-key-1',
-      $privateKey: 'private-key-1',
-    );
-  }
+  Future<OAuthSession> callback({required String callbackUrl, required OAuthContext context}) async => OAuthSession(
+    accessToken: 'access-token-1',
+    refreshToken: 'refresh-token-1',
+    tokenType: 'DPoP',
+    scope: 'atproto transition:generic',
+    expiresAt: DateTime.utc(2026, 5, 26, 13),
+    sub: 'did:plc:alice',
+    $clientId: markerAtprotoOAuthClientId,
+    $pdsEndpoint: 'porcini.us-east.host.bsky.network',
+    $dPoPNonce: 'nonce-1',
+    $publicKey: 'public-key-1',
+    $privateKey: 'private-key-1',
+  );
 
   @override
   Future<OAuthSession> refresh(OAuthSession session) async => session;

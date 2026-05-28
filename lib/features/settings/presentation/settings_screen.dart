@@ -13,6 +13,7 @@ import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
+import 'package:marker/features/atproto/data/annotation_sync_opt_in_service.dart';
 import 'package:marker/features/atproto/data/atproto_actor_search_repository.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -262,6 +263,10 @@ final _atprotoLatestMirrorSyncProvider = FutureProvider.family<DateTime?, String
   return ref.watch(atprotoSyncRepositoryProvider).latestMirrorSyncAtForAccount(accountDid);
 });
 
+final _annotationSyncEnabledProvider = FutureProvider<bool>((ref) {
+  return ref.watch(settingsRepositoryProvider).isAnnotationSyncEnabled();
+});
+
 class _AtprotoAccountRow extends ConsumerWidget {
   const _AtprotoAccountRow({required this.state});
 
@@ -305,6 +310,32 @@ class _AtprotoAccountRow extends ConsumerWidget {
   }
 }
 
+class _AnnotationSyncOptInRow extends StatelessWidget {
+  const _AnnotationSyncOptInRow({required this.enabled, required this.onChanged});
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(color: const Color(0xFF151519), borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        children: [
+          const Expanded(
+            child: _SettingsRowText(
+              title: 'Annotation sync',
+              subtitle: 'Sync highlights, notes, tags, and annotation collections with Margin.',
+            ),
+          ),
+          CupertinoSwitch(value: enabled, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
 class _ConnectedAtprotoAccountCard extends ConsumerWidget {
   const _ConnectedAtprotoAccountCard({required this.account});
 
@@ -324,6 +355,7 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
     final lastImport = _latestSuccessfulSync(syncStates);
     final lastError = _latestError(syncStates);
     final isImporting = importState.isImporting;
+    final annotationSyncEnabled = ref.watch(_annotationSyncEnabledProvider).value ?? false;
 
     return _SettingsRowFrame(
       child: Padding(
@@ -364,6 +396,15 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
                   if (lastError != null) _AtprotoDetailRow(label: 'Last error', value: lastError, isError: true),
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+            _AnnotationSyncOptInRow(
+              enabled: annotationSyncEnabled,
+              onChanged: (enabled) async {
+                await ref.read(annotationSyncOptInServiceProvider).setEnabled(enabled);
+                ref.invalidate(_annotationSyncEnabledProvider);
+                ref.invalidate(_atprotoPendingOutboxProvider(account.did));
+              },
             ),
             const SizedBox(height: 8),
             _AtprotoDiagnosticsSection(

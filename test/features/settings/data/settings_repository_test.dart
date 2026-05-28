@@ -43,4 +43,15 @@ void main() {
     expect(row.key, funEnabledSettingKey);
     expect(row.value, 'false');
   });
+
+  test('defaults annotation sync to disabled and persists opt-in', () async {
+    expect(await repository.isAnnotationSyncEnabled(), isFalse);
+
+    await repository.setAnnotationSyncEnabled(true);
+
+    expect(await repository.isAnnotationSyncEnabled(), isTrue);
+    final row = await database.select(database.appSettings).getSingle();
+    expect(row.key, annotationSyncEnabledSettingKey);
+    expect(row.value, 'true');
+  });
 }

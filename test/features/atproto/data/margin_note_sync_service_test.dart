@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:margin_poptart/at/margin/collection/main.dart' as margin_collection;
+import 'package:margin_poptart/at/margin/collection_item/main.dart' as margin_collection_item;
 import 'package:margin_poptart/at/margin/note/body.dart' as margin_body;
 import 'package:margin_poptart/at/margin/note/main.dart' as margin_note;
 import 'package:margin_poptart/at/margin/note/main_motivation.dart' as margin_motivation;
@@ -16,6 +18,7 @@ import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/margin_note_sync_service.dart';
 import 'package:marker/features/atproto/domain/atproto_repo_models.dart';
+import 'package:poptart_core/poptart_core.dart';
 
 void main() {
   late AppDatabase database;
@@ -38,6 +41,62 @@ void main() {
 
   tearDown(() async {
     await database.close();
+  });
+
+  test('push maps curated annotation collections and collection items', () async {
+    await _seedAnnotation(
+      database,
+      id: 'annotation-1',
+      motivation: 'highlighting',
+      styleJson: {'style': 'highlight', 'color': '#FFCC00'},
+    );
+    await database
+        .into(database.annotationCollections)
+        .insert(
+          AnnotationCollectionsCompanion.insert(
+            id: 'collection-1',
+            name: 'Research',
+            description: const Value('Papers'),
+            icon: const Value('📚'),
+            createdAt: DateTime.utc(2026, 5, 28, 10),
+            updatedAt: DateTime.utc(2026, 5, 28, 10),
+          ),
+        );
+    await database
+        .into(database.annotationCollectionItems)
+        .insert(
+          AnnotationCollectionItemsCompanion.insert(
+            id: 'item-1',
+            collectionId: 'collection-1',
+            annotationId: 'annotation-1',
+            position: const Value(4),
+            createdAt: DateTime.utc(2026, 5, 28, 10, 30),
+            updatedAt: DateTime.utc(2026, 5, 28, 10, 30),
+          ),
+        );
+    for (final outbox in [
+      (SembleSyncLocalTable.annotations.value, 'annotation-1', MarginSyncCollection.note.value),
+      (SembleSyncLocalTable.annotationCollections.value, 'collection-1', MarginSyncCollection.collection.value),
+      (SembleSyncLocalTable.annotationCollectionItems.value, 'item-1', MarginSyncCollection.collectionItem.value),
+    ]) {
+      await syncRepository.enqueueOutbox(
+        accountDid: 'did:plc:alice',
+        operation: AtprotoSyncOperation.create.value,
+        localTable: outbox.$1,
+        localId: outbox.$2,
+        collection: outbox.$3,
+      );
+    }
+
+    final result = await service.pushPending('did:plc:alice');
+
+    expect(result.pushed, 3);
+    final collectionRecord = repoClient.records['at://did:plc:alice/at.margin.collection/collection-1']!.value;
+    expect(collectionRecord['name'], 'Research');
+    final itemRecord = repoClient.records['at://did:plc:alice/at.margin.collectionItem/item-1']!.value;
+    expect(itemRecord['collection'], 'at://did:plc:alice/at.margin.collection/collection-1');
+    expect(itemRecord['annotation'], 'at://did:plc:alice/at.margin.note/annotation-1');
+    expect(itemRecord['position'], 4);
   });
 
   test('pull imports remote note with selector, markdown body, and color', () async {
@@ -77,6 +136,51 @@ void main() {
       uri: 'at://did:plc:alice/at.margin.note/note-1',
     );
     expect(mirror?.localId, annotations.single.id);
+  });
+
+  test('pull imports curated annotation collections and collection items', () async {
+    repoClient.records['at://did:plc:alice/at.margin.collection/collection-1'] = AtprotoRepoRecord(
+      uri: 'at://did:plc:alice/at.margin.collection/collection-1',
+      cid: 'cid-collection-1',
+      value: const margin_collection.CollectionRecordConverter().toJson(
+        margin_collection.CollectionRecord(
+          name: 'Remote collection',
+          description: 'Remote description',
+          icon: '⭐',
+          createdAt: DateTime.utc(2026, 5, 28, 10),
+        ),
+      ),
+    );
+    repoClient.records['at://did:plc:alice/at.margin.note/note-1'] = AtprotoRepoRecord(
+      uri: 'at://did:plc:alice/at.margin.note/note-1',
+      cid: 'cid-note-1',
+      value: _remoteNote(
+        source: 'https://example.com/article',
+        body: 'Remote note',
+        selector: _textQuoteSelector('quote'),
+      ),
+    );
+    repoClient.records['at://did:plc:alice/at.margin.collectionItem/item-1'] = AtprotoRepoRecord(
+      uri: 'at://did:plc:alice/at.margin.collectionItem/item-1',
+      cid: 'cid-item-1',
+      value: const margin_collection_item.CollectionItemRecordConverter().toJson(
+        margin_collection_item.CollectionItemRecord(
+          collection: const AtUri('at://did:plc:alice/at.margin.collection/collection-1'),
+          annotation: const AtUri('at://did:plc:alice/at.margin.note/note-1'),
+          position: 2,
+          createdAt: DateTime.utc(2026, 5, 28, 11),
+        ),
+      ),
+    );
+
+    final result = await service.pull('did:plc:alice');
+
+    expect(result.imported, 3);
+    final collection = await database.select(database.annotationCollections).getSingle();
+    expect(collection.name, 'Remote collection');
+    final item = await database.select(database.annotationCollectionItems).getSingle();
+    expect(item.collectionId, collection.id);
+    expect(item.position, 2);
   });
 
   test('pull preserves Margin metadata that Marker does not model directly', () async {

@@ -69,6 +69,37 @@ class AnnotationTags extends Table {
   ];
 }
 
+class AnnotationCollections extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get icon => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class AnnotationCollectionItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get collectionId => text().references(AnnotationCollections, #id)();
+  TextColumn get annotationId => text().references(Annotations, #id)();
+  IntColumn get position => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {collectionId, annotationId},
+  ];
+}
+
 class Bookmarks extends Table {
   TextColumn get id => text()();
   TextColumn get folderId => text().nullable().references(BookmarkFolders, #id)();
@@ -216,6 +247,8 @@ class AppSettings extends Table {
     AnnotationTargets,
     AnnotationBodies,
     AnnotationTags,
+    AnnotationCollections,
+    AnnotationCollectionItems,
     BookmarkFolders,
     Bookmarks,
     BookmarkCollectionLinks,
@@ -285,6 +318,8 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 14) {
         await m.createTable(annotationTags);
+        await m.createTable(annotationCollections);
+        await m.createTable(annotationCollectionItems);
       }
     },
     beforeOpen: (details) async {

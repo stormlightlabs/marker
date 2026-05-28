@@ -56,6 +56,8 @@ Current Drift tables:
 | `AnnotationTargets` | Source URL, optional source hash, selector JSON, and optional Margin target state JSON. |
 | `AnnotationBodies` | Textual note body, optional body URI, and style hints. |
 | `AnnotationTags` | First-class tags for grouping and filtering annotations. |
+| `AnnotationCollections` | Curated annotation groups that map to `at.margin.collection`. |
+| `AnnotationCollectionItems` | Annotation-to-collection memberships that map to `at.margin.collectionItem`. |
 | `BrowserHistoryEntries` | Local browser history. |
 | `AppSettings` | Local settings. |
 
@@ -351,7 +353,29 @@ Marker stores highlight/underline style in an `AnnotationBodies` row with type `
 
 Use Margin `NoteRecord.tags` for lightweight annotation grouping. Tags are first-class local rows and should be searchable/filterable in Marker.
 
-Do not automatically turn every tag into `at.margin.collection`. Margin collections should represent curated annotation sets with explicit membership and ordering. When Marker adds curated annotation collections, map them to `at.margin.collection` and `at.margin.collectionItem`; keep tag sync independent.
+Do not automatically turn every tag into `at.margin.collection`. Margin collections represent curated annotation sets with explicit membership and ordering. Marker maps curated annotation collections to `at.margin.collection` and memberships to `at.margin.collectionItem`; tag sync remains independent.
+
+### Curated annotation collection to `at.margin.collection`
+
+Mapping:
+
+| Marker | Margin |
+| --- | --- |
+| `AnnotationCollections.name` | `name` |
+| `AnnotationCollections.description` | `description` |
+| `AnnotationCollections.icon` | `icon` |
+| `AnnotationCollections.createdAt` | `createdAt` |
+
+### Annotation collection item to `at.margin.collectionItem`
+
+Mapping:
+
+| Marker | Margin |
+| --- | --- |
+| collection mirror URI | `collection` |
+| annotation note mirror URI | `annotation` |
+| `AnnotationCollectionItems.position` | `position` |
+| `AnnotationCollectionItems.createdAt` | `createdAt` |
 
 ## Published lexicon packages
 
@@ -417,7 +441,7 @@ Minimum repo operations:
 
 ## Push sync
 
-Local writes should create outbox rows in the same transaction as the local data mutation.
+Local writes should create outbox rows in the same transaction as the local data mutation. Bookmark sync and annotation sync share the same outbox/mirror infrastructure, but annotation writes only enqueue Margin records after the user enables annotation sync.
 
 Example bookmark create:
 

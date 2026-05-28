@@ -122,6 +122,14 @@ class AtprotoDeletionSyncService {
         await (_database.update(_database.annotations)..where((row) => row.id.equals(localId))).write(
           AnnotationsCompanion(deletedAt: Value(timestamp), modifiedAt: Value(timestamp)),
         );
+      case SembleSyncLocalTable.annotationCollections:
+        await (_database.update(_database.annotationCollections)..where((row) => row.id.equals(localId))).write(
+          AnnotationCollectionsCompanion(deletedAt: Value(timestamp), updatedAt: Value(timestamp)),
+        );
+      case SembleSyncLocalTable.annotationCollectionItems:
+        await (_database.update(_database.annotationCollectionItems)..where((row) => row.id.equals(localId))).write(
+          AnnotationCollectionItemsCompanion(deletedAt: Value(timestamp), updatedAt: Value(timestamp)),
+        );
     }
   }
 

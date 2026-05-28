@@ -6,10 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
+import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/settings/data/settings_repository.dart';
 import 'package:uuid/uuid.dart';
 
 final annotationRepositoryProvider = Provider<AnnotationRepository>((ref) {
-  return AnnotationRepository(ref.watch(databaseProvider));
+  return AnnotationRepository(ref.watch(databaseProvider), syncRepository: ref.watch(atprotoSyncRepositoryProvider));
 });
 
 final annotationsForPageProvider = FutureProvider.autoDispose.family<List<PageAnnotation>, Uri>((ref, sourceUrl) {
@@ -21,11 +24,13 @@ final annotationDetailProvider = FutureProvider.autoDispose.family<AnnotationDet
 });
 
 class AnnotationRepository {
-  AnnotationRepository(this._database, {Uuid? uuid, DateTime Function()? now})
-    : _uuid = uuid ?? const Uuid(),
+  AnnotationRepository(this._database, {AtprotoSyncRepository? syncRepository, Uuid? uuid, DateTime Function()? now})
+    : _syncRepository = syncRepository,
+      _uuid = uuid ?? const Uuid(),
       _now = now ?? (() => DateTime.now().toUtc());
 
   final AppDatabase _database;
+  final AtprotoSyncRepository? _syncRepository;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -202,6 +207,7 @@ class AnnotationRepository {
               mode: InsertMode.insertOrIgnore,
             );
       }
+      await _enqueueAnnotationSync(annotationId);
     });
 
     return (_database.select(
@@ -260,9 +266,12 @@ class AnnotationRepository {
 
   Future<void> deleteAnnotation(String annotationId) async {
     final now = _now();
-    await (_database.update(_database.annotations)..where((annotation) => annotation.id.equals(annotationId))).write(
-      AnnotationsCompanion(deletedAt: Value(now), modifiedAt: Value(now)),
-    );
+    await _database.transaction(() async {
+      await (_database.update(_database.annotations)..where((annotation) => annotation.id.equals(annotationId))).write(
+        AnnotationsCompanion(deletedAt: Value(now), modifiedAt: Value(now)),
+      );
+      await _enqueueAnnotationSync(annotationId, operation: AtprotoSyncOperation.delete);
+    });
   }
 
   Future<void> deleteAnnotations(Iterable<String> annotationIds) async {
@@ -271,9 +280,14 @@ class AnnotationRepository {
       return;
     }
     final now = _now();
-    await (_database.update(_database.annotations)..where((annotation) => annotation.id.isIn(ids))).write(
-      AnnotationsCompanion(deletedAt: Value(now), modifiedAt: Value(now)),
-    );
+    await _database.transaction(() async {
+      await (_database.update(_database.annotations)..where((annotation) => annotation.id.isIn(ids))).write(
+        AnnotationsCompanion(deletedAt: Value(now), modifiedAt: Value(now)),
+      );
+      for (final id in ids) {
+        await _enqueueAnnotationSync(id, operation: AtprotoSyncOperation.delete);
+      }
+    });
   }
 
   Future<AnnotationDetail?> getAnnotationDetail(String annotationId) async {
@@ -324,6 +338,7 @@ class AnnotationRepository {
       await (_database.update(
         _database.annotations,
       )..where((annotation) => annotation.id.equals(annotationId))).write(AnnotationsCompanion(modifiedAt: Value(now)));
+      await _enqueueAnnotationSync(annotationId);
     });
   }
 
@@ -369,6 +384,7 @@ class AnnotationRepository {
           modifiedAt: Value(now),
         ),
       );
+      await _enqueueAnnotationSync(annotationId);
     });
   }
 
@@ -448,6 +464,31 @@ class AnnotationRepository {
       }
     }
     return details;
+  }
+
+  Future<void> _enqueueAnnotationSync(
+    String annotationId, {
+    AtprotoSyncOperation operation = AtprotoSyncOperation.update,
+  }) async {
+    final syncRepository = _syncRepository;
+    if (syncRepository == null || !await _isAnnotationSyncEnabled()) return;
+    final accounts = await syncRepository.accounts();
+    for (final account in accounts) {
+      await syncRepository.enqueueOutbox(
+        accountDid: account.did,
+        operation: operation.value,
+        localTable: SembleSyncLocalTable.annotations.value,
+        localId: annotationId,
+        collection: MarginSyncCollection.note.value,
+      );
+    }
+  }
+
+  Future<bool> _isAnnotationSyncEnabled() async {
+    final row = await (_database.select(
+      _database.appSettings,
+    )..where((setting) => setting.key.equals(annotationSyncEnabledSettingKey))).getSingleOrNull();
+    return row?.value == 'true';
   }
 
   List<String> _normalizeTags(Iterable<String> tags) {
