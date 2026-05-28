@@ -54,6 +54,21 @@ class AnnotationBodies extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class AnnotationTags extends Table {
+  TextColumn get id => text()();
+  TextColumn get annotationId => text().references(Annotations, #id)();
+  TextColumn get name => text()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {annotationId, name},
+  ];
+}
+
 class Bookmarks extends Table {
   TextColumn get id => text()();
   TextColumn get folderId => text().nullable().references(BookmarkFolders, #id)();
@@ -200,6 +215,7 @@ class AppSettings extends Table {
     Annotations,
     AnnotationTargets,
     AnnotationBodies,
+    AnnotationTags,
     BookmarkFolders,
     Bookmarks,
     BookmarkCollectionLinks,
@@ -215,7 +231,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -266,6 +282,9 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(annotationTargets, annotationTargets.sourceHash);
         await m.addColumn(annotationTargets, annotationTargets.stateJson);
         await m.addColumn(annotationBodies, annotationBodies.uri);
+      }
+      if (from < 14) {
+        await m.createTable(annotationTags);
       }
     },
     beforeOpen: (details) async {

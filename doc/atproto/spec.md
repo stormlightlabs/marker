@@ -35,8 +35,8 @@ Marker needs Semble/Cosmik lexicons for bookmark sync and Margin lexicons for an
 | NSID | Marker use |
 | --- | --- |
 | `at.margin.note` | Main representation for Marker annotations, highlights, underlines, and notes. |
-| `at.margin.collection` | Simpler collection format. Marker should prefer `network.cosmik.collection`. |
-| `at.margin.collectionItem` | Collection membership with position. Useful reference if sort order becomes important. |
+| `at.margin.collection` | Annotation collections. Use for curated annotation groups, not for every tag. |
+| `at.margin.collectionItem` | Annotation-to-collection membership with position. Use when Marker adds curated annotation collections. |
 | `at.margin.reply` | Later annotation discussion. |
 | `at.margin.like` | Later social action on notes or replies. |
 | `at.margin.profile` | Later Margin profile support. |
@@ -52,9 +52,10 @@ Current Drift tables:
 | `Pages` | Page metadata for visited or annotated URLs. |
 | `Bookmarks` | URL bookmark with one nullable `folderId`. |
 | `BookmarkFolders` | Nested folders through `parentId`. |
-| `Annotations` | W3C-style annotation shell with `motivation`, created/modified/deleted timestamps. |
-| `AnnotationTargets` | Source URL and selector JSON. |
-| `AnnotationBodies` | Textual note body and style hints. |
+| `Annotations` | W3C-style annotation shell with `motivation`, Margin metadata JSON, created/modified/deleted timestamps. |
+| `AnnotationTargets` | Source URL, optional source hash, selector JSON, and optional Margin target state JSON. |
+| `AnnotationBodies` | Textual note body, optional body URI, and style hints. |
+| `AnnotationTags` | First-class tags for grouping and filtering annotations. |
 | `BrowserHistoryEntries` | Local browser history. |
 | `AppSettings` | Local settings. |
 
@@ -318,15 +319,21 @@ Mapping:
 | Marker | Margin |
 | --- | --- |
 | `AnnotationTargets.sourceUrl` | `target.source` |
+| `AnnotationTargets.sourceHash` | `target.sourceHash` |
+| `AnnotationTargets.stateJson` | `target.state` |
 | page title | `target.title` |
 | TextQuote selector | `target.selector` with `type: "TextQuoteSelector"` |
 | TextPosition selector | `target.selector` with `type: "TextPositionSelector"` |
 | CSS selector | `target.selector` with `type: "CssSelector"` |
 | `Annotations.motivation` | `motivation` |
-| `AnnotationBodies.TextualBody` | `body.value`, `body.format` |
+| `AnnotationBodies.TextualBody` | `body.value`, `body.format`, `body.uri` |
+| `AnnotationTags.name` | `tags` |
+| markdown links in `TextualBody` | generated link `facets` when no remote facets are preserved |
 | highlight color style hint | `color` when available |
 | `Annotations.createdAt` | `createdAt` |
 | `Annotations.modifiedAt` | `modifiedAt` |
+| preserved Margin metadata JSON | `facets`, `rights`, `labels`, and unknown top-level fields |
+| Marker client | `generator` on outbound records |
 
 Margin's `target.selector` stores one selector. Marker currently stores multiple selectors. The mapper should choose the strongest selector shape for the remote record:
 
@@ -338,7 +345,13 @@ Keep the full selector array locally so Marker can re-anchor highlights using al
 
 ### Style hints
 
-Marker stores highlight/underline style in an `AnnotationBodies` row with type `StyleHint`. `at.margin.note` has a `color` field, so the first implementation should map highlight color when the stored value is compatible. Keep underline and unsupported style hints local. Do not drop style data during remote import/export.
+Marker stores highlight/underline style in an `AnnotationBodies` row with type `StyleHint`. `at.margin.note` has a `color` field, so Marker maps highlight color when available. Margin does not have a first-class underline field; Marker syncs underlines as Margin highlights with color and adds the Marker extension field `markerStyle: "underline"` so Marker can round-trip the visual style without exposing it as a user tag.
+
+### Annotation tags and Margin collections
+
+Use Margin `NoteRecord.tags` for lightweight annotation grouping. Tags are first-class local rows and should be searchable/filterable in Marker.
+
+Do not automatically turn every tag into `at.margin.collection`. Margin collections should represent curated annotation sets with explicit membership and ordering. When Marker adds curated annotation collections, map them to `at.margin.collection` and `at.margin.collectionItem`; keep tag sync independent.
 
 ## Published lexicon packages
 

@@ -139,6 +139,7 @@ class AnnotationRepository {
     String? pageTitle,
     String? cssSelector,
     List<AnnotationBodyInput> bodies = const [],
+    List<String> tags = const [],
   }) async {
     final page = await _recordPage(
       url: sourceUrl,
@@ -192,6 +193,15 @@ class AnnotationRepository {
               ),
             );
       }
+
+      for (final tag in _normalizeTags(tags)) {
+        await _database
+            .into(_database.annotationTags)
+            .insert(
+              AnnotationTagsCompanion.insert(id: _uuid.v4(), annotationId: annotationId, name: tag, createdAt: now),
+              mode: InsertMode.insertOrIgnore,
+            );
+      }
     });
 
     return (_database.select(
@@ -238,7 +248,11 @@ class AnnotationRepository {
         _database.annotationBodies,
       )..where((body) => body.annotationId.equals(annotation.id))).get();
 
-      items.add(PageAnnotation(annotation: annotation, target: target, bodies: bodies));
+      final tags = await (_database.select(
+        _database.annotationTags,
+      )..where((tag) => tag.annotationId.equals(annotation.id))).get();
+
+      items.add(PageAnnotation(annotation: annotation, target: target, bodies: bodies, tags: tags));
     }
 
     return items;
@@ -285,7 +299,32 @@ class AnnotationRepository {
       _database.annotationBodies,
     )..where((body) => body.annotationId.equals(annotation.id))).get();
 
-    return AnnotationDetail.build(page, PageAnnotation(annotation: annotation, target: target, bodies: bodies));
+    final tags = await (_database.select(
+      _database.annotationTags,
+    )..where((tag) => tag.annotationId.equals(annotation.id))).get();
+
+    return AnnotationDetail.build(
+      page,
+      PageAnnotation(annotation: annotation, target: target, bodies: bodies, tags: tags),
+    );
+  }
+
+  Future<void> updateTags({required String annotationId, required List<String> tags}) async {
+    final now = _now();
+    await _database.transaction(() async {
+      await (_database.delete(_database.annotationTags)..where((tag) => tag.annotationId.equals(annotationId))).go();
+      for (final tag in _normalizeTags(tags)) {
+        await _database
+            .into(_database.annotationTags)
+            .insert(
+              AnnotationTagsCompanion.insert(id: _uuid.v4(), annotationId: annotationId, name: tag, createdAt: now),
+              mode: InsertMode.insertOrIgnore,
+            );
+      }
+      await (_database.update(
+        _database.annotations,
+      )..where((annotation) => annotation.id.equals(annotationId))).write(AnnotationsCompanion(modifiedAt: Value(now)));
+    });
   }
 
   Future<void> updateMarkdownBody({required String annotationId, required String value}) async {
@@ -411,6 +450,18 @@ class AnnotationRepository {
     return details;
   }
 
+  List<String> _normalizeTags(Iterable<String> tags) {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final tag in tags) {
+      final normalized = normalize(tag)?.replaceAll(RegExp(r'\\s+'), ' ');
+      if (normalized == null) continue;
+      final key = normalized.toLowerCase();
+      if (seen.add(key)) result.add(normalized);
+    }
+    return result;
+  }
+
   Future<AnnotationTarget?> _targetForAnnotation(
     String annotationId, {
     required List<AnnotationTarget> fallbackTargets,
@@ -472,11 +523,12 @@ class AnnotationBodyInput {
 enum AnnotationVisualStyle { highlight, underline }
 
 class PageAnnotation {
-  const PageAnnotation({required this.annotation, required this.target, required this.bodies});
+  const PageAnnotation({required this.annotation, required this.target, required this.bodies, this.tags = const []});
 
   final Annotation annotation;
   final AnnotationTarget target;
   final List<AnnotationBody> bodies;
+  final List<AnnotationTag> tags;
 
   String? get exact {
     for (final selector in selectors) {
@@ -570,6 +622,7 @@ class PageAnnotation {
       'style': visualStyle.name,
       'color': colorHex,
       if (note != null) 'note': note,
+      if (tags.isNotEmpty) 'tags': [for (final tag in tags) tag.name],
     };
   }
 

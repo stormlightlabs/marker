@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:margin_poptart/at/margin/note/body.dart' as margin_body;
+import 'package:margin_poptart/at/margin/note/generator.dart' as margin_generator;
 import 'package:margin_poptart/at/margin/note/main.dart' as margin_note;
 import 'package:margin_poptart/at/margin/note/main_motivation.dart' as margin_motivation;
 import 'package:margin_poptart/at/margin/note/selector.dart' as margin_selector;
@@ -21,6 +22,12 @@ import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/domain/atproto_repo_models.dart';
 import 'package:uuid/uuid.dart';
+
+const markerMarginGeneratorId = 'app.marker';
+const markerMarginGeneratorName = 'Marker';
+const markerMarginGeneratorHomepage = 'https://marker.stormlightlabs.org';
+const markerMarginStyleField = 'markerStyle';
+const markerMarginUnderlineStyle = 'underline';
 
 final marginNoteSyncServiceProvider = Provider<MarginNoteSyncService>((ref) {
   return MarginNoteSyncService(
@@ -162,6 +169,8 @@ class MarginNoteSyncService {
       final body = emptyToNull(note.body?.value);
       final bodyUri = emptyToNull(note.body?.uri);
       final color = emptyToNull(note.color);
+      final markerStyle = _remoteMarkerStyle(remote.value);
+      final tagNames = _normalizeTags(note.tags);
 
       await _database.transaction(() async {
         if (mirror == null) {
@@ -192,6 +201,9 @@ class MarginNoteSyncService {
           )..where((row) => row.annotationId.equals(annotationId))).go();
           await (_database.delete(
             _database.annotationBodies,
+          )..where((row) => row.annotationId.equals(annotationId))).go();
+          await (_database.delete(
+            _database.annotationTags,
           )..where((row) => row.annotationId.equals(annotationId))).go();
         }
 
@@ -230,8 +242,26 @@ class MarginNoteSyncService {
                   annotationId: annotationId,
                   type: 'StyleHint',
                   format: const Value('application/json'),
-                  value: jsonEncode({'style': AnnotationVisualStyle.highlight.name, 'color': color}),
+                  value: jsonEncode({
+                    'style': markerStyle == markerMarginUnderlineStyle
+                        ? AnnotationVisualStyle.underline.name
+                        : AnnotationVisualStyle.highlight.name,
+                    'color': color,
+                  }),
                 ),
+              );
+        }
+        for (final tagName in tagNames) {
+          await _database
+              .into(_database.annotationTags)
+              .insert(
+                AnnotationTagsCompanion.insert(
+                  id: _uuid.v4(),
+                  annotationId: annotationId,
+                  name: tagName,
+                  createdAt: _now(),
+                ),
+                mode: InsertMode.insertOrIgnore,
               );
         }
       });
@@ -304,9 +334,13 @@ class MarginNoteSyncService {
     final bodies = await (_database.select(
       _database.annotationBodies,
     )..where((row) => row.annotationId.equals(annotation.id))).get();
+    final tags = await (_database.select(
+      _database.annotationTags,
+    )..where((row) => row.annotationId.equals(annotation.id))).get();
     final local = PageAnnotation(annotation: annotation, target: target, bodies: bodies);
     final noteBody = local.note;
     final textBody = _marginBody(bodies, noteBody);
+    final tagNames = _normalizeTags(tags.map((tag) => tag.name));
 
     final record = const margin_note.NoteRecordConverter().toJson(
       margin_note.NoteRecord(
@@ -320,13 +354,25 @@ class MarginNoteSyncService {
           selector: _chooseRemoteSelector(local.selectors),
           state: _targetState(target.stateJson),
         ),
-        tags: _metadataList(annotation.marginMetadataJson, 'tags'),
+        tags: tagNames.isEmpty ? _metadataList(annotation.marginMetadataJson, 'tags') : tagNames,
+        generator: const margin_generator.Generator(
+          id: markerMarginGeneratorId,
+          name: markerMarginGeneratorName,
+          homepage: markerMarginGeneratorHomepage,
+        ),
         rights: _metadataString(annotation.marginMetadataJson, 'rights'),
         createdAt: annotation.createdAt,
         modifiedAt: annotation.modifiedAt,
       ),
     );
     _applyMarginMetadata(record, annotation.marginMetadataJson);
+    if (!record.containsKey('facets') && noteBody != null) {
+      final facets = _markdownLinkFacets(noteBody);
+      if (facets.isNotEmpty) record['facets'] = facets;
+    }
+    if (local.visualStyle == AnnotationVisualStyle.underline) {
+      record[markerMarginStyleField] = markerMarginUnderlineStyle;
+    }
     return record;
   }
 
@@ -418,6 +464,43 @@ class MarginNoteSyncService {
     return null;
   }
 
+  List<Map<String, Object?>> _markdownLinkFacets(String markdown) {
+    final facets = <Map<String, Object?>>[];
+    final pattern = RegExp(r'\[([^\]]+)\]\((https?://[^\s)]+)\)');
+    for (final match in pattern.allMatches(markdown)) {
+      final labelStart = match.start + 1;
+      final labelEnd = labelStart + (match.group(1)?.length ?? 0);
+      facets.add({
+        'index': {
+          r'$type': 'app.bsky.richtext.facet#byteSlice',
+          'byteStart': utf8.encode(markdown.substring(0, labelStart)).length,
+          'byteEnd': utf8.encode(markdown.substring(0, labelEnd)).length,
+        },
+        'features': [
+          {r'$type': 'app.bsky.richtext.facet#link', 'uri': match.group(2)},
+        ],
+      });
+    }
+    return facets;
+  }
+
+  List<String> _normalizeTags(Iterable<String>? tags) {
+    if (tags == null) return const [];
+    final seen = <String>{};
+    final normalized = <String>[];
+    for (final tag in tags) {
+      final value = emptyToNull(tag)?.replaceAll(RegExp(r'\\s+'), ' ');
+      if (value == null) continue;
+      final key = value.toLowerCase();
+      if (seen.add(key)) normalized.add(value);
+    }
+    return normalized;
+  }
+
+  String? _remoteMarkerStyle(Map<String, dynamic> remoteValue) {
+    return emptyToNull(remoteValue[markerMarginStyleField]?.toString());
+  }
+
   String? _marginMetadataJson(Map<String, dynamic> remoteValue) {
     final metadata = <String, Object?>{};
     for (final key in ['tags', 'facets', 'generator', 'rights', 'labels']) {
@@ -477,7 +560,7 @@ class MarginNoteSyncService {
     try {
       final decoded = jsonDecode(trimmed);
       if (decoded is! Map<String, Object?>) return;
-      for (final key in ['tags', 'facets', 'generator', 'rights', 'labels']) {
+      for (final key in ['tags', 'facets', 'rights', 'labels']) {
         if (decoded.containsKey(key) && decoded[key] != null) record[key] = decoded[key];
       }
       final unknown = decoded['unknown'];

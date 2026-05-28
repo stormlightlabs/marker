@@ -83,12 +83,14 @@ void main() {
         AnnotationBodyInput.markdownNote('**Important** note'),
         AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00'),
       ],
+      tags: ['Research', 'research', '  Later  '],
     );
 
     final pages = await database.select(database.pages).get();
     final history = await database.select(database.browserHistoryEntries).get();
     final targets = await database.select(database.annotationTargets).get();
     final bodies = await database.select(database.annotationBodies).get();
+    final tags = await database.select(database.annotationTags).get();
 
     expect(annotation.motivation, 'commenting');
     expect(pages.single.url, 'https://example.com/article');
@@ -97,6 +99,7 @@ void main() {
     expect(jsonDecode(targets.single.selectorJson), hasLength(3));
     expect(bodies.map((body) => body.type), containsAll(['TextualBody', 'StyleHint']));
     expect(bodies.firstWhere((body) => body.type == 'TextualBody').format, 'text/markdown');
+    expect(tags.map((tag) => tag.name), ['Research', 'Later']);
   });
 
   test('lists renderable annotations for a page', () async {
@@ -118,7 +121,10 @@ void main() {
     expect(annotations.single.exact, 'selected text');
     expect(annotations.single.visualStyle, AnnotationVisualStyle.underline);
     expect(annotations.single.colorHex, '#64D2FF');
-    expect(annotations.single.toRenderPayload(), {
+    await repository.updateTags(annotationId: annotations.single.annotation.id, tags: ['Important', 'Later']);
+    final tagged = await repository.listAnnotationsForPage(sourceUrl: Uri.parse('https://example.com/article'));
+
+    expect(tagged.single.toRenderPayload(), {
       'id': annotations.single.annotation.id,
       'motivation': 'highlighting',
       'sourceUrl': 'https://example.com/article',
@@ -129,6 +135,7 @@ void main() {
       ],
       'style': 'underline',
       'color': '#64D2FF',
+      'tags': ['Important', 'Later'],
     });
   });
 

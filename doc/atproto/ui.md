@@ -28,6 +28,7 @@ Current UI gap:
 - Explain that bookmark sync publishes records to the user's ATProto repo.
 - Keep browser history out of sync copy and controls.
 - Keep annotation sync separate from bookmark sync.
+- Put bookmark and annotation sync under one ATProto Sync umbrella with separate opt-ins, status, and privacy copy.
 - Default Margin annotation sync to off until the user opts in.
 - Prefer clear recovery actions over raw protocol errors.
 - Never show tokens, refresh material, DPoP keys, or OAuth context in UI or diagnostics.
@@ -358,7 +359,7 @@ Margin integration syncs Marker annotations with `at.margin.note` records. Treat
 
 Location: Settings → Sync → ATProto Sync → `Annotations`.
 
-When connected, show an annotation sync card below bookmark sync:
+When connected, show an annotation sync card below bookmark sync. A global `Sync now` action may run all enabled sync domains, but the UI should still show separate bookmark and annotation results.
 
 - title: `Annotations`
 - subtitle when disabled: `Off. Sync highlights and notes with Margin.`
@@ -441,6 +442,18 @@ Reader screens should not add protocol labels beside every highlight. Add a smal
 - annotation detail screen: optional `Synced with Margin` / `Pending sync` line
 - annotation list/sidebar: no per-row status unless there is an error
 - delete confirmation: if annotation sync is enabled, say `This also deletes the synced Margin note on the next sync.`
+- tag editor: allow adding/removing annotation tags; tags sync through `at.margin.note.tags`.
+- tag filters: support filtering/searching annotations by tag.
+
+### Deferred Margin UI
+
+Keep these out of the first annotation sync UI:
+
+- editing rich-text facets directly;
+- editing rights/license metadata;
+- editing labels/content warnings;
+- showing generator metadata;
+- curated annotation collections backed by `at.margin.collection` and `at.margin.collectionItem`.
 
 ### Later UI, after push/deletion phases
 

@@ -113,6 +113,8 @@ void main() {
     final annotation = await database.select(database.annotations).getSingle();
     final metadata = jsonDecode(annotation.marginMetadataJson!) as Map<String, Object?>;
     expect(metadata['tags'], ['research', 'later']);
+    final tags = await database.select(database.annotationTags).get();
+    expect(tags.map((tag) => tag.name), ['research', 'later']);
     expect(metadata['rights'], 'https://creativecommons.org/licenses/by/4.0/');
     expect(metadata['unknown'], {'customField': 'kept'});
     final target = await database.select(database.annotationTargets).getSingle();
@@ -123,6 +125,7 @@ void main() {
 
     final mapped = await service.mapLocalAnnotationToMarginNote(annotation.id);
     expect(mapped['tags'], ['research', 'later']);
+    expect((mapped['generator'] as Map<String, Object?>)['name'], 'Marker');
     expect(mapped['rights'], 'https://creativecommons.org/licenses/by/4.0/');
     expect(mapped['customField'], 'kept');
     expect((mapped['body'] as Map<String, Object?>)['uri'], 'https://example.com/body.md');
@@ -177,7 +180,7 @@ void main() {
       database,
       id: 'annotation-1',
       motivation: 'commenting',
-      note: '**Local note**',
+      note: '[Marker](https://marker.stormlightlabs.org) note',
       styleJson: {'style': 'underline', 'color': '#64D2FF'},
     );
     await syncRepository.enqueueOutbox(
@@ -194,7 +197,10 @@ void main() {
     final record = repoClient.records.values.single.value;
     expect(record['motivation'], 'commenting');
     expect(record['color'], '#64D2FF');
-    expect((record['body'] as Map<String, Object?>)['value'], '**Local note**');
+    expect((record['body'] as Map<String, Object?>)['value'], '[Marker](https://marker.stormlightlabs.org) note');
+    expect((record['generator'] as Map<String, Object?>)['id'], 'app.marker');
+    expect(record['markerStyle'], 'underline');
+    expect(record['facets'], isNotEmpty);
     final target = record['target'] as Map<String, Object?>;
     expect((target['selector'] as Map<String, Object?>)['type'], 'TextQuoteSelector');
     expect((target['selector'] as Map<String, Object?>)['exact'], 'quote');

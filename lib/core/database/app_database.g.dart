@@ -1913,6 +1913,326 @@ class AnnotationBodiesCompanion extends UpdateCompanion<AnnotationBody> {
   }
 }
 
+class $AnnotationTagsTable extends AnnotationTags
+    with TableInfo<$AnnotationTagsTable, AnnotationTag> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnnotationTagsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _annotationIdMeta = const VerificationMeta(
+    'annotationId',
+  );
+  @override
+  late final GeneratedColumn<String> annotationId = GeneratedColumn<String>(
+    'annotation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES annotations (id)',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, annotationId, name, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'annotation_tags';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AnnotationTag> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('annotation_id')) {
+      context.handle(
+        _annotationIdMeta,
+        annotationId.isAcceptableOrUnknown(
+          data['annotation_id']!,
+          _annotationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_annotationIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {annotationId, name},
+  ];
+  @override
+  AnnotationTag map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnnotationTag(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      annotationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}annotation_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AnnotationTagsTable createAlias(String alias) {
+    return $AnnotationTagsTable(attachedDatabase, alias);
+  }
+}
+
+class AnnotationTag extends DataClass implements Insertable<AnnotationTag> {
+  final String id;
+  final String annotationId;
+  final String name;
+  final DateTime createdAt;
+  const AnnotationTag({
+    required this.id,
+    required this.annotationId,
+    required this.name,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['annotation_id'] = Variable<String>(annotationId);
+    map['name'] = Variable<String>(name);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AnnotationTagsCompanion toCompanion(bool nullToAbsent) {
+    return AnnotationTagsCompanion(
+      id: Value(id),
+      annotationId: Value(annotationId),
+      name: Value(name),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AnnotationTag.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnnotationTag(
+      id: serializer.fromJson<String>(json['id']),
+      annotationId: serializer.fromJson<String>(json['annotationId']),
+      name: serializer.fromJson<String>(json['name']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'annotationId': serializer.toJson<String>(annotationId),
+      'name': serializer.toJson<String>(name),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AnnotationTag copyWith({
+    String? id,
+    String? annotationId,
+    String? name,
+    DateTime? createdAt,
+  }) => AnnotationTag(
+    id: id ?? this.id,
+    annotationId: annotationId ?? this.annotationId,
+    name: name ?? this.name,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AnnotationTag copyWithCompanion(AnnotationTagsCompanion data) {
+    return AnnotationTag(
+      id: data.id.present ? data.id.value : this.id,
+      annotationId: data.annotationId.present
+          ? data.annotationId.value
+          : this.annotationId,
+      name: data.name.present ? data.name.value : this.name,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnnotationTag(')
+          ..write('id: $id, ')
+          ..write('annotationId: $annotationId, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, annotationId, name, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnnotationTag &&
+          other.id == this.id &&
+          other.annotationId == this.annotationId &&
+          other.name == this.name &&
+          other.createdAt == this.createdAt);
+}
+
+class AnnotationTagsCompanion extends UpdateCompanion<AnnotationTag> {
+  final Value<String> id;
+  final Value<String> annotationId;
+  final Value<String> name;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AnnotationTagsCompanion({
+    this.id = const Value.absent(),
+    this.annotationId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnnotationTagsCompanion.insert({
+    required String id,
+    required String annotationId,
+    required String name,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       annotationId = Value(annotationId),
+       name = Value(name),
+       createdAt = Value(createdAt);
+  static Insertable<AnnotationTag> custom({
+    Expression<String>? id,
+    Expression<String>? annotationId,
+    Expression<String>? name,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (annotationId != null) 'annotation_id': annotationId,
+      if (name != null) 'name': name,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnnotationTagsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? annotationId,
+    Value<String>? name,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return AnnotationTagsCompanion(
+      id: id ?? this.id,
+      annotationId: annotationId ?? this.annotationId,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (annotationId.present) {
+      map['annotation_id'] = Variable<String>(annotationId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnnotationTagsCompanion(')
+          ..write('id: $id, ')
+          ..write('annotationId: $annotationId, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $BookmarkFoldersTable extends BookmarkFolders
     with TableInfo<$BookmarkFoldersTable, BookmarkFolder> {
   @override
@@ -6549,6 +6869,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AnnotationBodiesTable annotationBodies = $AnnotationBodiesTable(
     this,
   );
+  late final $AnnotationTagsTable annotationTags = $AnnotationTagsTable(this);
   late final $BookmarkFoldersTable bookmarkFolders = $BookmarkFoldersTable(
     this,
   );
@@ -6577,6 +6898,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     annotations,
     annotationTargets,
     annotationBodies,
+    annotationTags,
     bookmarkFolders,
     bookmarks,
     bookmarkCollectionLinks,
@@ -7056,6 +7378,27 @@ final class $$AnnotationsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$AnnotationTagsTable, List<AnnotationTag>>
+  _annotationTagsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.annotationTags,
+    aliasName: $_aliasNameGenerator(
+      db.annotations.id,
+      db.annotationTags.annotationId,
+    ),
+  );
+
+  $$AnnotationTagsTableProcessedTableManager get annotationTagsRefs {
+    final manager = $$AnnotationTagsTableTableManager(
+      $_db,
+      $_db.annotationTags,
+    ).filter((f) => f.annotationId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_annotationTagsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$AnnotationsTableFilterComposer
@@ -7161,6 +7504,31 @@ class $$AnnotationsTableFilterComposer
           }) => $$AnnotationBodiesTableFilterComposer(
             $db: $db,
             $table: $db.annotationBodies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> annotationTagsRefs(
+    Expression<bool> Function($$AnnotationTagsTableFilterComposer f) f,
+  ) {
+    final $$AnnotationTagsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.annotationTags,
+      getReferencedColumn: (t) => t.annotationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationTagsTableFilterComposer(
+            $db: $db,
+            $table: $db.annotationTags,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -7340,6 +7708,31 @@ class $$AnnotationsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> annotationTagsRefs<T extends Object>(
+    Expression<T> Function($$AnnotationTagsTableAnnotationComposer a) f,
+  ) {
+    final $$AnnotationTagsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.annotationTags,
+      getReferencedColumn: (t) => t.annotationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationTagsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.annotationTags,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$AnnotationsTableTableManager
@@ -7359,6 +7752,7 @@ class $$AnnotationsTableTableManager
             bool pageId,
             bool annotationTargetsRefs,
             bool annotationBodiesRefs,
+            bool annotationTagsRefs,
           })
         > {
   $$AnnotationsTableTableManager(_$AppDatabase db, $AnnotationsTable table)
@@ -7425,12 +7819,14 @@ class $$AnnotationsTableTableManager
                 pageId = false,
                 annotationTargetsRefs = false,
                 annotationBodiesRefs = false,
+                annotationTagsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (annotationTargetsRefs) db.annotationTargets,
                     if (annotationBodiesRefs) db.annotationBodies,
+                    if (annotationTagsRefs) db.annotationTags,
                   ],
                   addJoins:
                       <
@@ -7510,6 +7906,27 @@ class $$AnnotationsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (annotationTagsRefs)
+                        await $_getPrefetchedData<
+                          Annotation,
+                          $AnnotationsTable,
+                          AnnotationTag
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AnnotationsTableReferences
+                              ._annotationTagsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AnnotationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).annotationTagsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.annotationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -7534,6 +7951,7 @@ typedef $$AnnotationsTableProcessedTableManager =
         bool pageId,
         bool annotationTargetsRefs,
         bool annotationBodiesRefs,
+        bool annotationTagsRefs,
       })
     >;
 typedef $$AnnotationTargetsTableCreateCompanionBuilder =
@@ -8245,6 +8663,313 @@ typedef $$AnnotationBodiesTableProcessedTableManager =
       $$AnnotationBodiesTableUpdateCompanionBuilder,
       (AnnotationBody, $$AnnotationBodiesTableReferences),
       AnnotationBody,
+      PrefetchHooks Function({bool annotationId})
+    >;
+typedef $$AnnotationTagsTableCreateCompanionBuilder =
+    AnnotationTagsCompanion Function({
+      required String id,
+      required String annotationId,
+      required String name,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$AnnotationTagsTableUpdateCompanionBuilder =
+    AnnotationTagsCompanion Function({
+      Value<String> id,
+      Value<String> annotationId,
+      Value<String> name,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$AnnotationTagsTableReferences
+    extends BaseReferences<_$AppDatabase, $AnnotationTagsTable, AnnotationTag> {
+  $$AnnotationTagsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $AnnotationsTable _annotationIdTable(_$AppDatabase db) =>
+      db.annotations.createAlias(
+        $_aliasNameGenerator(db.annotationTags.annotationId, db.annotations.id),
+      );
+
+  $$AnnotationsTableProcessedTableManager get annotationId {
+    final $_column = $_itemColumn<String>('annotation_id')!;
+
+    final manager = $$AnnotationsTableTableManager(
+      $_db,
+      $_db.annotations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_annotationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$AnnotationTagsTableFilterComposer
+    extends Composer<_$AppDatabase, $AnnotationTagsTable> {
+  $$AnnotationTagsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AnnotationsTableFilterComposer get annotationId {
+    final $$AnnotationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.annotationId,
+      referencedTable: $db.annotations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableFilterComposer(
+            $db: $db,
+            $table: $db.annotations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnnotationTagsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AnnotationTagsTable> {
+  $$AnnotationTagsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AnnotationsTableOrderingComposer get annotationId {
+    final $$AnnotationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.annotationId,
+      referencedTable: $db.annotations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.annotations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnnotationTagsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AnnotationTagsTable> {
+  $$AnnotationTagsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$AnnotationsTableAnnotationComposer get annotationId {
+    final $$AnnotationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.annotationId,
+      referencedTable: $db.annotations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnnotationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.annotations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnnotationTagsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AnnotationTagsTable,
+          AnnotationTag,
+          $$AnnotationTagsTableFilterComposer,
+          $$AnnotationTagsTableOrderingComposer,
+          $$AnnotationTagsTableAnnotationComposer,
+          $$AnnotationTagsTableCreateCompanionBuilder,
+          $$AnnotationTagsTableUpdateCompanionBuilder,
+          (AnnotationTag, $$AnnotationTagsTableReferences),
+          AnnotationTag,
+          PrefetchHooks Function({bool annotationId})
+        > {
+  $$AnnotationTagsTableTableManager(
+    _$AppDatabase db,
+    $AnnotationTagsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnnotationTagsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnnotationTagsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnnotationTagsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> annotationId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AnnotationTagsCompanion(
+                id: id,
+                annotationId: annotationId,
+                name: name,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String annotationId,
+                required String name,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => AnnotationTagsCompanion.insert(
+                id: id,
+                annotationId: annotationId,
+                name: name,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AnnotationTagsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({annotationId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (annotationId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.annotationId,
+                                referencedTable: $$AnnotationTagsTableReferences
+                                    ._annotationIdTable(db),
+                                referencedColumn:
+                                    $$AnnotationTagsTableReferences
+                                        ._annotationIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AnnotationTagsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AnnotationTagsTable,
+      AnnotationTag,
+      $$AnnotationTagsTableFilterComposer,
+      $$AnnotationTagsTableOrderingComposer,
+      $$AnnotationTagsTableAnnotationComposer,
+      $$AnnotationTagsTableCreateCompanionBuilder,
+      $$AnnotationTagsTableUpdateCompanionBuilder,
+      (AnnotationTag, $$AnnotationTagsTableReferences),
+      AnnotationTag,
       PrefetchHooks Function({bool annotationId})
     >;
 typedef $$BookmarkFoldersTableCreateCompanionBuilder =
@@ -12141,6 +12866,8 @@ class $AppDatabaseManager {
       $$AnnotationTargetsTableTableManager(_db, _db.annotationTargets);
   $$AnnotationBodiesTableTableManager get annotationBodies =>
       $$AnnotationBodiesTableTableManager(_db, _db.annotationBodies);
+  $$AnnotationTagsTableTableManager get annotationTags =>
+      $$AnnotationTagsTableTableManager(_db, _db.annotationTags);
   $$BookmarkFoldersTableTableManager get bookmarkFolders =>
       $$BookmarkFoldersTableTableManager(_db, _db.bookmarkFolders);
   $$BookmarksTableTableManager get bookmarks =>
