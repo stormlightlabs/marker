@@ -1,12 +1,27 @@
+enum AtprotoSyncOperation {
+  create,
+  update,
+  delete;
+
+  String get value => switch (this) {
+    AtprotoSyncOperation.create => 'create',
+    AtprotoSyncOperation.update => 'update',
+    AtprotoSyncOperation.delete => 'delete',
+  };
+}
+
 enum SembleSyncCollection {
-  card('network.cosmik.card'),
-  collection('network.cosmik.collection'),
-  collectionLink('network.cosmik.collectionLink'),
-  collectionLinkRemoval('network.cosmik.collectionLinkRemoval');
+  card,
+  collection,
+  collectionLink,
+  collectionLinkRemoval;
 
-  const SembleSyncCollection(this.value);
-
-  final String value;
+  String get value => switch (this) {
+    SembleSyncCollection.card => 'network.cosmik.card',
+    SembleSyncCollection.collection => 'network.cosmik.collection',
+    SembleSyncCollection.collectionLink => 'network.cosmik.collectionLink',
+    SembleSyncCollection.collectionLinkRemoval => 'network.cosmik.collectionLinkRemoval',
+  };
 
   static Map<String, String> get trackedCollections => {
     SembleSyncCollection.card.value: 'Cards / bookmarks',

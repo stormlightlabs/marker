@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
 
 void main() {
@@ -128,6 +130,31 @@ void main() {
       ),
     );
     expect(html, contains('<DT><A HREF="https://example.com/article" ADD_DATE="1778673600">Example Article</A>'));
+  });
+
+  test('enqueues synced folder bookmark and membership changes for connected accounts', () async {
+    final syncRepository = AtprotoSyncRepository(database, now: () => DateTime.utc(2026, 5, 13, 12));
+    await syncRepository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
+    repository = BookmarkManagerRepository(
+      database,
+      syncRepository: syncRepository,
+      now: () => DateTime.utc(2026, 5, 13, 12),
+    );
+
+    final folder = await repository.createFolder(title: 'Research');
+    await _insertBookmark(database, id: 'bookmark', url: 'https://example.com', title: 'Example');
+    await repository.updateBookmark(id: 'bookmark', title: 'Updated');
+    await repository.addBookmarkToFolder(bookmarkId: 'bookmark', folderId: folder.id);
+
+    final outbox = await syncRepository.pendingOutbox(accountDid: 'did:plc:alice');
+    expect(
+      outbox.map((item) => (item.localTable, item.collection)),
+      containsAll([
+        (SembleSyncLocalTable.bookmarkFolders.value, SembleSyncCollection.collection.value),
+        (SembleSyncLocalTable.bookmarks.value, SembleSyncCollection.card.value),
+        (SembleSyncLocalTable.bookmarkCollectionLinks.value, SembleSyncCollection.collectionLink.value),
+      ]),
+    );
   });
 
   test('exports selected bookmark ids without unrelated rows', () async {

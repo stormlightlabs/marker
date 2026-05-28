@@ -13,7 +13,6 @@ import 'package:poptart_core/poptart_core.dart';
 import 'package:poptart_lex/com/atproto/repo/strong_ref.dart';
 import 'package:uuid/uuid.dart';
 
-const atprotoDeleteOperation = 'delete';
 final atprotoDeletionSyncServiceProvider = Provider<AtprotoDeletionSyncService>((ref) {
   return AtprotoDeletionSyncService(
     database: ref.watch(databaseProvider),
@@ -66,7 +65,7 @@ class AtprotoDeletionSyncService {
       await _syncRepository.markMirrorDirty(id: mirror.id, dirtyAt: now);
       await _syncRepository.enqueueOutbox(
         accountDid: accountDid,
-        operation: atprotoDeleteOperation,
+        operation: AtprotoSyncOperation.delete.value,
         localTable: localTable,
         localId: localId,
         collection: collection,
@@ -76,7 +75,7 @@ class AtprotoDeletionSyncService {
 
   Future<void> pushLocalDeletes(String accountDid) async {
     final outbox = await _syncRepository.pendingOutbox(accountDid: accountDid);
-    for (final item in outbox.where((item) => item.operation == atprotoDeleteOperation)) {
+    for (final item in outbox.where((item) => item.operation == AtprotoSyncOperation.delete.value)) {
       final mirror = await _syncRepository.mirrorForLocal(
         accountDid: accountDid,
         localTable: item.localTable,

@@ -69,14 +69,14 @@ See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth
 
 ## Phase 7: Semble bookmark push
 
-- [ ] Map `Bookmarks` to `network.cosmik.card` URL records.
-- [ ] Map `BookmarkFolders` to `network.cosmik.collection` records.
-- [ ] Map `BookmarkCollectionLinks` to `network.cosmik.collectionLink` records.
-- [ ] Enqueue outbox records when bookmarks, folders, or memberships change.
-- [ ] Implement outbox worker for create/update writes.
-- [ ] Store URI, rkey, CID, JSON hash, and sync time in mirrors.
-- [ ] Add retry/backoff and useful error messages.
-- [ ] Add idempotency tests for partially completed writes.
+- [x] Map `Bookmarks` to `network.cosmik.card` URL records.
+- [x] Map `BookmarkFolders` to `network.cosmik.collection` records.
+- [x] Map `BookmarkCollectionLinks` to `network.cosmik.collectionLink` records.
+- [x] Enqueue outbox records when bookmarks, folders, or memberships change.
+- [x] Implement outbox worker for create/update writes.
+- [x] Store URI, rkey, CID, JSON hash, and sync time in mirrors.
+- [x] Add retry/backoff and useful error messages.
+- [x] Add idempotency tests for partially completed writes.
 
 ## Phase 8: Margin note sync
 

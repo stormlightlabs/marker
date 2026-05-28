@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:uuid/uuid.dart';
 
 final atprotoSyncRepositoryProvider = Provider<AtprotoSyncRepository>((ref) {
@@ -319,6 +320,34 @@ class AtprotoSyncRepository {
       ),
     );
     return (_database.select(_database.atprotoSyncState)..where((state) => state.id.equals(existing.id))).getSingle();
+  }
+
+  Future<void> enqueueLocalChangeForAllAccounts({
+    required String localTable,
+    required String localId,
+    required String collection,
+    DateTime? dirtyAt,
+  }) async {
+    final connectedAccounts = await accounts();
+    final now = dirtyAt ?? _now();
+    for (final account in connectedAccounts) {
+      final mirror = await mirrorForLocal(
+        accountDid: account.did,
+        localTable: localTable,
+        localId: localId,
+        collection: collection,
+      );
+      if (mirror != null) {
+        await markMirrorDirty(id: mirror.id, dirtyAt: now);
+      }
+      await enqueueOutbox(
+        accountDid: account.did,
+        operation: mirror == null ? AtprotoSyncOperation.create.value : AtprotoSyncOperation.update.value,
+        localTable: localTable,
+        localId: localId,
+        collection: collection,
+      );
+    }
   }
 
   Future<AtprotoSyncOutboxData> enqueueOutbox({

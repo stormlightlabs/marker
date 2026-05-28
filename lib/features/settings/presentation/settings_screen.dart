@@ -12,7 +12,6 @@ import 'package:marker/features/atproto/application/atproto_login_controller.dar
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
 import 'package:marker/features/atproto/data/atproto_actor_search_repository.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
-import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
@@ -490,7 +489,7 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statesByCollection = {for (final state in syncStates) state.collection: state};
-    final pendingDeletes = pendingOutbox.where((item) => item.operation == atprotoDeleteOperation).toList();
+    final pendingDeletes = pendingOutbox.where((item) => item.operation == AtprotoSyncOperation.delete.value).toList();
     final failedDeletes = pendingDeletes.where((item) => item.lastError?.trim().isNotEmpty == true).length;
     final confirmedDeletes = deletedRecordCounts.values.fold<int>(0, (total, count) => total + count);
     return _ExpandableSettingsSection(

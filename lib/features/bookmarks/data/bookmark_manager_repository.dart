@@ -5,10 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
+import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:uuid/uuid.dart';
 
 final bookmarkManagerRepositoryProvider = Provider<BookmarkManagerRepository>((ref) {
-  return BookmarkManagerRepository(ref.watch(databaseProvider));
+  return BookmarkManagerRepository(
+    ref.watch(databaseProvider),
+    syncRepository: ref.watch(atprotoSyncRepositoryProvider),
+  );
 });
 
 final bookmarkFolderContentsProvider = FutureProvider.autoDispose.family<BookmarkFolderContents, String?>((
@@ -57,11 +62,17 @@ class BookmarkEntryRef {
 }
 
 class BookmarkManagerRepository {
-  BookmarkManagerRepository(this._database, {Uuid? uuid, DateTime Function()? now})
-    : _uuid = uuid ?? const Uuid(),
-      _now = now ?? (() => DateTime.now().toUtc());
+  BookmarkManagerRepository(
+    this._database, {
+    AtprotoSyncRepository? syncRepository,
+    Uuid? uuid,
+    DateTime Function()? now,
+  }) : _syncRepository = syncRepository,
+       _uuid = uuid ?? const Uuid(),
+       _now = now ?? (() => DateTime.now().toUtc());
 
   final AppDatabase _database;
+  final AtprotoSyncRepository? _syncRepository;
   final Uuid _uuid;
   final DateTime Function() _now;
   final HtmlEscape _htmlEscape = const HtmlEscape(HtmlEscapeMode.attribute);
@@ -127,7 +138,10 @@ class BookmarkManagerRepository {
       createdAt: now,
       updatedAt: now,
     );
-    await _database.into(_database.bookmarkFolders).insert(folder);
+    await _database.transaction(() async {
+      await _database.into(_database.bookmarkFolders).insert(folder);
+      await _enqueueFolderChange(folder.id.value);
+    });
     return BookmarkFolderItem(
       id: folder.id.value,
       parentId: parentId,
@@ -139,15 +153,21 @@ class BookmarkManagerRepository {
   }
 
   Future<void> updateFolder({required String id, required String title}) async {
-    await (_database.update(_database.bookmarkFolders)..where((folder) => folder.id.equals(id))).write(
-      BookmarkFoldersCompanion(title: Value(_normalizeRequiredTitle(title)), updatedAt: Value(_now())),
-    );
+    await _database.transaction(() async {
+      await (_database.update(_database.bookmarkFolders)..where((folder) => folder.id.equals(id))).write(
+        BookmarkFoldersCompanion(title: Value(_normalizeRequiredTitle(title)), updatedAt: Value(_now())),
+      );
+      await _enqueueFolderChange(id);
+    });
   }
 
   Future<void> updateBookmark({required String id, required String title}) async {
-    await (_database.update(_database.bookmarks)..where((bookmark) => bookmark.id.equals(id))).write(
-      BookmarksCompanion(title: Value(normalize(title)), updatedAt: Value(_now())),
-    );
+    await _database.transaction(() async {
+      await (_database.update(_database.bookmarks)..where((bookmark) => bookmark.id.equals(id))).write(
+        BookmarksCompanion(title: Value(normalize(title)), updatedAt: Value(_now())),
+      );
+      await _enqueueBookmarkChange(id);
+    });
   }
 
   Future<void> moveBookmark({required String bookmarkId, required String? folderId}) async => moveEntry(
@@ -164,9 +184,12 @@ class BookmarkManagerRepository {
         if (entry.id == folderId || await _isDescendantFolder(folderId, entry.id)) {
           throw ArgumentError.value(folderId, 'folderId', 'Cannot move a folder into itself or its descendants.');
         }
-        await (_database.update(_database.bookmarkFolders)..where((folder) => folder.id.equals(entry.id))).write(
-          BookmarkFoldersCompanion(parentId: Value(folderId), sortOrder: Value(sortOrder), updatedAt: Value(_now())),
-        );
+        await _database.transaction(() async {
+          await (_database.update(_database.bookmarkFolders)..where((folder) => folder.id.equals(entry.id))).write(
+            BookmarkFoldersCompanion(parentId: Value(folderId), sortOrder: Value(sortOrder), updatedAt: Value(_now())),
+          );
+          await _enqueueFolderChange(entry.id);
+        });
     }
   }
 
@@ -184,6 +207,7 @@ class BookmarkManagerRepository {
             await (_database.update(_database.bookmarkFolders)..where((folder) => folder.id.equals(entry.id))).write(
               BookmarkFoldersCompanion(parentId: Value(folderId), sortOrder: Value(index), updatedAt: Value(_now())),
             );
+            await _enqueueFolderChange(entry.id);
           case BookmarkEntryType.bookmark:
             await _replaceBookmarkMembership(bookmarkId: entry.id, folderId: folderId, sortOrder: index);
         }
@@ -399,7 +423,9 @@ class BookmarkManagerRepository {
   }
 
   Future<void> addBookmarkToFolder({required String bookmarkId, required String folderId}) async {
-    await _upsertBookmarkLink(bookmarkId: bookmarkId, folderId: folderId, sortOrder: await _nextSortOrder(folderId));
+    await _database.transaction(() async {
+      await _upsertBookmarkLink(bookmarkId: bookmarkId, folderId: folderId, sortOrder: await _nextSortOrder(folderId));
+    });
   }
 
   Future<void> _replaceBookmarkMembership({
@@ -427,11 +453,12 @@ class BookmarkManagerRepository {
     required int sortOrder,
   }) async {
     final now = _now();
+    final insertedId = _uuid.v4();
     await _database
         .into(_database.bookmarkCollectionLinks)
         .insert(
           BookmarkCollectionLinksCompanion.insert(
-            id: _uuid.v4(),
+            id: insertedId,
             bookmarkId: bookmarkId,
             folderId: folderId,
             sortOrder: Value(sortOrder),
@@ -443,17 +470,39 @@ class BookmarkManagerRepository {
     await (_database.update(_database.bookmarkCollectionLinks)
           ..where((link) => link.bookmarkId.equals(bookmarkId) & link.folderId.equals(folderId)))
         .write(BookmarkCollectionLinksCompanion(sortOrder: Value(sortOrder), updatedAt: Value(now)));
+    final link = await (_database.select(
+      _database.bookmarkCollectionLinks,
+    )..where((row) => row.bookmarkId.equals(bookmarkId) & row.folderId.equals(folderId))).getSingle();
     await (_database.update(
       _database.bookmarks,
     )..where((bookmark) => bookmark.id.equals(bookmarkId))).write(BookmarksCompanion(updatedAt: Value(now)));
+    await _enqueueBookmarkChange(bookmarkId);
+    await _enqueueLinkChange(link.id);
   }
 
-  bool _bookmarkInFolder(String bookmarkId, String? folderId, List<BookmarkCollectionLink> links) {
-    if (folderId == null) {
-      return !links.any((link) => link.bookmarkId == bookmarkId);
-    }
-    return links.any((link) => link.bookmarkId == bookmarkId && link.folderId == folderId);
+  Future<void> _enqueueBookmarkChange(String bookmarkId) async {
+    await _syncRepository?.enqueueLocalChangeForAllAccounts(
+      localTable: SembleSyncLocalTable.bookmarks.value,
+      localId: bookmarkId,
+      collection: SembleSyncCollection.card.value,
+    );
   }
+
+  Future<void> _enqueueFolderChange(String folderId) async => await _syncRepository?.enqueueLocalChangeForAllAccounts(
+    localTable: SembleSyncLocalTable.bookmarkFolders.value,
+    localId: folderId,
+    collection: SembleSyncCollection.collection.value,
+  );
+
+  Future<void> _enqueueLinkChange(String linkId) async => await _syncRepository?.enqueueLocalChangeForAllAccounts(
+    localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+    localId: linkId,
+    collection: SembleSyncCollection.collectionLink.value,
+  );
+
+  bool _bookmarkInFolder(String bookmarkId, String? folderId, List<BookmarkCollectionLink> links) => (folderId == null)
+      ? !links.any((link) => link.bookmarkId == bookmarkId)
+      : links.any((link) => link.bookmarkId == bookmarkId && link.folderId == folderId);
 
   int _sortOrderInFolder(Bookmark bookmark, String? folderId, List<BookmarkCollectionLink> links) => folderId == null
       ? bookmark.sortOrder
@@ -559,16 +608,14 @@ class BookmarkFolderItem {
     required this.updatedAt,
   });
 
-  factory BookmarkFolderItem.fromRow(BookmarkFolder row) {
-    return BookmarkFolderItem(
-      id: row.id,
-      parentId: row.parentId,
-      title: row.title,
-      sortOrder: row.sortOrder,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    );
-  }
+  factory BookmarkFolderItem.fromRow(BookmarkFolder row) => BookmarkFolderItem(
+    id: row.id,
+    parentId: row.parentId,
+    title: row.title,
+    sortOrder: row.sortOrder,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  );
 
   final String id;
   final String? parentId;

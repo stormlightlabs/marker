@@ -139,7 +139,7 @@ void main() {
     );
     final deleteOutbox = await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
-      operation: 'delete',
+      operation: AtprotoSyncOperation.delete.value,
       localTable: SembleSyncLocalTable.bookmarks.value,
       localId: 'pending-delete',
       collection: SembleSyncCollection.card.value,

@@ -1,6 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:marker/features/browser/data/bookmark_repository.dart';
 
 void main() {
@@ -37,6 +39,19 @@ void main() {
 
     expect(bookmarks, hasLength(1));
     expect(bookmarks.single.title, 'Second');
+  });
+
+  test('enqueues bookmark changes for connected ATProto accounts', () async {
+    final syncRepository = AtprotoSyncRepository(database, now: () => DateTime.utc(2026, 5, 13, 12));
+    await syncRepository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
+    repository = BookmarkRepository(database, syncRepository: syncRepository, now: () => DateTime.utc(2026, 5, 13, 12));
+
+    await repository.addBookmark(url: Uri.parse('https://news.ycombinator.com'), title: 'Hacker News');
+
+    final outbox = await syncRepository.pendingOutbox(accountDid: 'did:plc:alice');
+    expect(outbox.single.localTable, SembleSyncLocalTable.bookmarks.value);
+    expect(outbox.single.collection, SembleSyncCollection.card.value);
+    expect(outbox.single.operation, 'create');
   });
 
   test('removes bookmarks by URL', () async {
