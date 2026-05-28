@@ -1,12 +1,14 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 
 final selectionCaptureControllerProvider = NotifierProvider<SelectionCaptureController, SelectionCaptureState>(
   SelectionCaptureController.new,
 );
+
+final _selectionCaptureLogger = AppLogger.console();
 
 class SelectionCaptureController extends Notifier<SelectionCaptureState> {
   @override
@@ -76,10 +78,10 @@ class SelectionCaptureEvent {
       final capture = SelectionCapture.tryParse(payload);
       return capture == null ? null : SelectionCaptureEvent(type: type, capture: capture);
     } on FormatException catch (error) {
-      debugPrint('Ignoring malformed selection bridge message: $error');
+      _selectionCaptureLogger.debug('Ignoring malformed selection bridge message', error: error);
       return null;
     } on TypeError catch (error) {
-      debugPrint('Ignoring invalid selection bridge message: $error');
+      _selectionCaptureLogger.debug('Ignoring invalid selection bridge message', error: error);
       return null;
     }
   }

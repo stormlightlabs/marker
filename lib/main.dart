@@ -13,13 +13,6 @@ void main() {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       logger = await AppLogger.initialize();
-      final defaultDebugPrint = debugPrint;
-      debugPrint = (message, {wrapWidth}) {
-        if (message != null && message.isNotEmpty) {
-          logger?.debug(message);
-        }
-        defaultDebugPrint(message, wrapWidth: wrapWidth);
-      };
 
       FlutterError.onError = (details) {
         FlutterError.presentError(details);

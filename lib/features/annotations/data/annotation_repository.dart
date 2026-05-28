@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -12,7 +12,11 @@ import 'package:marker/features/settings/data/settings_repository.dart';
 import 'package:uuid/uuid.dart';
 
 final annotationRepositoryProvider = Provider<AnnotationRepository>((ref) {
-  return AnnotationRepository(ref.watch(databaseProvider), syncRepository: ref.watch(atprotoSyncRepositoryProvider));
+  return AnnotationRepository(
+    ref.watch(databaseProvider),
+    syncRepository: ref.watch(atprotoSyncRepositoryProvider),
+    logger: ref.watch(appLoggerProvider),
+  );
 });
 
 final annotationsForPageProvider = FutureProvider.autoDispose.family<List<PageAnnotation>, Uri>((ref, sourceUrl) {
@@ -24,13 +28,20 @@ final annotationDetailProvider = FutureProvider.autoDispose.family<AnnotationDet
 });
 
 class AnnotationRepository {
-  AnnotationRepository(this._database, {AtprotoSyncRepository? syncRepository, Uuid? uuid, DateTime Function()? now})
-    : _syncRepository = syncRepository,
-      _uuid = uuid ?? const Uuid(),
-      _now = now ?? (() => DateTime.now().toUtc());
+  AnnotationRepository(
+    this._database, {
+    AtprotoSyncRepository? syncRepository,
+    AppLogger? logger,
+    Uuid? uuid,
+    DateTime Function()? now,
+  }) : _syncRepository = syncRepository,
+       _logger = logger,
+       _uuid = uuid ?? const Uuid(),
+       _now = now ?? (() => DateTime.now().toUtc());
 
   final AppDatabase _database;
   final AtprotoSyncRepository? _syncRepository;
+  final AppLogger? _logger;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -258,7 +269,7 @@ class AnnotationRepository {
         _database.annotationTags,
       )..where((tag) => tag.annotationId.equals(annotation.id))).get();
 
-      items.add(PageAnnotation(annotation: annotation, target: target, bodies: bodies, tags: tags));
+      items.add(PageAnnotation(annotation: annotation, target: target, bodies: bodies, tags: tags, logger: _logger));
     }
 
     return items;
@@ -319,7 +330,7 @@ class AnnotationRepository {
 
     return AnnotationDetail.build(
       page,
-      PageAnnotation(annotation: annotation, target: target, bodies: bodies, tags: tags),
+      PageAnnotation(annotation: annotation, target: target, bodies: bodies, tags: tags, logger: _logger),
     );
   }
 
@@ -564,12 +575,19 @@ class AnnotationBodyInput {
 enum AnnotationVisualStyle { highlight, underline }
 
 class PageAnnotation {
-  const PageAnnotation({required this.annotation, required this.target, required this.bodies, this.tags = const []});
+  const PageAnnotation({
+    required this.annotation,
+    required this.target,
+    required this.bodies,
+    this.tags = const [],
+    AppLogger? logger,
+  }) : _logger = logger;
 
   final Annotation annotation;
   final AnnotationTarget target;
   final List<AnnotationBody> bodies;
   final List<AnnotationTag> tags;
+  final AppLogger? _logger;
 
   String? get exact {
     for (final selector in selectors) {
@@ -603,7 +621,7 @@ class PageAnnotation {
     } on FormatException catch (error) {
       // Bad style hints should not make saved annotations disappear.
       // The default highlight keeps the annotation visible.
-      debugPrint('Ignoring malformed annotation style hint: $error');
+      _logger?.debug('Ignoring malformed annotation style hint', error: error);
     }
 
     return AnnotationVisualStyle.highlight;
@@ -624,7 +642,7 @@ class PageAnnotation {
         }
       }
     } on FormatException catch (error) {
-      debugPrint('Ignoring malformed annotation color hint: $error');
+      _logger?.debug('Ignoring malformed annotation color hint', error: error);
     }
 
     return visualStyle == AnnotationVisualStyle.underline ? '#64D2FF' : '#FFCC00';
@@ -648,7 +666,7 @@ class PageAnnotation {
         ];
       }
     } on FormatException catch (error) {
-      debugPrint('Ignoring malformed annotation selector JSON: $error');
+      _logger?.debug('Ignoring malformed annotation selector JSON', error: error);
     }
 
     return const [];

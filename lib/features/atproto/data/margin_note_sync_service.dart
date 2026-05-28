@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:margin_poptart/at/margin/note/body.dart' as margin_body;
 import 'package:margin_poptart/at/margin/collection/main.dart' as margin_collection;
@@ -15,6 +14,7 @@ import 'package:margin_poptart/at/margin/note/target.dart' as margin_target;
 import 'package:margin_poptart/at/margin/note/time_state.dart' as margin_time_state;
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/core/shared/utils/json_utils.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
@@ -37,6 +37,7 @@ final marginNoteSyncServiceProvider = Provider<MarginNoteSyncService>((ref) {
     database: ref.watch(databaseProvider),
     syncRepository: ref.watch(atprotoSyncRepositoryProvider),
     repoClient: ref.watch(atprotoRepoClientProvider),
+    logger: ref.watch(appLoggerProvider),
   );
 });
 
@@ -79,16 +80,19 @@ class MarginNoteSyncService {
     required AtprotoSyncRepository syncRepository,
     required AtprotoRepoClient repoClient,
     Uuid? uuid,
+    AppLogger? logger,
     DateTime Function()? now,
   }) : _database = database,
        _syncRepository = syncRepository,
        _repoClient = repoClient,
+       _logger = logger,
        _uuid = uuid ?? const Uuid(),
        _now = now ?? (() => DateTime.now().toUtc());
 
   final AppDatabase _database;
   final AtprotoSyncRepository _syncRepository;
   final AtprotoRepoClient _repoClient;
+  final AppLogger? _logger;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -225,7 +229,7 @@ class MarginNoteSyncService {
       );
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
     } on Object catch (error) {
-      debugPrint('Ignoring malformed Margin collection record: $error');
+      _logger?.debug('Ignoring malformed Margin collection record', error: error);
       return const MarginNoteSyncResult(malformed: 1);
     }
   }
@@ -292,7 +296,7 @@ class MarginNoteSyncService {
       );
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
     } on Object catch (error) {
-      debugPrint('Ignoring malformed Margin collection item record: $error');
+      _logger?.debug('Ignoring malformed Margin collection item record', error: error);
       return const MarginNoteSyncResult(malformed: 1);
     }
   }
@@ -434,7 +438,7 @@ class MarginNoteSyncService {
       );
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
     } on Object catch (error) {
-      debugPrint('Ignoring malformed Margin note record: $error');
+      _logger?.debug('Ignoring malformed Margin note record', error: error);
       return const MarginNoteSyncResult(malformed: 1);
     }
   }
@@ -558,7 +562,7 @@ class MarginNoteSyncService {
     final tags = await (_database.select(
       _database.annotationTags,
     )..where((row) => row.annotationId.equals(annotation.id))).get();
-    final local = PageAnnotation(annotation: annotation, target: target, bodies: bodies);
+    final local = PageAnnotation(annotation: annotation, target: target, bodies: bodies, logger: _logger);
     final noteBody = local.note;
     final textBody = _marginBody(bodies, noteBody);
     final tagNames = _normalizeTags(tags.map((tag) => tag.name));
@@ -679,7 +683,7 @@ class MarginNoteSyncService {
         return margin_time_state.TimeState.fromJson(decoded);
       }
     } on Object catch (error) {
-      debugPrint('Ignoring malformed Margin target state: $error');
+      _logger?.debug('Ignoring malformed Margin target state', error: error);
       return null;
     }
     return null;
@@ -769,7 +773,7 @@ class MarginNoteSyncService {
       final decoded = jsonDecode(trimmed);
       if (decoded is Map<String, Object?>) return decoded[key];
     } on Object catch (error) {
-      debugPrint('Ignoring malformed Margin metadata value: $error');
+      _logger?.debug('Ignoring malformed Margin metadata value', error: error);
       return null;
     }
     return null;
@@ -791,7 +795,7 @@ class MarginNoteSyncService {
         }
       }
     } on Object catch (error) {
-      debugPrint('Ignoring malformed Margin metadata: $error');
+      _logger?.debug('Ignoring malformed Margin metadata', error: error);
       return;
     }
   }

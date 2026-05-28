@@ -1,20 +1,25 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/features/browser/webview/browser_webview.dart';
 
-final readerWebViewBridgeProvider = Provider<ReaderWebViewBridge>((ref) => ReaderWebViewBridge());
+final readerWebViewBridgeProvider = Provider<ReaderWebViewBridge>(
+  (ref) => ReaderWebViewBridge(logger: ref.watch(appLoggerProvider)),
+);
 
 class ReaderWebViewBridge {
-  ReaderWebViewBridge({AssetBundle? assetBundle}) : _assetBundle = assetBundle ?? rootBundle;
+  ReaderWebViewBridge({AssetBundle? assetBundle, AppLogger? logger})
+    : _assetBundle = assetBundle ?? rootBundle,
+      _logger = logger;
 
   static const String selectionChannelName = 'MarkerSelection';
   static const String linkContextChannelName = 'MarkerLinkContext';
   static const String bootstrapScriptAsset = 'assets/js/reader.js';
 
   final AssetBundle _assetBundle;
+  final AppLogger? _logger;
   Future<String>? _bootstrapScript;
 
   Future<String> loadBootstrapScript() {
@@ -65,7 +70,7 @@ class ReaderWebViewBridge {
 })();
 ''');
     } on Object catch (error) {
-      debugPrint('Ignoring failed canonical URL lookup: $error');
+      _logger?.debug('Ignoring failed canonical URL lookup', error: error);
       return null;
     }
     final raw = result.toString().replaceAll('"', '').trim();
@@ -92,7 +97,7 @@ class ReaderWebViewBridge {
 })();
 ''');
     } on Object catch (error) {
-      debugPrint('Ignoring failed meta description lookup: $error');
+      _logger?.debug('Ignoring failed meta description lookup', error: error);
       return null;
     }
     final raw = result.toString().replaceAll('"', '').trim();
@@ -144,7 +149,7 @@ class ReaderWebViewBridge {
 })();
 ''');
     } on Object catch (error) {
-      debugPrint('Ignoring failed favicon URL lookup: $error');
+      _logger?.debug('Ignoring failed favicon URL lookup', error: error);
       return null;
     }
     final raw = result.toString().replaceAll('"', '').trim();

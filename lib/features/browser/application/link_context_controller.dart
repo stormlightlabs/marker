@@ -1,12 +1,14 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 
 final linkContextControllerProvider = NotifierProvider<LinkContextController, LinkContextState>(
   LinkContextController.new,
 );
+
+final _linkContextLogger = AppLogger.console();
 
 class LinkContextController extends Notifier<LinkContextState> {
   @override
@@ -55,10 +57,10 @@ class LinkContextEvent {
       final link = LinkContext.tryParse(payload);
       return link == null ? null : LinkContextEvent(link: link);
     } on FormatException catch (error) {
-      debugPrint('Ignoring malformed link bridge message: $error');
+      _linkContextLogger.debug('Ignoring malformed link bridge message', error: error);
       return null;
     } on TypeError catch (error) {
-      debugPrint('Ignoring invalid link bridge message: $error');
+      _linkContextLogger.debug('Ignoring invalid link bridge message', error: error);
       return null;
     }
   }
