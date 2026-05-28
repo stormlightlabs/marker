@@ -189,6 +189,26 @@ class AtprotoSyncRepository {
     return rows.firstOrNull;
   }
 
+  Future<List<AtprotoRecordMirror>> activeMirrors({required String accountDid, required String collection}) {
+    return (_database.select(_database.atprotoRecordMirrors)..where(
+          (mirror) =>
+              mirror.accountDid.equals(accountDid) & mirror.collection.equals(collection) & mirror.deletedAt.isNull(),
+        ))
+        .get();
+  }
+
+  Future<void> markMirrorDirty({required String id, DateTime? dirtyAt}) async {
+    await (_database.update(_database.atprotoRecordMirrors)..where((mirror) => mirror.id.equals(id))).write(
+      AtprotoRecordMirrorsCompanion(dirtyAt: Value(dirtyAt ?? _now())),
+    );
+  }
+
+  Future<void> markMirrorDeleted({required String id, DateTime? deletedAt}) async {
+    await (_database.update(_database.atprotoRecordMirrors)..where((mirror) => mirror.id.equals(id))).write(
+      AtprotoRecordMirrorsCompanion(deletedAt: Value(deletedAt ?? _now()), dirtyAt: const Value(null)),
+    );
+  }
+
   Future<void> markMirrorSynced({
     required String id,
     required String cid,
@@ -203,6 +223,7 @@ class AtprotoSyncRepository {
         lastSyncedHash: Value(lastSyncedHash),
         lastSyncedAt: Value(lastSyncedAt ?? _now()),
         dirtyAt: const Value(null),
+        deletedAt: const Value(null),
       ),
     );
   }

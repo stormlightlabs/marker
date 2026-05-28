@@ -468,10 +468,10 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
   final Map<String, int> syncedRecordCounts;
   final String Function(DateTime? value) formatDateTime;
 
-  static const _trackedCollections = <String, String>{
-    sembleCardCollection: 'Cards / bookmarks',
-    sembleCollectionCollection: 'Collections / folders',
-    sembleCollectionLinkCollection: 'Collection links',
+  static final _trackedCollections = <String, String>{
+    SembleSyncCollection.card.value: 'Cards / bookmarks',
+    SembleSyncCollection.collection.value: 'Collections / folders',
+    SembleSyncCollection.collectionLink.value: 'Collection links',
   };
 
   @override

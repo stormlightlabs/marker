@@ -1,10 +1,14 @@
+import 'dart:convert';
+
 import 'package:cosmik_poptart/network/cosmik/card.dart' as card;
 import 'package:cosmik_poptart/network/cosmik/collection.dart' as collection;
 import 'package:cosmik_poptart/network/cosmik/collection_link.dart' as link;
+import 'package:cosmik_poptart/network/cosmik/collection_link_removal.dart' as removal;
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
@@ -39,7 +43,7 @@ void main() {
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCardCollection,
+      collection: SembleSyncCollection.card.value,
       rkey: 'card-1',
       cid: 'cid-card-1',
       value: _cardJson(url: 'https://example.com/article', title: 'Example Article'),
@@ -47,7 +51,7 @@ void main() {
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCollectionCollection,
+      collection: SembleSyncCollection.collection.value,
       rkey: 'collection-1',
       cid: 'cid-collection-1',
       value: _collectionJson(name: 'Research'),
@@ -55,13 +59,13 @@ void main() {
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCollectionLinkCollection,
+      collection: SembleSyncCollection.collectionLink.value,
       rkey: 'link-1',
       cid: 'cid-link-1',
       value: _linkJson(
-        collectionUri: 'at://did:plc:alice/$sembleCollectionCollection/collection-1',
+        collectionUri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/collection-1',
         collectionCid: 'cid-collection-1',
-        cardUri: 'at://did:plc:alice/$sembleCardCollection/card-1',
+        cardUri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
         cardCid: 'cid-card-1',
       ),
     );
@@ -87,12 +91,15 @@ void main() {
     expect(
       await syncRepository.mirrorForUri(
         accountDid: 'did:plc:alice',
-        uri: 'at://did:plc:alice/$sembleCardCollection/card-1',
+        uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
       ),
       isNotNull,
     );
     expect(
-      (await syncRepository.syncState(accountDid: 'did:plc:alice', collection: sembleCardCollection))?.lastError,
+      (await syncRepository.syncState(
+        accountDid: 'did:plc:alice',
+        collection: SembleSyncCollection.card.value,
+      ))?.lastError,
       isNull,
     );
   });
@@ -112,7 +119,7 @@ void main() {
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCardCollection,
+      collection: SembleSyncCollection.card.value,
       rkey: 'card-1',
       cid: 'cid-card-1',
       value: _cardJson(url: 'https://example.com/article#section', title: 'Remote title'),
@@ -161,7 +168,7 @@ void main() {
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCardCollection,
+      collection: SembleSyncCollection.card.value,
       rkey: 'card-1',
       cid: 'cid-card-1',
       value: _cardJson(url: 'https://EXAMPLE.com/', title: 'Remote title'),
@@ -169,7 +176,7 @@ void main() {
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCollectionCollection,
+      collection: SembleSyncCollection.collection.value,
       rkey: 'collection-1',
       cid: 'cid-collection-1',
       value: _collectionJson(name: 'research'),
@@ -178,28 +185,28 @@ void main() {
       accountDid: 'did:plc:alice',
       localTable: 'bookmarks',
       localId: 'local-bookmark',
-      collection: sembleCardCollection,
+      collection: SembleSyncCollection.card.value,
       rkey: 'card-1',
-      uri: 'at://did:plc:alice/$sembleCardCollection/card-1',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
     );
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
       localTable: 'bookmark_folders',
       localId: 'local-folder',
-      collection: sembleCollectionCollection,
+      collection: SembleSyncCollection.collection.value,
       rkey: 'collection-1',
-      uri: 'at://did:plc:alice/$sembleCollectionCollection/collection-1',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/collection-1',
     );
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCollectionLinkCollection,
+      collection: SembleSyncCollection.collectionLink.value,
       rkey: 'link-1',
       cid: 'cid-link-1',
       value: _linkJson(
-        collectionUri: 'at://did:plc:alice/$sembleCollectionCollection/collection-1',
+        collectionUri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/collection-1',
         collectionCid: 'cid-collection-1',
-        cardUri: 'at://did:plc:alice/$sembleCardCollection/card-1',
+        cardUri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
         cardCid: 'cid-card-1',
       ),
     );
@@ -228,15 +235,15 @@ void main() {
       accountDid: 'did:plc:alice',
       localTable: 'bookmarks',
       localId: 'local-bookmark',
-      collection: sembleCardCollection,
+      collection: SembleSyncCollection.card.value,
       rkey: 'card-1',
-      uri: 'at://did:plc:alice/$sembleCardCollection/card-1',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
       dirtyAt: DateTime.utc(2026, 5, 26, 11),
     );
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCardCollection,
+      collection: SembleSyncCollection.card.value,
       rkey: 'card-1',
       cid: 'cid-card-1',
       value: _cardJson(url: 'https://example.com/article', title: 'Remote title'),
@@ -248,11 +255,247 @@ void main() {
     expect((await database.select(database.bookmarks).get()).single.title, 'Local dirty title');
   });
 
+  test('consumes collection link removal records as soft-deleted links and mirror tombstones', () async {
+    await database
+        .into(database.bookmarks)
+        .insert(
+          BookmarksCompanion.insert(
+            id: 'local-bookmark',
+            url: 'https://example.com',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await database
+        .into(database.bookmarkFolders)
+        .insert(
+          BookmarkFoldersCompanion.insert(
+            id: 'local-folder',
+            title: 'Research',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await database
+        .into(database.bookmarkCollectionLinks)
+        .insert(
+          BookmarkCollectionLinksCompanion.insert(
+            id: 'local-link',
+            bookmarkId: 'local-bookmark',
+            folderId: 'local-folder',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localId: 'local-link',
+      collection: SembleSyncCollection.collectionLink.value,
+      rkey: 'link-1',
+      uri: 'at://did:plc:bob/${SembleSyncCollection.collectionLink.value}/link-1',
+      cid: 'cid-link-1',
+    );
+    _putRemote(
+      repoClient,
+      did: 'did:plc:alice',
+      collection: SembleSyncCollection.collectionLinkRemoval.value,
+      rkey: 'removal-1',
+      cid: 'cid-removal-1',
+      value: _removalJson(
+        collectionUri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/collection-1',
+        collectionCid: 'cid-collection-1',
+        removedLinkUri: 'at://did:plc:bob/${SembleSyncCollection.collectionLink.value}/link-1',
+        removedLinkCid: 'cid-link-1',
+      ),
+    );
+
+    final result = await service.pull('did:plc:alice');
+
+    expect(result.deleted, 1);
+    expect((await database.select(database.bookmarkCollectionLinks).get()).single.deletedAt, isNotNull);
+    expect(
+      (await syncRepository.mirrorForUri(
+        accountDid: 'did:plc:alice',
+        uri: 'at://did:plc:bob/${SembleSyncCollection.collectionLink.value}/link-1',
+      ))?.deletedAt,
+      isNotNull,
+    );
+  });
+
+  test('marks mirrored local rows deleted when getRecord confirms a missing remote record', () async {
+    await database
+        .into(database.bookmarks)
+        .insert(
+          BookmarksCompanion.insert(
+            id: 'local-bookmark',
+            url: 'https://example.com/missing',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarks.value,
+      localId: 'local-bookmark',
+      collection: SembleSyncCollection.card.value,
+      rkey: 'card-missing',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-missing',
+      cid: 'cid-card-missing',
+      lastSyncedAt: DateTime.utc(2026, 5, 26, 10),
+    );
+
+    final result = await service.pull('did:plc:alice');
+
+    expect(result.deleted, 1);
+    expect((await database.select(database.bookmarks).get()).single.deletedAt, isNotNull);
+    expect(
+      (await syncRepository.mirrorForUri(
+        accountDid: 'did:plc:alice',
+        uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-missing',
+      ))?.deletedAt,
+      isNotNull,
+    );
+  });
+
+  test('pushes local soft deletes through deleteRecord and keeps mirror tombstones', () async {
+    final deletionService = AtprotoDeletionSyncService(
+      database: database,
+      syncRepository: syncRepository,
+      repoClient: repoClient,
+      now: () => DateTime.utc(2026, 5, 26, 13),
+    );
+    await database
+        .into(database.bookmarks)
+        .insert(
+          BookmarksCompanion.insert(
+            id: 'local-bookmark',
+            url: 'https://example.com/delete-me',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarks.value,
+      localId: 'local-bookmark',
+      collection: SembleSyncCollection.card.value,
+      rkey: 'card-1',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
+      cid: 'cid-card-1',
+    );
+    _putRemote(
+      repoClient,
+      did: 'did:plc:alice',
+      collection: SembleSyncCollection.card.value,
+      rkey: 'card-1',
+      cid: 'cid-card-1',
+      value: _cardJson(url: 'https://example.com/delete-me', title: 'Delete me'),
+    );
+
+    await deletionService.softDeleteLocal(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarks.value,
+      localId: 'local-bookmark',
+      collection: SembleSyncCollection.card.value,
+    );
+    await deletionService.pushLocalDeletes('did:plc:alice');
+
+    expect(repoClient.records['at://did:plc:alice/${SembleSyncCollection.card.value}/card-1'], isNull);
+    expect((await database.select(database.bookmarks).get()).single.deletedAt, isNotNull);
+    final mirror = await syncRepository.mirrorForUri(
+      accountDid: 'did:plc:alice',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
+    );
+    expect(mirror?.deletedAt, isNotNull);
+    expect(mirror?.dirtyAt, isNull);
+    expect(await syncRepository.pendingOutbox(accountDid: 'did:plc:alice'), isEmpty);
+  });
+
+  test('publishes collectionLinkRemoval when deleting a link owned by another repo', () async {
+    final deletionService = AtprotoDeletionSyncService(
+      database: database,
+      syncRepository: syncRepository,
+      repoClient: repoClient,
+      now: () => DateTime.utc(2026, 5, 26, 13),
+    );
+    await database
+        .into(database.bookmarks)
+        .insert(
+          BookmarksCompanion.insert(
+            id: 'local-bookmark',
+            url: 'https://example.com/shared',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await database
+        .into(database.bookmarkFolders)
+        .insert(
+          BookmarkFoldersCompanion.insert(
+            id: 'local-folder',
+            title: 'Research',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await database
+        .into(database.bookmarkCollectionLinks)
+        .insert(
+          BookmarkCollectionLinksCompanion.insert(
+            id: 'local-link',
+            bookmarkId: 'local-bookmark',
+            folderId: 'local-folder',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localId: 'local-link',
+      collection: SembleSyncCollection.collectionLink.value,
+      rkey: 'link-1',
+      uri: 'at://did:plc:bob/${SembleSyncCollection.collectionLink.value}/link-1',
+      cid: 'cid-link-1',
+      lastSyncedRecordJson: jsonForTest(
+        _linkJson(
+          collectionUri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/collection-1',
+          collectionCid: 'cid-collection-1',
+          cardUri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
+          cardCid: 'cid-card-1',
+        ),
+      ),
+    );
+
+    await deletionService.softDeleteLocal(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localId: 'local-link',
+      collection: SembleSyncCollection.collectionLink.value,
+    );
+    await deletionService.pushLocalDeletes('did:plc:alice');
+
+    expect(
+      repoClient.records.values.any(
+        (record) => record.uri.startsWith('at://did:plc:alice/${SembleSyncCollection.collectionLinkRemoval.value}/'),
+      ),
+      isTrue,
+    );
+    expect(
+      (await syncRepository.mirrorForUri(
+        accountDid: 'did:plc:alice',
+        uri: 'at://did:plc:bob/${SembleSyncCollection.collectionLink.value}/link-1',
+      ))?.deletedAt,
+      isNotNull,
+    );
+  });
+
   test('counts malformed records and links with missing refs', () async {
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCardCollection,
+      collection: SembleSyncCollection.card.value,
       rkey: 'bad-card',
       cid: 'cid-bad-card',
       value: {
@@ -264,13 +507,13 @@ void main() {
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
-      collection: sembleCollectionLinkCollection,
+      collection: SembleSyncCollection.collectionLink.value,
       rkey: 'bad-link',
       cid: 'cid-bad-link',
       value: _linkJson(
-        collectionUri: 'at://did:plc:alice/$sembleCollectionCollection/missing',
+        collectionUri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/missing',
         collectionCid: 'cid-missing',
-        cardUri: 'at://did:plc:alice/$sembleCardCollection/missing',
+        cardUri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/missing',
         cardCid: 'cid-missing',
       ),
     );
@@ -316,6 +559,8 @@ Map<String, dynamic> _collectionJson({required String name}) => collection.Colle
   updatedAt: DateTime.utc(2026, 5, 26, 9),
 ).toJson();
 
+String jsonForTest(Map<String, dynamic> value) => jsonEncode(value);
+
 Map<String, dynamic> _linkJson({
   required String collectionUri,
   required String collectionCid,
@@ -327,4 +572,15 @@ Map<String, dynamic> _linkJson({
   addedBy: 'did:plc:alice',
   addedAt: DateTime.utc(2026, 5, 26, 10),
   createdAt: DateTime.utc(2026, 5, 26, 10),
+).toJson();
+
+Map<String, dynamic> _removalJson({
+  required String collectionUri,
+  required String collectionCid,
+  required String removedLinkUri,
+  required String removedLinkCid,
+}) => removal.CollectionLinkRemovalRecord(
+  collection: RepoStrongRef(uri: AtUri(collectionUri), cid: collectionCid),
+  removedLink: RepoStrongRef(uri: AtUri(removedLinkUri), cid: removedLinkCid),
+  removedAt: DateTime.utc(2026, 5, 26, 11),
 ).toJson();

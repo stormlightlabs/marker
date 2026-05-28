@@ -3,22 +3,20 @@ import 'dart:convert';
 import 'package:cosmik_poptart/network/cosmik/card.dart' as cosmik_card;
 import 'package:cosmik_poptart/network/cosmik/collection/main.dart' as cosmik_collection;
 import 'package:cosmik_poptart/network/cosmik/collection_link/main.dart' as cosmik_link;
+import 'package:cosmik_poptart/network/cosmik/collection_link_removal.dart' as cosmik_removal;
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
+import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/atproto/data/semble_sync_constants.dart';
 import 'package:marker/features/atproto/domain/atproto_repo_models.dart';
 import 'package:uuid/uuid.dart';
 
-const sembleCardCollection = 'network.cosmik.card';
-const sembleCollectionCollection = 'network.cosmik.collection';
-const sembleCollectionLinkCollection = 'network.cosmik.collectionLink';
-
-const _bookmarksTable = 'bookmarks';
-const _bookmarkFoldersTable = 'bookmark_folders';
-const _bookmarkCollectionLinksTable = 'bookmark_collection_links';
+export 'package:marker/features/atproto/data/semble_sync_constants.dart';
 
 final sembleBookmarkPullServiceProvider = Provider<SembleBookmarkPullService>((ref) {
   final database = ref.watch(databaseProvider);
@@ -53,6 +51,7 @@ class SembleBookmarkPullResult {
     this.duplicates = 0,
     this.conflicts = 0,
     this.malformed = 0,
+    this.deleted = 0,
   });
 
   final int cardsImported;
@@ -61,6 +60,7 @@ class SembleBookmarkPullResult {
   final int duplicates;
   final int conflicts;
   final int malformed;
+  final int deleted;
 
   SembleBookmarkPullResult operator +(SembleBookmarkPullResult other) => SembleBookmarkPullResult(
     cardsImported: cardsImported + other.cardsImported,
@@ -69,6 +69,7 @@ class SembleBookmarkPullResult {
     duplicates: duplicates + other.duplicates,
     conflicts: conflicts + other.conflicts,
     malformed: malformed + other.malformed,
+    deleted: deleted + other.deleted,
   );
 }
 
@@ -94,7 +95,8 @@ class SembleBookmarkPullService {
   Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
     var result = const SembleBookmarkPullResult();
     var completedRequests = 0;
-    var totalRequests = 3;
+    var totalRequests = 4;
+    final seenUrisByCollection = <String, Set<String>>{};
 
     Future<SembleBookmarkPullResult> pullCollection(
       String collection,
@@ -111,12 +113,33 @@ class SembleBookmarkPullService {
         totalRequests: () => totalRequests,
         onRequestCompleted: () => completedRequests += 1,
         onAdditionalRequestNeeded: () => totalRequests += 1,
+        onRecordSeen: (uri) => (seenUrisByCollection[collection] ??= <String>{}).add(uri),
       );
     }
 
-    result += await pullCollection(sembleCardCollection, 'Fetching cards', _importCard);
-    result += await pullCollection(sembleCollectionCollection, 'Fetching collections', _importCollection);
-    result += await pullCollection(sembleCollectionLinkCollection, 'Fetching collection links', _importCollectionLink);
+    result += await pullCollection(SembleSyncCollection.card.value, 'Fetching cards', _importCard);
+    result += await pullCollection(SembleSyncCollection.collection.value, 'Fetching collections', _importCollection);
+    result += await pullCollection(
+      SembleSyncCollection.collectionLink.value,
+      'Fetching collection links',
+      _importCollectionLink,
+    );
+    result += await pullCollection(
+      SembleSyncCollection.collectionLinkRemoval.value,
+      'Fetching collection link removals',
+      _importCollectionLinkRemoval,
+    );
+    for (final collection in [
+      SembleSyncCollection.card.value,
+      SembleSyncCollection.collection.value,
+      SembleSyncCollection.collectionLink.value,
+    ]) {
+      result += await _verifyMissingMirrors(
+        accountDid,
+        collection,
+        seenUrisByCollection[collection] ?? const <String>{},
+      );
+    }
     onProgress?.call(
       SembleBookmarkPullProgress(
         completedRequests: completedRequests,
@@ -137,6 +160,7 @@ class SembleBookmarkPullService {
     required int Function() totalRequests,
     required void Function() onRequestCompleted,
     required void Function() onAdditionalRequestNeeded,
+    required void Function(String uri) onRecordSeen,
   }) async {
     var result = const SembleBookmarkPullResult();
     String? cursor;
@@ -151,6 +175,7 @@ class SembleBookmarkPullService {
       final page = await _repoClient.listRecords(did: accountDid, collection: collection, cursor: cursor, limit: 100);
       onRequestCompleted();
       for (final record in page.records) {
+        onRecordSeen(record.uri);
         result += await importRecord(accountDid, record);
       }
       cursor = page.cursor;
@@ -222,14 +247,14 @@ class SembleBookmarkPullService {
       if (duplicates == 0 || mirror != null) {
         await _syncRepository.upsertMirror(
           accountDid: accountDid,
-          localTable: _bookmarksTable,
+          localTable: SembleSyncLocalTable.bookmarks.value,
           localId: localId,
-          collection: sembleCardCollection,
+          collection: SembleSyncCollection.card.value,
           rkey: _rkeyFromUri(remote.uri),
           uri: remote.uri,
           cid: remote.cid,
           lastSyncedRecordJson: json,
-          lastSyncedHash: _stableHash(json),
+          lastSyncedHash: stableJenkinsOneAtATimeHash(json),
           lastSyncedAt: _now(),
         );
       }
@@ -285,14 +310,14 @@ class SembleBookmarkPullService {
       if (duplicates == 0 || mirror != null) {
         await _syncRepository.upsertMirror(
           accountDid: accountDid,
-          localTable: _bookmarkFoldersTable,
+          localTable: SembleSyncLocalTable.bookmarkFolders.value,
           localId: localId,
-          collection: sembleCollectionCollection,
+          collection: SembleSyncCollection.collection.value,
           rkey: _rkeyFromUri(remote.uri),
           uri: remote.uri,
           cid: remote.cid,
           lastSyncedRecordJson: json,
-          lastSyncedHash: _stableHash(json),
+          lastSyncedHash: stableJenkinsOneAtATimeHash(json),
           lastSyncedAt: _now(),
         );
       }
@@ -313,7 +338,8 @@ class SembleBookmarkPullService {
       if (collectionMirror == null || cardMirror == null) {
         return const SembleBookmarkPullResult(malformed: 1);
       }
-      if (collectionMirror.localTable != _bookmarkFoldersTable || cardMirror.localTable != _bookmarksTable) {
+      if (collectionMirror.localTable != SembleSyncLocalTable.bookmarkFolders.value ||
+          cardMirror.localTable != SembleSyncLocalTable.bookmarks.value) {
         return const SembleBookmarkPullResult(malformed: 1);
       }
 
@@ -357,14 +383,14 @@ class SembleBookmarkPullService {
       if (duplicates == 0 || mirror != null) {
         await _syncRepository.upsertMirror(
           accountDid: accountDid,
-          localTable: _bookmarkCollectionLinksTable,
+          localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
           localId: localId,
-          collection: sembleCollectionLinkCollection,
+          collection: SembleSyncCollection.collectionLink.value,
           rkey: _rkeyFromUri(remote.uri),
           uri: remote.uri,
           cid: remote.cid,
           lastSyncedRecordJson: json,
-          lastSyncedHash: _stableHash(json),
+          lastSyncedHash: stableJenkinsOneAtATimeHash(json),
           lastSyncedAt: _now(),
         );
       }
@@ -372,6 +398,79 @@ class SembleBookmarkPullService {
     } catch (_) {
       return const SembleBookmarkPullResult(malformed: 1);
     }
+  }
+
+  Future<SembleBookmarkPullResult> _importCollectionLinkRemoval(String accountDid, AtprotoRepoRecord remote) async {
+    try {
+      final record = const cosmik_removal.CollectionLinkRemovalRecordConverter().fromJson(remote.value);
+      final removedLinkMirror = await _syncRepository.mirrorForUri(
+        accountDid: accountDid,
+        uri: record.removedLink.uri.toString(),
+      );
+      if (removedLinkMirror == null ||
+          removedLinkMirror.localTable != SembleSyncLocalTable.bookmarkCollectionLinks.value) {
+        return const SembleBookmarkPullResult(malformed: 1);
+      }
+      if (removedLinkMirror.dirtyAt != null) {
+        return const SembleBookmarkPullResult(conflicts: 1);
+      }
+
+      final deletionSync = AtprotoDeletionSyncService(
+        database: _database,
+        syncRepository: _syncRepository,
+        repoClient: _repoClient,
+        now: _now,
+      );
+      await deletionSync.markLocalRowDeleted(
+        localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+        localId: removedLinkMirror.localId,
+        deletedAt: record.removedAt,
+      );
+      await _syncRepository.markMirrorDeleted(id: removedLinkMirror.id, deletedAt: record.removedAt);
+      await _syncRepository.upsertMirror(
+        accountDid: accountDid,
+        localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+        localId: removedLinkMirror.localId,
+        collection: SembleSyncCollection.collectionLinkRemoval.value,
+        rkey: _rkeyFromUri(remote.uri),
+        uri: remote.uri,
+        cid: remote.cid,
+        lastSyncedRecordJson: _canonicalJson(remote.value),
+        lastSyncedHash: stableJenkinsOneAtATimeHash(_canonicalJson(remote.value)),
+        lastSyncedAt: _now(),
+      );
+      return const SembleBookmarkPullResult(deleted: 1);
+    } catch (_) {
+      return const SembleBookmarkPullResult(malformed: 1);
+    }
+  }
+
+  Future<SembleBookmarkPullResult> _verifyMissingMirrors(
+    String accountDid,
+    String collection,
+    Set<String> seenUris,
+  ) async {
+    var deleted = 0;
+    final deletionSync = AtprotoDeletionSyncService(
+      database: _database,
+      syncRepository: _syncRepository,
+      repoClient: _repoClient,
+      now: _now,
+    );
+    final mirrors = await _syncRepository.activeMirrors(accountDid: accountDid, collection: collection);
+    for (final mirror in mirrors) {
+      if (mirror.dirtyAt != null || seenUris.contains(mirror.uri)) {
+        continue;
+      }
+      final remote = await _repoClient.getRecord(did: accountDid, collection: mirror.collection, rkey: mirror.rkey);
+      if (remote != null) {
+        continue;
+      }
+      await deletionSync.markLocalRowDeleted(localTable: mirror.localTable, localId: mirror.localId, deletedAt: _now());
+      await _syncRepository.markMirrorDeleted(id: mirror.id, deletedAt: _now());
+      deleted += 1;
+    }
+    return SembleBookmarkPullResult(deleted: deleted);
   }
 
   Future<Bookmark?> _bookmarkById(String id) {
@@ -459,18 +558,5 @@ class SembleBookmarkPullService {
     }
     if (value is Iterable) return value.map(_sortJson).toList(growable: false);
     return value;
-  }
-
-  String _stableHash(String value) {
-    var hash = 0;
-    for (final codeUnit in value.codeUnits) {
-      hash = 0x1fffffff & (hash + codeUnit);
-      hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
-      hash ^= hash >> 6;
-    }
-    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
-    hash ^= hash >> 11;
-    hash = 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
-    return hash.toRadixString(16);
   }
 }

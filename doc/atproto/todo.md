@@ -58,14 +58,14 @@ See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth
 
 ## Phase 6: deletion sync
 
-- [ ] Use local soft deletes for synced bookmarks, folders, memberships, and annotations.
-- [ ] Push local deletes through `com.atproto.repo.deleteRecord`.
-- [ ] Keep mirror tombstones after successful remote delete.
-- [ ] Consume `network.cosmik.collectionLinkRemoval` records.
-- [ ] Publish `network.cosmik.collectionLinkRemoval` when removing a link owned by another repo.
-- [ ] Add periodic `getRecord` verification for mirrored records that disappear from active pulls.
-- [ ] Mark local rows deleted when remote `getRecord` returns not found and no local dirty edit exists.
-- [ ] Add deletion tests for local deletes, remote not found, and link removal records.
+- [x] Use local soft deletes for synced bookmarks, folders, memberships, and annotations.
+- [x] Push local deletes through `com.atproto.repo.deleteRecord`.
+- [x] Keep mirror tombstones after successful remote delete.
+- [x] Consume `network.cosmik.collectionLinkRemoval` records.
+- [x] Publish `network.cosmik.collectionLinkRemoval` when removing a link owned by another repo.
+- [x] Add periodic `getRecord` verification for mirrored records that disappear from active pulls.
+- [x] Mark local rows deleted when remote `getRecord` returns not found and no local dirty edit exists.
+- [x] Add deletion tests for local deletes, remote not found, and link removal records.
 
 ## Phase 7: Semble bookmark push
 

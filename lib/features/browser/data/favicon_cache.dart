@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -33,7 +34,8 @@ class FaviconCache {
     await directory.create(recursive: true);
 
     final extension = _extensionFor(faviconUrl, result.contentType);
-    final file = File(p.join(directory.path, '${_stableHash(faviconUrl.toString())}$extension'));
+    final h = stableFnv1a64Hash(faviconUrl.toString());
+    final file = File(p.join(directory.path, '$h$extension'));
     await file.writeAsBytes(result.bytes, flush: true);
     return file.path;
   }
@@ -58,15 +60,6 @@ class FaviconCache {
 
     final extension = p.extension(faviconUrl.path).toLowerCase();
     return extension.isEmpty ? '.ico' : extension;
-  }
-
-  String _stableHash(String value) {
-    var hash = 0xcbf29ce484222325;
-    for (final unit in value.codeUnits) {
-      hash ^= unit;
-      hash = (hash * 0x100000001b3) & 0xffffffffffffffff;
-    }
-    return hash.toRadixString(16);
   }
 }
 
