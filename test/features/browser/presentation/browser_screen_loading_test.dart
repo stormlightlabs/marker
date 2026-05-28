@@ -3,7 +3,6 @@ import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/browser/ad_block/ad_block_rules.dart';
 import 'package:marker/features/browser/data/favicon_cache.dart';
@@ -249,10 +248,10 @@ void main() {
     await tester.pump();
 
     final progressBar = find.byKey(const ValueKey('reader-progress-bar'));
-    final tabBar = find.byType(MarkerTabBar);
+    final bottomActionBar = find.byKey(const ValueKey('browser-bottom-action-bar'));
 
     expect(progressBar, findsOneWidget);
-    expect(tester.getRect(progressBar).bottom, tester.getRect(tabBar).top);
+    expect(tester.getRect(progressBar).bottom, tester.getRect(bottomActionBar).top);
     expect(find.byType(CupertinoActivityIndicator), findsNothing);
     expect(find.text('Loading'), findsNothing);
   });

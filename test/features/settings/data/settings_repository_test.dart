@@ -32,4 +32,15 @@ void main() {
     expect(row.key, adBlockEnabledSettingKey);
     expect(row.value, 'true');
   });
+
+  test('defaults fun to enabled and persists changes', () async {
+    expect(await repository.isFunEnabled(), isTrue);
+
+    await repository.setFunEnabled(false);
+
+    expect(await repository.isFunEnabled(), isFalse);
+    final row = await database.select(database.appSettings).getSingle();
+    expect(row.key, funEnabledSettingKey);
+    expect(row.value, 'false');
+  });
 }

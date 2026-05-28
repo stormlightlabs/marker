@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show AlwaysStoppedAnimation, LinearProgressIndicator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
 import 'package:marker/core/database/app_database.dart';
@@ -24,6 +25,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final adBlockEnabled = ref.watch(adBlockEnabledProvider).value ?? true;
+    final funEnabled = ref.watch(funEnabledProvider).value ?? true;
     final atprotoAuthState =
         ref.watch(_atprotoAuthStateProvider).value ?? ref.watch(atprotoAuthRepositoryProvider).state;
 
@@ -43,7 +45,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                       child: Column(
                         children: [
                           _SettingsSwitchRow(
@@ -53,6 +55,16 @@ class SettingsScreen extends ConsumerWidget {
                             value: adBlockEnabled,
                             onChanged: (value) {
                               ref.read(adBlockEnabledProvider.notifier).setEnabled(value);
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          _SettingsSwitchRow(
+                            icon: CupertinoIcons.sparkles,
+                            title: 'Fun',
+                            subtitle: 'Use playful titles and hand-drawn scribbles',
+                            value: funEnabled,
+                            onChanged: (value) {
+                              ref.read(funEnabledProvider.notifier).setEnabled(value);
                             },
                           ),
                           const SizedBox(height: 12),
@@ -74,6 +86,13 @@ class SettingsScreen extends ConsumerWidget {
                             title: 'Logs',
                             subtitle: 'View, filter, and download diagnostic logs',
                             onPressed: () => context.pushNamed(AppRoute.logs.routeName),
+                          ),
+                          const SizedBox(height: 12),
+                          _SettingsLinkRow(
+                            icon: CupertinoIcons.info_circle,
+                            title: 'About',
+                            subtitle: 'Stormlight Labs',
+                            onPressed: () => context.pushNamed(AppRoute.about.routeName),
                           ),
                         ],
                       ),
@@ -696,7 +715,14 @@ class _AtprotoDiagnosticCollectionRow extends StatelessWidget {
       children: [
         Text(collectionLabel, style: const TextStyle(color: CupertinoColors.white, fontSize: 12)),
         const SizedBox(height: 2),
-        Text(collection, style: const TextStyle(color: CupertinoColors.systemGrey2, fontSize: 11)),
+        Text(
+          collection,
+          style: GoogleFonts.jetBrainsMono(
+            color: CupertinoColors.systemGrey2,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 2),
         Text(
           'Last successful sync: ${formatDateTime(syncState?.lastSuccessfulSyncAt)}',

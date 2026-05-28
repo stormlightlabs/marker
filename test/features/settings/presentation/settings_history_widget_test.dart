@@ -7,6 +7,7 @@ import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/settings/application/log_share_controller.dart';
 import 'package:marker/features/settings/data/app_log_repository.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
+import 'package:rough_notation/rough_notation.dart';
 
 import '../../../helpers/harness.dart';
 
@@ -86,10 +87,49 @@ void main() {
     expect(find.text('Ad Blocker'), findsOneWidget);
     expect(await SettingsRepository(database).isAdBlockEnabled(), isTrue);
 
-    await tester.tap(find.byType(CupertinoSwitch));
+    await tester.tap(find.byType(CupertinoSwitch).first);
     await tester.pumpAndSettle();
 
     expect(await SettingsRepository(database).isAdBlockEnabled(), isFalse);
+  });
+
+  testWidgets('about screen uses rough notation while fun is enabled', (tester) async {
+    await tester.pumpWidget(markerTestApp(database: database));
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Settings'));
+    await pumpRouteTransition(tester);
+    await tester.tap(find.text('About'));
+    await pumpRouteTransition(tester);
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Marker'), findsOneWidget);
+    expect(find.byType(RoughUnderlineAnnotation), findsOneWidget);
+  });
+
+  testWidgets('toggles fun and opens about screen', (tester) async {
+    await tester.pumpWidget(markerTestApp(database: database));
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Settings'));
+    await pumpRouteTransition(tester);
+
+    expect(find.text('Fun'), findsOneWidget);
+    expect(await SettingsRepository(database).isFunEnabled(), isTrue);
+
+    await tester.tap(find.byType(CupertinoSwitch).at(1));
+    await tester.pumpAndSettle();
+
+    expect(await SettingsRepository(database).isFunEnabled(), isFalse);
+
+    await tester.tap(find.text('About'));
+    await pumpRouteTransition(tester);
+
+    expect(find.text('Marker'), findsOneWidget);
+    expect(find.text('Owais'), findsOneWidget);
+    expect(find.textContaining('Stormlight Labs makes high quality'), findsOneWidget);
   });
 
   testWidgets('opens logs screen and filters logs', (tester) async {

@@ -37,6 +37,8 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Programming'), findsOneWidget);
     expect(find.text('Example Article'), findsOneWidget);
+    final list = tester.widget<ReorderableList>(find.byType(ReorderableList));
+    expect(list.padding, const EdgeInsets.fromLTRB(0, 10, 0, 24));
 
     await tester.tap(find.text('Example Article'));
     await pumpRouteTransition(tester);

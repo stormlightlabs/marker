@@ -3,10 +3,12 @@ import 'package:flutter/material.dart' show SelectableText;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
+import 'package:marker/features/settings/data/settings_repository.dart';
 
 class BookmarksScreen extends ConsumerWidget {
   const BookmarksScreen({this.folderId, super.key});
@@ -16,7 +18,6 @@ class BookmarksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final contents = ref.watch(bookmarkFolderContentsProvider(folderId));
-    final isRoot = folderId == null;
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
       child: SafeArea(
@@ -30,7 +31,7 @@ class BookmarksScreen extends ConsumerWidget {
                 error: (error, stackTrace) => _BookmarkError(message: error.toString()),
               ),
             ),
-            if (isRoot) const MarkerTabBar(activeRoute: AppRoute.bookmarks),
+            if (folderId == null) const MarkerTabBar(activeRoute: AppRoute.bookmarks),
           ],
         ),
       ),
@@ -217,11 +218,12 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
     if (folderId != null && contents.folder == null) {
       return const _BookmarkEmpty(title: 'Folder Not Found');
     }
-
+    final funEnabled = ref.watch(funEnabledProvider).value ?? true;
     return Column(
       children: [
         _BookmarkHeader(
           title: contents.folder?.title ?? 'Bookmarks',
+          funEnabled: funEnabled,
           canPop: folderId != null,
           isEditing: _isEditing,
           onBackPressed: () => context.pop(),
@@ -239,7 +241,7 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
           child: contents.isEmpty
               ? const _BookmarkEmpty(title: 'No Bookmarks')
               : ReorderableList(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(0, 10, 0, 24),
                   proxyDecorator: (child, index, animation) => DecoratedBox(
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E1E24),
@@ -437,6 +439,7 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
 class _BookmarkHeader extends StatelessWidget {
   const _BookmarkHeader({
     required this.title,
+    required this.funEnabled,
     required this.canPop,
     required this.isEditing,
     required this.onBackPressed,
@@ -447,6 +450,7 @@ class _BookmarkHeader extends StatelessWidget {
   });
 
   final String title;
+  final bool funEnabled;
   final bool canPop;
   final bool isEditing;
   final VoidCallback onBackPressed;
@@ -467,17 +471,7 @@ class _BookmarkHeader extends StatelessWidget {
             child: const Icon(CupertinoIcons.chevron_back, size: 24),
           ),
         Expanded(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: CupertinoColors.white,
-              fontSize: 34,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-            ),
-          ),
+          child: _BookmarkTitle(text: title, funEnabled: funEnabled),
         ),
         CupertinoButton(
           padding: EdgeInsets.zero,
@@ -498,6 +492,28 @@ class _BookmarkHeader extends StatelessWidget {
         CupertinoButton(padding: EdgeInsets.zero, onPressed: onEdit, child: Text(isEditing ? 'Done' : 'Edit')),
       ],
     ),
+  );
+}
+
+class _BookmarkTitle extends StatelessWidget {
+  const _BookmarkTitle({required this.text, required this.funEnabled});
+
+  final String text;
+  final bool funEnabled;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: funEnabled
+        ? GoogleFonts.slacksideOne(
+            color: CupertinoColors.white,
+            fontSize: 40,
+            fontWeight: FontWeight.w400,
+            letterSpacing: 0,
+          )
+        : const TextStyle(color: CupertinoColors.white, fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0),
   );
 }
 
@@ -572,33 +588,34 @@ class _ExpandedFolderContents extends ConsumerWidget {
     final contents = ref.watch(bookmarkFolderContentsProvider(folderId));
     return contents.maybeWhen(
       data: (data) => Column(
-        children: [
-          for (final item in data.items)
-            Padding(
-              padding: EdgeInsets.only(left: 18.0 * depth),
-              child: _BookmarkRow(
-                item: item,
-                index: 0,
-                isEditing: false,
-                isSelected: false,
-                isExpanded: false,
-                onPressed: () {
-                  if (item.type == BookmarkEntryType.folder) {
-                    context.pushNamed(AppRoute.bookmarksFolder.routeName, pathParameters: {'id': item.id});
-                  } else {
-                    ref.read(readerControllerProvider.notifier).openBookmark(item.bookmark!.url);
-                    context.goNamed(AppRoute.browser.routeName);
-                  }
-                },
-                onLongPress: () =>
-                    context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': item.id}),
-                onInfoPressed: item.type == BookmarkEntryType.folder
-                    ? () => context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': item.id})
-                    : null,
-                showDragControls: false,
+        children: data.items
+            .map(
+              (item) => Padding(
+                padding: EdgeInsets.only(left: 18.0 * depth),
+                child: _BookmarkRow(
+                  item: item,
+                  index: 0,
+                  isEditing: false,
+                  isSelected: false,
+                  isExpanded: false,
+                  onPressed: () {
+                    if (item.type == BookmarkEntryType.folder) {
+                      context.pushNamed(AppRoute.bookmarksFolder.routeName, pathParameters: {'id': item.id});
+                    } else {
+                      ref.read(readerControllerProvider.notifier).openBookmark(item.bookmark!.url);
+                      context.goNamed(AppRoute.browser.routeName);
+                    }
+                  },
+                  onLongPress: () =>
+                      context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': item.id}),
+                  onInfoPressed: item.type == BookmarkEntryType.folder
+                      ? () => context.pushNamed(AppRoute.bookmarkDetail.routeName, pathParameters: {'id': item.id})
+                      : null,
+                  showDragControls: false,
+                ),
               ),
-            ),
-        ],
+            )
+            .toList(growable: false),
       ),
       orElse: () => const SizedBox.shrink(),
     );

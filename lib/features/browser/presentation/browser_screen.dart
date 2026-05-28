@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -201,13 +202,6 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     }
   }
 
-  Future<void> _openBookmark(Uri url) async {
-    final target = ref.read(readerControllerProvider.notifier).openBookmark(url);
-    if (target != null) {
-      await _loadUri(target);
-    }
-  }
-
   void _handleAddressFocusChanged() {
     if (_addressFocusNode.hasFocus) {
       _urlController.selection = TextSelection(baseOffset: 0, extentOffset: _urlController.text.length);
@@ -270,9 +264,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     await _loadUri(target);
   }
 
-  Future<void> _copyText(String value) {
-    return Clipboard.setData(ClipboardData(text: value));
-  }
+  Future<void> _copyText(String value) => Clipboard.setData(ClipboardData(text: value));
 
   Future<void> _shareUrl(BuildContext originContext, Uri url, String title) {
     final renderObject = originContext.findRenderObject();
@@ -339,21 +331,17 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     await ref.read(readerWebViewBridgeProvider).renderAnnotations(_webViewController, const []);
   }
 
-  Future<void> _saveHighlight(SelectionCapture capture) async {
-    await _saveAnnotation(
-      capture,
-      motivation: 'highlighting',
-      bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00')],
-    );
-  }
+  Future<void> _saveHighlight(SelectionCapture capture) async => await _saveAnnotation(
+    capture,
+    motivation: 'highlighting',
+    bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.highlight, colorHex: '#FFCC00')],
+  );
 
-  Future<void> _saveUnderline(SelectionCapture capture) async {
-    await _saveAnnotation(
-      capture,
-      motivation: 'highlighting',
-      bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.underline, colorHex: '#64D2FF')],
-    );
-  }
+  Future<void> _saveUnderline(SelectionCapture capture) async => await _saveAnnotation(
+    capture,
+    motivation: 'highlighting',
+    bodies: [AnnotationBodyInput.style(style: AnnotationVisualStyle.underline, colorHex: '#64D2FF')],
+  );
 
   Future<void> _openNoteEditor(SelectionCapture capture) async {
     final note = await showCupertinoModalPopup<String>(
@@ -626,84 +614,52 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     );
   }
 
-  void _showTabs(BuildContext context, ReaderSessionState session) {
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (sheetContext) {
-        return CupertinoActionSheet(
-          title: const Text('Tabs'),
-          actions: [
-            for (final tab in session.tabs)
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  _switchTab(tab.id);
-                },
-                child: _ActionSheetRow(
-                  icon: tab.id == session.activeTabId ? CupertinoIcons.check_mark : CupertinoIcons.globe,
-                  title: tab.title ?? tab.currentUrl?.host ?? tab.urlText,
-                  subtitle: tab.currentUrl?.toString() ?? tab.urlText,
-                ),
-              ),
+  void _showTabs(BuildContext context, ReaderSessionState session) => showCupertinoModalPopup<void>(
+    context: context,
+    builder: (sheetContext) {
+      return CupertinoActionSheet(
+        title: const Text('Tabs'),
+        actions: [
+          for (final tab in session.tabs)
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.of(sheetContext).pop();
-                _newTab();
+                _switchTab(tab.id);
               },
-              child: _ActionSheetRow.create(CupertinoIcons.add, 'New Tab', defaultBrowserUrl),
+              child: _ActionSheetRow(
+                icon: tab.id == session.activeTabId ? CupertinoIcons.check_mark : CupertinoIcons.globe,
+                title: tab.title ?? tab.currentUrl?.host ?? tab.urlText,
+                subtitle: tab.currentUrl?.toString() ?? tab.urlText,
+              ),
             ),
-            if (session.tabs.length > 1)
-              CupertinoActionSheetAction(
-                isDestructiveAction: true,
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  _closeTab(session.activeTabId);
-                },
-                child: _ActionSheetRow.create(
-                  CupertinoIcons.xmark,
-                  'Close Current Tab',
-                  'Close & switch to the prev. tab',
-                ),
-              ),
-          ],
-          cancelButton: CupertinoActionSheetAction(
-            onPressed: () => Navigator.of(sheetContext).pop(),
-            child: const Text('Cancel'),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(sheetContext).pop();
+              _newTab();
+            },
+            child: _ActionSheetRow.create(CupertinoIcons.add, 'New Tab', defaultBrowserUrl),
           ),
-        );
-      },
-    );
-  }
-
-  void _showBookmarks(BuildContext context, ReaderSessionState session) {
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (sheetContext) {
-        return CupertinoActionSheet(
-          title: const Text('Bookmarks'),
-          message: session.bookmarks.isEmpty ? const Text('No bookmarks yet.') : null,
-          actions: [
-            for (final bookmark in session.bookmarks)
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  _openBookmark(bookmark.url);
-                },
-                child: _ActionSheetRow.create(
-                  CupertinoIcons.bookmark_fill,
-                  bookmark.title ?? bookmark.url.host,
-                  bookmark.url.toString(),
-                ),
+          if (session.tabs.length > 1)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                _closeTab(session.activeTabId);
+              },
+              child: _ActionSheetRow.create(
+                CupertinoIcons.xmark,
+                'Close Current Tab',
+                'Close & switch to the prev. tab',
               ),
-          ],
-          cancelButton: CupertinoActionSheetAction(
-            onPressed: () => Navigator.of(sheetContext).pop(),
-            child: const Text('Cancel'),
-          ),
-        );
-      },
-    );
-  }
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('Cancel'),
+        ),
+      );
+    },
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -750,7 +706,6 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     });
 
     final capture = selection.capture;
-
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
       child: SafeArea(
@@ -766,14 +721,12 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               isLoading: session.isLoading,
               isTypingAddress: _addressFocusNode.hasFocus && _addressSearchQuery.isNotEmpty,
               tabCount: session.tabs.length,
-              bookmarkCount: session.bookmarks.length,
               onBackPressed: _goBack,
               onForwardPressed: _goForward,
               onRefreshPressed: _reloadCurrentPage,
               onStopLoadingPressed: _stopLoadingCurrentPage,
               onClearAddressPressed: _clearAddressInput,
               onBookmarkPressed: _toggleBookmark,
-              onBookmarksPressed: () => _showBookmarks(context, session),
               onTabsPressed: () => _showTabs(context, session),
               onMenuPressed: () => unawaited(_showBrowserMenu(context, session)),
               onChanged: _handleAddressChanged,
@@ -846,6 +799,12 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               ),
             ),
             if (session.isLoading) _BrowserProgressBar(progress: session.progress) else const SizedBox(height: 2),
+            _BrowserBottomActionBar(
+              isBookmarked: session.isCurrentPageBookmarked,
+              tabCount: session.tabs.length,
+              onBookmarkPressed: _toggleBookmark,
+              onTabsPressed: () => _showTabs(context, session),
+            ),
             const MarkerTabBar(activeRoute: AppRoute.browser),
           ],
         ),
@@ -899,14 +858,12 @@ class _BrowserAddressBar extends StatelessWidget {
     required this.isLoading,
     required this.isTypingAddress,
     required this.tabCount,
-    required this.bookmarkCount,
     required this.onBackPressed,
     required this.onForwardPressed,
     required this.onRefreshPressed,
     required this.onStopLoadingPressed,
     required this.onClearAddressPressed,
     required this.onBookmarkPressed,
-    required this.onBookmarksPressed,
     required this.onTabsPressed,
     required this.onMenuPressed,
     required this.onChanged,
@@ -922,14 +879,12 @@ class _BrowserAddressBar extends StatelessWidget {
   final bool isLoading;
   final bool isTypingAddress;
   final int tabCount;
-  final int bookmarkCount;
   final VoidCallback onBackPressed;
   final VoidCallback onForwardPressed;
   final VoidCallback onRefreshPressed;
   final VoidCallback onStopLoadingPressed;
   final VoidCallback onClearAddressPressed;
   final VoidCallback onBookmarkPressed;
-  final VoidCallback onBookmarksPressed;
   final VoidCallback onTabsPressed;
   final VoidCallback onMenuPressed;
   final ValueChanged<String> onChanged;
@@ -937,89 +892,110 @@ class _BrowserAddressBar extends StatelessWidget {
   final VoidCallback onGoPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 7),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              _BrowserIconButton.create(CupertinoIcons.back, 'Back', canGoBack, onBackPressed),
-              _BrowserIconButton.create(CupertinoIcons.forward, 'Forward', canGoForward, onForwardPressed),
-              Expanded(
-                child: CupertinoTextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  autocorrect: false,
-                  clearButtonMode: OverlayVisibilityMode.never,
-                  keyboardType: TextInputType.url,
-                  onChanged: onChanged,
-                  onSubmitted: onSubmitted,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                  placeholder: 'Enter URL',
-                  prefix: const Padding(
-                    padding: EdgeInsets.only(left: 10),
-                    child: Icon(CupertinoIcons.lock_fill, color: CupertinoColors.systemGrey, size: 13),
-                  ),
-                  suffix: Padding(
-                    padding: const EdgeInsets.only(right: 3),
-                    child: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(32, 30),
-                      onPressed: isTypingAddress
-                          ? onClearAddressPressed
-                          : isLoading
-                          ? onStopLoadingPressed
-                          : onRefreshPressed,
-                      child: Icon(
-                        isTypingAddress
-                            ? CupertinoIcons.xmark_circle_fill
-                            : isLoading
-                            ? CupertinoIcons.xmark
-                            : CupertinoIcons.refresh,
-                        color: isTypingAddress ? CupertinoColors.systemRed : CupertinoColors.systemGrey,
-                        size: 17,
-                      ),
-                    ),
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C20),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isLoading ? CupertinoColors.activeBlue : const Color(0xFF33333A),
-                      width: isLoading ? 1.5 : 0.5,
-                    ),
-                  ),
-                  style: const TextStyle(color: CupertinoColors.label, fontSize: 15, letterSpacing: 0),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 7),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            _BrowserIconButton.create(CupertinoIcons.back, 'Back', canGoBack, onBackPressed),
+            _BrowserIconButton.create(CupertinoIcons.forward, 'Forward', canGoForward, onForwardPressed),
+            Expanded(
+              child: CupertinoTextField(
+                controller: controller,
+                focusNode: focusNode,
+                autocorrect: false,
+                clearButtonMode: OverlayVisibilityMode.never,
+                keyboardType: TextInputType.url,
+                onChanged: onChanged,
+                onSubmitted: onSubmitted,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                placeholder: 'Enter URL',
+                prefix: const Padding(
+                  padding: EdgeInsets.only(left: 10),
+                  child: Icon(CupertinoIcons.lock_fill, color: CupertinoColors.systemGrey, size: 13),
                 ),
+                suffix: Padding(
+                  padding: const EdgeInsets.only(right: 3),
+                  child: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(32, 30),
+                    onPressed: isTypingAddress
+                        ? onClearAddressPressed
+                        : isLoading
+                        ? onStopLoadingPressed
+                        : onRefreshPressed,
+                    child: Icon(
+                      isTypingAddress
+                          ? CupertinoIcons.xmark_circle_fill
+                          : isLoading
+                          ? CupertinoIcons.xmark
+                          : CupertinoIcons.refresh,
+                      color: isTypingAddress ? CupertinoColors.systemRed : CupertinoColors.systemGrey,
+                      size: 17,
+                    ),
+                  ),
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C1C20),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isLoading ? CupertinoColors.activeBlue : const Color(0xFF33333A),
+                    width: isLoading ? 1.5 : 0.5,
+                  ),
+                ),
+                style: const TextStyle(color: CupertinoColors.label, fontSize: 15, letterSpacing: 0),
               ),
-              CupertinoButton(
-                padding: const EdgeInsets.only(left: 10),
-                minimumSize: const Size(34, 34),
-                onPressed: onGoPressed,
-                child: const Icon(CupertinoIcons.arrow_right, size: 21),
-              ),
-              _BrowserIconButton.create(CupertinoIcons.ellipsis_circle, 'Browser Menu', true, onMenuPressed),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              if (isBookmarked)
-                _BrowserChromeChip.create(CupertinoIcons.bookmark_fill, 'Saved', onBookmarkPressed)
-              else
-                _BrowserChromeChip.create(CupertinoIcons.bookmark, 'Save', onBookmarkPressed),
-              const SizedBox(width: 8),
-              _BrowserChromeChip.create(CupertinoIcons.book, 'Bookmarks $bookmarkCount', onBookmarksPressed),
-              const Spacer(),
-              _BrowserChromeChip.create(CupertinoIcons.square_on_square, 'Tabs $tabCount', onTabsPressed),
-            ],
-          ),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.only(left: 10),
+              minimumSize: const Size(34, 34),
+              onPressed: onGoPressed,
+              child: const Icon(CupertinoIcons.arrow_right, size: 21),
+            ),
+            _BrowserIconButton.create(Icons.more_vert, 'Browser Menu', true, onMenuPressed),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+class _BrowserBottomActionBar extends StatelessWidget {
+  const _BrowserBottomActionBar({
+    required this.isBookmarked,
+    required this.tabCount,
+    required this.onBookmarkPressed,
+    required this.onTabsPressed,
+  });
+
+  final bool isBookmarked;
+  final int tabCount;
+  final VoidCallback onBookmarkPressed;
+  final VoidCallback onTabsPressed;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    key: const ValueKey('browser-bottom-action-bar'),
+    decoration: const BoxDecoration(
+      color: Color(0xFF0F0F13),
+      border: Border(top: BorderSide(color: Color(0xFF2A2A30), width: 0.5)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 7, 12, 7),
+      child: Row(
+        children: [
+          if (isBookmarked)
+            _BrowserChromeChip.create(CupertinoIcons.bookmark_fill, 'Saved', onBookmarkPressed)
+          else
+            _BrowserChromeChip.create(CupertinoIcons.bookmark, 'Save', onBookmarkPressed),
+          const Spacer(),
+          _BrowserChromeChip.create(CupertinoIcons.square_on_square, 'Tabs $tabCount', onTabsPressed),
         ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _BrowserIconButton extends StatelessWidget {
@@ -1089,15 +1065,13 @@ class _BrowserProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final clampedProgress = progress.clamp(0, 100);
-    final widthFactor = clampedProgress == 0 ? 0.08 : clampedProgress / 100;
-
     return SizedBox(
       key: const ValueKey('reader-progress-bar'),
       height: 3,
       child: Align(
         alignment: Alignment.centerLeft,
         child: FractionallySizedBox(
-          widthFactor: widthFactor,
+          widthFactor: clampedProgress == 0 ? 0.08 : clampedProgress / 100,
           child: const ColoredBox(color: CupertinoColors.activeBlue),
         ),
       ),

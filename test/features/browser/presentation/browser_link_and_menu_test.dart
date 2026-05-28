@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
 
@@ -68,6 +69,7 @@ void main() {
     await pumpRouteTransition(tester);
 
     expect(find.text('Menu'), findsNothing);
+    expect(find.byIcon(Icons.more_vert), findsOneWidget);
     expect(find.bySemanticsLabel('Browser Menu'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Browser Menu'));
@@ -116,14 +118,14 @@ void main() {
     await pumpRouteTransition(tester);
 
     expect(find.text('Save'), findsOneWidget);
-    expect(find.text('Bookmarks 0'), findsOneWidget);
+    expect(find.text('Bookmarks 0'), findsNothing);
     expect(find.text('Tabs 1'), findsOneWidget);
 
     await tester.tap(find.text('Save').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Saved'), findsOneWidget);
-    expect(find.text('Bookmarks 1'), findsOneWidget);
+    expect(find.text('Bookmarks 1'), findsNothing);
 
     await tester.tap(find.text('Tabs 1'));
     await tester.pumpAndSettle();

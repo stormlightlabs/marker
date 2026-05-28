@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:marker/app/marker_app.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
@@ -25,6 +26,7 @@ Widget markerTestApp({
   CompiledAdBlockRules? compiledAdBlockRules,
   List<dynamic> additionalOverrides = const [],
 }) {
+  GoogleFonts.config.allowRuntimeFetching = false;
   final fakeWebViewController = _activeFakeWebViewPlatform?.controller ?? FakeBrowserWebViewController();
   final effectiveAdBlockRules =
       compiledAdBlockRules ??

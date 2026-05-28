@@ -217,6 +217,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Cards / bookmarks'), findsOneWidget);
     expect(find.text(SembleSyncCollection.card.value), findsOneWidget);
+    final cardCollectionText = tester.widget<Text>(find.text(SembleSyncCollection.card.value));
+    expect(cardCollectionText.style?.fontFamily, 'JetBrainsMono_700');
+    expect(cardCollectionText.style?.fontWeight, FontWeight.w700);
     expect(find.text('Collections / folders'), findsOneWidget);
     expect(find.text(SembleSyncCollection.collection.value), findsOneWidget);
     expect(find.text('Collection links'), findsOneWidget);

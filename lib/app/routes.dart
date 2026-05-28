@@ -9,6 +9,7 @@ enum AppRoute {
   settings(path: '/settings', routeName: 'settings'),
   history(path: '/settings/history', routeName: 'history'),
   logs(path: '/settings/logs', routeName: 'logs'),
+  about(path: '/settings/about', routeName: 'about'),
   annotations(path: '/annotations', routeName: 'annotations'),
   libraryPage(path: '/library/pages/:pageId', routeName: 'library-page'),
   annotationExport(path: '/annotations/export', routeName: 'annotation-export'),

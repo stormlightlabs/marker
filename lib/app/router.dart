@@ -6,6 +6,7 @@ import 'package:marker/features/annotations/presentation/annotation_detail_scree
 import 'package:marker/features/bookmarks/presentation/bookmarks_screen.dart';
 import 'package:marker/features/browser/presentation/browser_screen.dart';
 import 'package:marker/features/library/presentation/library_screen.dart';
+import 'package:marker/features/settings/presentation/about_screen.dart';
 import 'package:marker/features/settings/presentation/browser_history_screen.dart';
 import 'package:marker/features/settings/presentation/logs_screen.dart';
 import 'package:marker/features/settings/presentation/settings_screen.dart';
@@ -91,6 +92,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const LogsScreen()),
       ),
       GoRoute(
+        path: AppRoute.about.path,
+        name: AppRoute.about.routeName,
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const AboutScreen()),
+      ),
+      GoRoute(
         path: AppRoute.annotations.path,
         name: AppRoute.annotations.routeName,
         pageBuilder: (context, state) =>
@@ -99,25 +105,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoute.libraryPage.path,
         name: AppRoute.libraryPage.routeName,
-        pageBuilder: (context, state) {
-          final pageId = state.pathParameters['pageId'] ?? '';
-          return MarkerTransitionPage<void>(
-            key: state.pageKey,
-            child: LibraryPageDetailScreen(pageId: pageId),
-          );
-        },
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(
+          key: state.pageKey,
+          child: LibraryPageDetailScreen(pageId: state.pathParameters['pageId'] ?? ''),
+        ),
       ),
       GoRoute(
         path: AppRoute.annotationExport.path,
         name: AppRoute.annotationExport.routeName,
         pageBuilder: (context, state) {
           final selected = state.uri.queryParameters['selected'];
-          final format = state.uri.queryParameters['format'] ?? 'markdown';
           return MarkerTransitionPage<void>(
             key: state.pageKey,
             child: AnnotationExportScreen(
               selectedIds: selected == null || selected.isEmpty ? null : selected.split(','),
-              format: format,
+              format: state.uri.queryParameters['format'] ?? 'markdown',
             ),
           );
         },
@@ -125,13 +127,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoute.annotation.path,
         name: AppRoute.annotation.routeName,
-        pageBuilder: (context, state) {
-          final annotationId = state.pathParameters['annotationId'] ?? '';
-          return MarkerTransitionPage<void>(
-            key: state.pageKey,
-            child: AnnotationDetailScreen(annotationId: annotationId),
-          );
-        },
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(
+          key: state.pageKey,
+          child: AnnotationDetailScreen(annotationId: state.pathParameters['annotationId'] ?? ''),
+        ),
       ),
     ],
   );
