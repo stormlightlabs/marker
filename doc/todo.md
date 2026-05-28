@@ -1,6 +1,6 @@
 ---
 title: "TODO List"
-updated: 2026-05-13
+updated: 2026-05-28
 ---
 
 ## Parking Lot
@@ -43,3 +43,5 @@ updated: 2026-05-13
 ### WebView
 
 - Make bookmarks & annotated pages bookmark folder aware
+- Keep Browser mounted in a persistent tab shell so the WebView initializes before the user selects the Browser tab and remains alive when switching tabs.
+- Consider preloading the default browser page in the background after app startup, with explicit product/privacy review because it performs network activity before the user opens Browser.
