@@ -273,9 +273,10 @@ class AnnotationRepository {
     final page = await (_database.select(
       _database.pages,
     )..where((page) => page.id.equals(annotation.pageId))).getSingleOrNull();
-    final target = await (_database.select(
+    final targets = await (_database.select(
       _database.annotationTargets,
-    )..where((target) => target.annotationId.equals(annotation.id))).getSingleOrNull();
+    )..where((target) => target.annotationId.equals(annotation.id))).get();
+    final target = targets.firstOrNull;
     if (page == null || target == null) {
       return null;
     }
@@ -420,9 +421,10 @@ class AnnotationRepository {
       }
     }
 
-    return (_database.select(
+    final targets = await (_database.select(
       _database.annotationTargets,
-    )..where((target) => target.annotationId.equals(annotationId))).getSingleOrNull();
+    )..where((target) => target.annotationId.equals(annotationId))).get();
+    return targets.firstOrNull;
   }
 }
 

@@ -101,6 +101,9 @@ Future<void> _seedSearchLibrary(AppDatabase database) async {
       .into(database.bookmarkFolders)
       .insert(BookmarkFoldersCompanion.insert(id: 'folder', title: 'Research', createdAt: now, updatedAt: now));
   await database
+      .into(database.bookmarkFolders)
+      .insert(BookmarkFoldersCompanion.insert(id: 'second-folder', title: 'Reading', createdAt: now, updatedAt: now));
+  await database
       .into(database.bookmarks)
       .insert(
         BookmarksCompanion.insert(
@@ -118,8 +121,21 @@ Future<void> _seedSearchLibrary(AppDatabase database) async {
           id: 'bookmark-folder',
           bookmarkId: 'bookmark',
           folderId: 'folder',
+          sortOrder: const Value(0),
           createdAt: now,
           updatedAt: now,
+        ),
+      );
+  await database
+      .into(database.bookmarkCollectionLinks)
+      .insert(
+        BookmarkCollectionLinksCompanion.insert(
+          id: 'bookmark-second-folder',
+          bookmarkId: 'bookmark',
+          folderId: 'second-folder',
+          sortOrder: const Value(1),
+          createdAt: now.add(const Duration(minutes: 1)),
+          updatedAt: now.add(const Duration(minutes: 1)),
         ),
       );
   await database

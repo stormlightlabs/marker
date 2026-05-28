@@ -414,12 +414,12 @@ class BookmarkManagerRepository {
   }
 
   Future<String?> _bookmarkFolderId(String bookmarkId) async {
-    final link =
+    final links =
         await (_database.select(_database.bookmarkCollectionLinks)
               ..where((row) => row.bookmarkId.equals(bookmarkId) & row.deletedAt.isNull())
               ..orderBy([(row) => OrderingTerm.asc(row.sortOrder), (row) => OrderingTerm.asc(row.createdAt)]))
-            .getSingleOrNull();
-    return link?.folderId;
+            .get();
+    return links.firstOrNull?.folderId;
   }
 
   Future<void> addBookmarkToFolder({required String bookmarkId, required String folderId}) async {

@@ -174,9 +174,10 @@ LIMIT ?
         continue;
       }
       annotatedPageIds.add(page.id);
-      final target = await (_database.select(
+      final targets = await (_database.select(
         _database.annotationTargets,
-      )..where((target) => target.annotationId.equals(annotation.id))).getSingleOrNull();
+      )..where((target) => target.annotationId.equals(annotation.id))).get();
+      final target = targets.firstOrNull;
       final bodies = await (_database.select(
         _database.annotationBodies,
       )..where((body) => body.annotationId.equals(annotation.id))).get();
@@ -315,12 +316,12 @@ LIMIT ?
     if (bookmarkId == null) {
       return null;
     }
-    final link =
+    final links =
         await (_database.select(_database.bookmarkCollectionLinks)
               ..where((row) => row.bookmarkId.equals(bookmarkId) & row.deletedAt.isNull())
               ..orderBy([(row) => OrderingTerm.asc(row.sortOrder), (row) => OrderingTerm.asc(row.createdAt)]))
-            .getSingleOrNull();
-    return _bookmarkFolderPath(link?.folderId);
+            .get();
+    return _bookmarkFolderPath(links.firstOrNull?.folderId);
   }
 
   Future<String?> _bookmarkFolderPath(String? folderId) async {

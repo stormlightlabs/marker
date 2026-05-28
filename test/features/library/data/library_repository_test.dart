@@ -174,8 +174,21 @@ Future<void> _seedLibrary(AppDatabase database) async {
           id: 'bookmark-reading-folder',
           bookmarkId: 'bookmark',
           folderId: 'reading-folder',
+          sortOrder: const Value(0),
           createdAt: savedAt,
           updatedAt: savedAt,
+        ),
+      );
+  await database
+      .into(database.bookmarkCollectionLinks)
+      .insert(
+        BookmarkCollectionLinksCompanion.insert(
+          id: 'bookmark-research-folder',
+          bookmarkId: 'bookmark',
+          folderId: 'research-folder',
+          sortOrder: const Value(1),
+          createdAt: savedAt.add(const Duration(minutes: 1)),
+          updatedAt: savedAt.add(const Duration(minutes: 1)),
         ),
       );
   await database

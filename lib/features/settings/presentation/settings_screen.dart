@@ -513,10 +513,6 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Protocol state only. Tokens, keys, OAuth context, and refresh material are never shown.',
-            style: TextStyle(color: CupertinoColors.systemGrey2, fontSize: 11, height: 1.25),
-          ),
           const SizedBox(height: 8),
           _AtprotoPushSyncStatus(pendingPushes: pendingPushes, lastPush: lastPush, formatDateTime: formatDateTime),
           const SizedBox(height: 8),

@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
 import 'package:marker/features/browser/data/favicon_cache.dart';
@@ -13,16 +14,33 @@ final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
   return LibraryRepository(ref.watch(databaseProvider), faviconCache: ref.watch(faviconCacheProvider));
 });
 
-final librarySnapshotProvider = FutureProvider.autoDispose<LibrarySnapshot>((ref) {
-  return ref.watch(libraryRepositoryProvider).loadSnapshot();
+final librarySnapshotProvider = FutureProvider.autoDispose<LibrarySnapshot>((ref) async {
+  try {
+    return await ref.watch(libraryRepositoryProvider).loadSnapshot();
+  } on Object catch (error, stackTrace) {
+    ref.read(appLoggerProvider).error('Failed to load library snapshot.', error: error, stackTrace: stackTrace);
+    rethrow;
+  }
 });
 
-final allAnnotationGroupsProvider = FutureProvider.autoDispose<List<LibraryAnnotationGroup>>((ref) {
-  return ref.watch(libraryRepositoryProvider).loadAnnotationGroups();
+final allAnnotationGroupsProvider = FutureProvider.autoDispose<List<LibraryAnnotationGroup>>((ref) async {
+  try {
+    return await ref.watch(libraryRepositoryProvider).loadAnnotationGroups();
+  } on Object catch (error, stackTrace) {
+    ref
+        .read(appLoggerProvider)
+        .error('Failed to load library annotation groups.', error: error, stackTrace: stackTrace);
+    rethrow;
+  }
 });
 
-final libraryPageDetailProvider = FutureProvider.autoDispose.family<LibraryPageDetail?, String>((ref, id) {
-  return ref.watch(libraryRepositoryProvider).loadPageDetail(id);
+final libraryPageDetailProvider = FutureProvider.autoDispose.family<LibraryPageDetail?, String>((ref, id) async {
+  try {
+    return await ref.watch(libraryRepositoryProvider).loadPageDetail(id);
+  } on Object catch (error, stackTrace) {
+    ref.read(appLoggerProvider).error('Failed to load library page detail.', error: error, stackTrace: stackTrace);
+    rethrow;
+  }
 });
 
 class LibraryRepository {
@@ -130,9 +148,10 @@ class LibraryRepository {
       if (page == null) {
         continue;
       }
-      final target = await (_database.select(
+      final targets = await (_database.select(
         _database.annotationTargets,
-      )..where((target) => target.annotationId.equals(annotation.id))).getSingleOrNull();
+      )..where((target) => target.annotationId.equals(annotation.id))).get();
+      final target = targets.firstOrNull;
 
       items.add(
         LibraryAnnotationItem(
@@ -166,9 +185,10 @@ class LibraryRepository {
       if (page == null) {
         continue;
       }
-      final target = await (_database.select(
+      final targets = await (_database.select(
         _database.annotationTargets,
-      )..where((target) => target.annotationId.equals(annotation.id))).getSingleOrNull();
+      )..where((target) => target.annotationId.equals(annotation.id))).get();
+      final target = targets.firstOrNull;
       final sourceUrl = target?.sourceUrl ?? page.url;
       final url = Uri.parse(sourceUrl);
       final bookmark = bookmarksByUrl[sourceUrl] ?? bookmarksByUrl[page.url];
@@ -240,9 +260,10 @@ class LibraryRepository {
             .get();
     final items = <LibraryAnnotationItem>[];
     for (final annotation in rows) {
-      final target = await (_database.select(
+      final targets = await (_database.select(
         _database.annotationTargets,
-      )..where((target) => target.annotationId.equals(annotation.id))).getSingleOrNull();
+      )..where((target) => target.annotationId.equals(annotation.id))).get();
+      final target = targets.firstOrNull;
       final sourceUrl = target?.sourceUrl ?? page?.url;
       if (sourceUrl == null) {
         continue;
@@ -324,9 +345,10 @@ class LibraryRepository {
     final bodies = await (_database.select(
       _database.annotationBodies,
     )..where((body) => body.annotationId.equals(annotationId))).get();
-    final target = await (_database.select(
+    final targets = await (_database.select(
       _database.annotationTargets,
-    )..where((target) => target.annotationId.equals(annotationId))).getSingleOrNull();
+    )..where((target) => target.annotationId.equals(annotationId))).get();
+    final target = targets.firstOrNull;
     AnnotationBody? textualBody;
     for (final body in bodies) {
       if (body.type == 'TextualBody') {
@@ -419,12 +441,12 @@ class LibraryRepository {
   }
 
   Future<String?> _bookmarkFolderPathForBookmark(String bookmarkId) async {
-    final link =
+    final links =
         await (_database.select(_database.bookmarkCollectionLinks)
               ..where((row) => row.bookmarkId.equals(bookmarkId) & row.deletedAt.isNull())
               ..orderBy([(row) => OrderingTerm.asc(row.sortOrder), (row) => OrderingTerm.asc(row.createdAt)]))
-            .getSingleOrNull();
-    return _bookmarkFolderPath(link?.folderId);
+            .get();
+    return _bookmarkFolderPath(links.firstOrNull?.folderId);
   }
 
   Future<String?> _bookmarkFolderPath(String? folderId) async {
