@@ -57,6 +57,7 @@ class AnnotationSidebarWidget extends ConsumerStatefulWidget {
 class _AnnotationSidebarWidgetState extends ConsumerState<AnnotationSidebarWidget> {
   String? _focusedAnnotationId;
   AnnotationSidebarFilter _filter = AnnotationSidebarFilter.all;
+  String? _tagFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +75,10 @@ class _AnnotationSidebarWidgetState extends ConsumerState<AnnotationSidebarWidge
         }
 
         final isOpen = ref.watch(annotationSidebarOpenProvider);
-        final visibleItems = items.where((annotation) => _filter.matches(annotation)).toList(growable: false);
+        final visibleItems = items
+            .where((annotation) => _filter.matches(annotation))
+            .where((annotation) => _tagFilter == null || annotation.tags.any((tag) => tag.name == _tagFilter))
+            .toList(growable: false);
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -118,9 +122,11 @@ class _AnnotationSidebarWidgetState extends ConsumerState<AnnotationSidebarWidge
                     allItems: items,
                     visibleItems: visibleItems,
                     filter: _filter,
+                    tagFilter: _tagFilter,
                     focusedAnnotationId: _focusedAnnotationId,
                     onClose: ref.read(annotationSidebarOpenProvider.notifier).close,
                     onFilterChanged: (nextFilter) => setState(() => _filter = nextFilter),
+                    onTagFilterChanged: (nextTag) => setState(() => _tagFilter = nextTag),
                     onEdit: widget.onEdit,
                     onJump: (annotation) async {
                       setState(() => _focusedAnnotationId = annotation.annotation.id);
@@ -146,79 +152,75 @@ class _SidebarToggle extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Open annotations',
-      child: GestureDetector(
-        key: const ValueKey('annotation-sidebar-toggle'),
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: SizedBox(
-          width: 34,
-          height: 64,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Positioned(
-                right: 0,
-                top: 3,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Color(0xF21C1C20),
-                    borderRadius: BorderRadius.only(topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
-                    boxShadow: [BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(-4, 0))],
-                  ),
-                  child: SizedBox(
-                    width: 30,
-                    height: 58,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [_TogglePip(), SizedBox(height: 4), _TogglePip(), SizedBox(height: 4), _TogglePip()],
-                    ),
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Open annotations',
+    child: GestureDetector(
+      key: const ValueKey('annotation-sidebar-toggle'),
+      behavior: HitTestBehavior.opaque,
+      onTap: onPressed,
+      child: SizedBox(
+        width: 34,
+        height: 64,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Positioned(
+              right: 0,
+              top: 3,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xF21C1C20),
+                  borderRadius: BorderRadius.only(topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
+                  boxShadow: [BoxShadow(color: Color(0x66000000), blurRadius: 14, offset: Offset(-4, 0))],
+                ),
+                child: SizedBox(
+                  width: 30,
+                  height: 58,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [_TogglePip(), SizedBox(height: 4), _TogglePip(), SizedBox(height: 4), _TogglePip()],
                   ),
                 ),
               ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: DecoratedBox(
-                  decoration: const BoxDecoration(color: CupertinoColors.activeBlue, shape: BoxShape.circle),
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: Center(
-                      child: Text(
-                        count > 9 ? '9+' : '$count',
-                        style: const TextStyle(
-                          color: CupertinoColors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0,
-                        ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: DecoratedBox(
+                decoration: const BoxDecoration(color: CupertinoColors.activeBlue, shape: BoxShape.circle),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: Center(
+                    child: Text(
+                      count > 9 ? '9+' : '$count',
+                      style: const TextStyle(
+                        color: CupertinoColors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _TogglePip extends StatelessWidget {
   const _TogglePip();
 
   @override
-  Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(color: CupertinoColors.white, shape: BoxShape.circle),
-      child: SizedBox(width: 4, height: 4),
-    );
-  }
+  Widget build(BuildContext context) => const DecoratedBox(
+    decoration: BoxDecoration(color: CupertinoColors.white, shape: BoxShape.circle),
+    child: SizedBox(width: 4, height: 4),
+  );
 }
 
 class _SidebarPanel extends StatelessWidget {
@@ -227,9 +229,11 @@ class _SidebarPanel extends StatelessWidget {
     required this.allItems,
     required this.visibleItems,
     required this.filter,
+    required this.tagFilter,
     required this.focusedAnnotationId,
     required this.onClose,
     required this.onFilterChanged,
+    required this.onTagFilterChanged,
     required this.onEdit,
     required this.onJump,
     required this.onDelete,
@@ -239,9 +243,11 @@ class _SidebarPanel extends StatelessWidget {
   final List<PageAnnotation> allItems;
   final List<PageAnnotation> visibleItems;
   final AnnotationSidebarFilter filter;
+  final String? tagFilter;
   final String? focusedAnnotationId;
   final VoidCallback onClose;
   final ValueChanged<AnnotationSidebarFilter> onFilterChanged;
+  final ValueChanged<String?> onTagFilterChanged;
   final AnnotationSidebarAction onEdit;
   final AnnotationSidebarAction onJump;
   final AnnotationSidebarAction onDelete;
@@ -331,6 +337,35 @@ class _SidebarPanel extends StatelessWidget {
                 ],
               ),
             ),
+            if (_tagNames.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 34,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 7),
+                      child: _TagFilterPill(
+                        label: 'All tags',
+                        isSelected: tagFilter == null,
+                        onPressed: () => onTagFilterChanged(null),
+                      ),
+                    ),
+                    for (final tag in _tagNames)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 7),
+                        child: _TagFilterPill(
+                          label: tag,
+                          isSelected: tagFilter == tag,
+                          onPressed: () => onTagFilterChanged(tag),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             const Padding(
               padding: EdgeInsets.fromLTRB(14, 12, 14, 3),
               child: Text(
@@ -368,6 +403,17 @@ class _SidebarPanel extends StatelessWidget {
     );
   }
 
+  List<String> get _tagNames {
+    final names = <String>{};
+    for (final annotation in allItems) {
+      for (final tag in annotation.tags) {
+        final name = tag.name.trim();
+        if (name.isNotEmpty) names.add(name);
+      }
+    }
+    return names.toList(growable: false)..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
   int _countFor(AnnotationSidebarFilter candidate) {
     return allItems.where((annotation) {
       return switch (candidate) {
@@ -391,24 +437,48 @@ class _FilterPill extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      minimumSize: const Size(0, 26),
-      color: isSelected ? CupertinoColors.white : const Color(0xFF2C2C30),
-      borderRadius: BorderRadius.circular(12),
-      onPressed: onPressed,
-      child: Text(
-        filter == AnnotationSidebarFilter.all ? '${filter.label} ($count)' : filter.label,
-        style: TextStyle(
-          color: isSelected ? const Color(0xFF1C1C20) : CupertinoColors.systemGrey,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0,
-        ),
+  Widget build(BuildContext context) => CupertinoButton(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    minimumSize: const Size(0, 26),
+    color: isSelected ? CupertinoColors.white : const Color(0xFF2C2C30),
+    borderRadius: BorderRadius.circular(12),
+    onPressed: onPressed,
+    child: Text(
+      filter == AnnotationSidebarFilter.all ? '${filter.label} ($count)' : filter.label,
+      style: TextStyle(
+        color: isSelected ? const Color(0xFF1C1C20) : CupertinoColors.systemGrey,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0,
       ),
-    );
-  }
+    ),
+  );
+}
+
+class _TagFilterPill extends StatelessWidget {
+  const _TagFilterPill({required this.label, required this.isSelected, required this.onPressed});
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => CupertinoButton(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    minimumSize: const Size(0, 26),
+    color: isSelected ? CupertinoColors.activeBlue : const Color(0xFF2C2C30),
+    borderRadius: BorderRadius.circular(12),
+    onPressed: onPressed,
+    child: Text(
+      '#$label',
+      style: TextStyle(
+        color: isSelected ? CupertinoColors.white : CupertinoColors.systemGrey,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0,
+      ),
+    ),
+  );
 }
 
 class _AnnotationCard extends StatelessWidget {
@@ -432,7 +502,6 @@ class _AnnotationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = _accentColor(annotation);
     final note = annotation.note;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: CupertinoButton(
@@ -491,6 +560,14 @@ class _AnnotationCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                    if (annotation.tags.isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      Wrap(
+                        spacing: 5,
+                        runSpacing: 5,
+                        children: [for (final tag in annotation.tags) _InlineTag(label: tag.name)],
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -512,6 +589,21 @@ class _AnnotationCard extends StatelessWidget {
   }
 }
 
+class _InlineTag extends StatelessWidget {
+  const _InlineTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(color: const Color(0xFF202027), borderRadius: BorderRadius.circular(5)),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      child: Text('#$label', style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 10, letterSpacing: 0)),
+    ),
+  );
+}
+
 class _TypeTag extends StatelessWidget {
   const _TypeTag({required this.annotation});
 
@@ -523,7 +615,6 @@ class _TypeTag extends StatelessWidget {
     final isUnderline = annotation.visualStyle == AnnotationVisualStyle.underline;
     final label = isNote ? 'Note' : (isUnderline ? 'Underline' : 'Highlight');
     final color = isNote ? CupertinoColors.activeBlue : _accentColor(annotation);
-
     return DecoratedBox(
       decoration: BoxDecoration(color: color.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(5)),
       child: Padding(
@@ -545,36 +636,32 @@ class _CardAction extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: CupertinoButton(
-        padding: const EdgeInsets.only(left: 8),
-        minimumSize: const Size(32, 32),
-        onPressed: onPressed,
-        child: Icon(icon, color: CupertinoColors.systemGrey, size: 16),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: label,
+    child: CupertinoButton(
+      padding: const EdgeInsets.only(left: 8),
+      minimumSize: const Size(32, 32),
+      onPressed: onPressed,
+      child: Icon(icon, color: CupertinoColors.systemGrey, size: 16),
+    ),
+  );
 }
 
 class _EmptyFilter extends StatelessWidget {
   const _EmptyFilter();
 
   @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Text(
-          'No annotations match this filter.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
-        ),
+  Widget build(BuildContext context) => const Center(
+    child: Padding(
+      padding: EdgeInsets.all(20),
+      child: Text(
+        'No annotations match this filter.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
       ),
-    );
-  }
+    ),
+  );
 }
 
 Color _accentColor(PageAnnotation annotation) {

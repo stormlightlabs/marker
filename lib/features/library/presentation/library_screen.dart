@@ -12,6 +12,7 @@ import 'package:marker/app/routes.dart';
 import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
+import 'package:marker/features/atproto/presentation/atproto_sync_status_row.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/browser/presentation/note_editor_sheet.dart';
 import 'package:marker/features/library/data/library_repository.dart';
@@ -140,6 +141,7 @@ class _LibraryContent extends StatelessWidget {
         backgroundColor: CupertinoColors.black,
         border: null,
       ),
+      const SliverToBoxAdapter(child: AtprotoSyncStatusRow()),
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
@@ -637,6 +639,7 @@ class _AllAnnotationsContent extends StatelessWidget {
             ],
           ),
         ),
+        const SliverToBoxAdapter(child: AtprotoSyncStatusRow()),
         SliverToBoxAdapter(
           child: _AnnotationFilterBar(filter: filter, onChanged: onFilterChanged),
         ),
@@ -976,7 +979,6 @@ class _AnnotationGroupFavicon extends StatelessWidget {
         ),
       );
     }
-
     return _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal);
   }
 }

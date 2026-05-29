@@ -295,7 +295,7 @@ void main() {
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(CupertinoButton, 'Sync'));
+    await tester.tap(find.widgetWithText(CupertinoButton, 'Sync now'));
     await tester.pump();
     await tester.pump();
     expect(find.text('Syncing...'), findsOneWidget);
@@ -315,7 +315,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(bookmarkPullService.accountDid, 'did:plc:alice');
-    expect(find.text('Bookmark sync complete'), findsOneWidget);
+    expect(find.text('ATProto sync complete'), findsOneWidget);
     expect(
       find.text(
         'Published 2 bookmark changes (1 new, 1 updated).\nImported 2 bookmarks, 1 folder, and 3 folder links.\nApplied 2 remote deletes.\nSkipped 1 duplicate, 1 conflict, and 0 malformed records.',
@@ -348,7 +348,7 @@ void main() {
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(CupertinoButton, 'Sync'));
+    await tester.tap(find.widgetWithText(CupertinoButton, 'Sync now'));
     await tester.pumpAndSettle();
 
     expect(find.text('Sync failed'), findsOneWidget);

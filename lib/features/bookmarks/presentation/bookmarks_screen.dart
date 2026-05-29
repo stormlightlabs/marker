@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/navigation.dart';
 import 'package:marker/app/routes.dart';
+import 'package:marker/features/atproto/presentation/atproto_sync_status_row.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
@@ -239,6 +240,7 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
             _selectedKeys.clear();
           }),
         ),
+        if (folderId == null) const AtprotoSyncStatusRow(),
         Expanded(
           child: contents.isEmpty
               ? const _BookmarkEmpty(title: 'No Bookmarks')

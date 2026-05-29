@@ -92,15 +92,47 @@ See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth
 
 ## Phase 9: product polish
 
-- [ ] Add first-class annotation tag editor and tag filters in annotation UI.
-- [x] Add annotation sync opt-in and automatic outbox enqueue for local annotation creates, updates, tag edits, body edits, style edits, and deletes.
-- [ ] Add combined ATProto `Sync now` action that runs enabled sync domains while preserving separate bookmark and annotation result summaries.
-- [ ] Add manual sync button and last-sync timestamp.
-- [ ] Show per-account sync errors in settings.
-- [ ] Add account disconnect behavior that leaves local data intact.
-- [ ] Add privacy copy for what sync publishes.
+- [x] Add first-class annotation tag editor and tag filters in annotation UI.
+- [x] Add annotation sync opt-in and automatic outbox enqueue for local annotation
+  creates, updates, tag edits, body edits, style edits, and deletes.
+- [x] Add combined ATProto `Sync now` action that runs enabled sync domains while
+  preserving separate bookmark and annotation result summaries.
+- [x] Add manual sync button and last-sync timestamp in Library (for all), and each of
+  the Bookmarks & Annotations list screens.
+- [x] Show per-account sync errors in settings.
+- [x] Add account disconnect behavior that leaves local data intact.
+- [x] Add privacy copy for what sync publishes.
 - [x] Add separate opt-in controls for annotation sync.
-- [ ] Add lightweight diagnostics export for sync state without secrets.
+- [x] Add lightweight diagnostics export for sync state without secrets.
+
+## Phase 10: explicit sync selection
+
+- [ ] Add `AtprotoSyncSelections` Drift table with per-account, per-local-row selection
+  state and migration.
+- [ ] Add repository APIs to select, deselect, list, and watch sync-selected local
+  records.
+- [ ] Change bookmark, folder, membership, annotation, tag, body, style, and collection
+  mutations so they enqueue outbox rows only for active selections.
+- [ ] Add "select for sync" actions for individual bookmarks, bookmark folders,
+  annotations, and annotation collections.
+- [ ] Add bulk controls for "sync all bookmarks" and "sync all annotations", with
+  separate choices for future new items.
+- [ ] Add dependency handling in UI: collection links require selected/mirrored folders
+  and bookmarks; annotation collection items require selected/mirrored collections and
+  annotations.
+- [ ] Update `Sync now` to push only selected outbound records while preserving separate
+  bookmark and annotation result summaries.
+- [ ] Add remote import choices for each domain: keep linked to the source account, or
+  import as local-only.
+- [ ] Define and implement deselect behavior: stop future sync by default, with a
+  separate destructive option to delete already-published remote records.
+- [ ] Update privacy copy to state that connected accounts do not publish local data
+  until items are selected.
+- [ ] Add diagnostics for selected counts, unselected local counts, and
+  dependency-blocked selected records without exposing secrets.
+- [ ] Add tests for unselected local creates/updates/deletes, selecting existing rows,
+  deselecting rows, bulk selection, dependency blocking, and linked vs local-only
+  imports.
 
 ## Later work
 

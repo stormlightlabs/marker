@@ -10,6 +10,7 @@ UI requirements for OAuth connection, bookmark import, sync status, and diagnost
 - Sync bookmark folders as Semble collections.
 - Sync folder membership as Semble collection links.
 - Sync highlights and notes using `at.margin.note` from the `margin_poptart` package.
+- Keep local bookmarks, folders, annotations, and annotation collections off ATProto unless the user explicitly selects them for sync.
 - Generate local Dart types for Semble/Cosmik lexicons instead of hand-building every record shape.
 - Treat ATProto deletion sync as a first-class design issue, not an afterthought.
 - Keep browsing history local unless a later feature explicitly publishes it.
@@ -61,7 +62,7 @@ Current Drift tables:
 | `BrowserHistoryEntries` | Local browser history. |
 | `AppSettings` | Local settings. |
 
-The main model changes needed for Semble are bookmark membership and sync metadata. Marker currently stores one folder on the bookmark row. Semble stores collection membership as separate link records, so Marker should adopt a join table locally.
+The main model changes needed for Semble are bookmark membership, sync metadata, and per-account sync selection. Marker currently stores one folder on the bookmark row. Semble stores collection membership as separate link records, so Marker should adopt a join table locally.
 
 ## Local model changes
 
@@ -137,7 +138,7 @@ If public/shared folders are added later, map them to `accessType: "OPEN"`. Priv
 
 ### Sync metadata
 
-Add account, mirror, cursor, and outbox tables.
+Add account, mirror, cursor, selection, and outbox tables.
 
 ```text
 AtprotoAccounts
@@ -180,6 +181,23 @@ AtprotoSyncState
 - lastError TEXT NULL
 - UNIQUE(accountDid, collection)
 ```
+
+```text
+AtprotoSyncSelections
+- id TEXT PRIMARY KEY
+- accountDid TEXT NOT NULL REFERENCES AtprotoAccounts(did)
+- localTable TEXT NOT NULL
+- localId TEXT NOT NULL
+- collection TEXT NOT NULL
+- selectedAt DATETIME NOT NULL
+- deselectedAt DATETIME NULL
+- deleteRemoteOnLocalDelete BOOLEAN NOT NULL DEFAULT TRUE
+- createdAt DATETIME NOT NULL
+- updatedAt DATETIME NOT NULL
+- UNIQUE(accountDid, localTable, localId, collection)
+```
+
+`AtprotoSyncSelections` is the publish allow-list. A local row is eligible for outbound ATProto writes only when it has an active selection row for the target account and collection. This keeps account connection, remote import, and local publishing as separate choices.
 
 ```text
 AtprotoSyncOutbox
@@ -377,6 +395,38 @@ Mapping:
 | `AnnotationCollectionItems.position` | `position` |
 | `AnnotationCollectionItems.createdAt` | `createdAt` |
 
+## Explicit sync selection
+
+Connecting an ATProto account does not publish existing local data. Sync selection is explicit and per account. Marker should let the user select exactly which local records are allowed to create or update Semble/Cosmik and Margin records.
+
+Selection levels:
+
+| User selection | Outbound records allowed |
+| --- | --- |
+| Individual bookmark | `network.cosmik.card` only. Folder membership is not published unless a selected folder also includes the bookmark. |
+| Bookmark folder | `network.cosmik.collection` for the folder, plus `network.cosmik.collectionLink` only for bookmarks in that folder that are also selected or selected through the same folder action. |
+| All bookmarks | Existing and future bookmarks, folders, and memberships, subject to the user's folder/member choices in the sync UI. |
+| Individual annotation | `at.margin.note` for that annotation. |
+| Annotation collection | `at.margin.collection` plus `at.margin.collectionItem` for selected member annotations. |
+| All annotations | Existing and future annotations and annotation collections. This remains separate from bookmark sync. |
+
+Selection rules:
+
+- Local creates, edits, tag changes, style changes, folder moves, collection edits, and deletes enqueue ATProto outbox rows only when the affected local row has an active `AtprotoSyncSelections` row.
+- Selecting an item for the first time should enqueue a create/update for the current local state. It should not require the user to edit the item.
+- Deselecting an item stops future outbound writes. It does not delete remote records by default. Offer a separate destructive action for removing already-published remote records.
+- If a selected local item has dependencies, the UI must show what else needs to be selected. For example, a collection link cannot be pushed until its folder and bookmark/card mirrors exist.
+- A remote import creates mirrors. If the user imports remote records, those local rows are treated as selected for that source account because the records already exist remotely. The import UI should offer a "keep future edits local" option that imports the data and immediately deselects it.
+- Multiple ATProto accounts can have different selections for the same local row.
+- Selection state is local. It is not published to ATProto.
+
+Default behavior:
+
+- New local bookmarks and annotations remain local.
+- New local folders, annotation collections, and membership links remain local.
+- Existing local data remains local after account connection.
+- A `Sync now` action only runs enabled sync domains and selected outbound records. It may still pull/import remote records when the user has enabled remote import for that domain.
+
 ## Published lexicon packages
 
 Marker should use published Poptart lexicon packages instead of vendoring Semble/Cosmik JSON or committing generated lexicon output:
@@ -441,22 +491,23 @@ Minimum repo operations:
 
 ## Push sync
 
-Local writes should create outbox rows in the same transaction as the local data mutation. Bookmark sync and annotation sync share the same outbox/mirror infrastructure, but annotation writes only enqueue Margin records after the user enables annotation sync.
+Local writes should create outbox rows in the same transaction as the local data mutation only for active sync selections. Bookmark sync and annotation sync share the same outbox/mirror infrastructure, but no local row is published just because an account is connected or a domain-level sync setting is on.
 
-Example bookmark create:
+Example selected bookmark create/update:
 
 1. Insert or update `Bookmarks`.
-2. Add an outbox row for `network.cosmik.card` create/update.
-3. If the bookmark is in folders, add outbox rows for missing `network.cosmik.collectionLink` records.
-4. The worker writes records to the PDS.
-5. The worker updates `AtprotoRecordMirrors` with URI, rkey, CID, JSON hash, and sync timestamp.
-6. The worker removes or marks the outbox row complete.
+2. Check active `AtprotoSyncSelections` rows for the bookmark/account/collection.
+3. Add an outbox row for `network.cosmik.card` create/update only for matching selections.
+4. If the bookmark is in selected folders, add outbox rows for missing `network.cosmik.collectionLink` records whose folder and bookmark/card can both be mirrored.
+5. The worker writes records to the PDS.
+6. The worker updates `AtprotoRecordMirrors` with URI, rkey, CID, JSON hash, and sync timestamp.
+7. The worker removes or marks the outbox row complete.
 
 The worker must be idempotent. If a create succeeds but the app dies before mirror update, retry should detect the duplicate by local mirror, URL, or stored rkey strategy.
 
 ## Pull sync
 
-For each signed-in account, pull these collections:
+For each signed-in account, pull these collections when the user has enabled import for the corresponding domain:
 
 - `network.cosmik.card`
 - `network.cosmik.collection`
@@ -470,7 +521,7 @@ For each listed record:
 2. If mirrored and CID is unchanged, skip.
 3. If mirrored and local row is not dirty, apply remote changes.
 4. If mirrored and local row is dirty, create a conflict record or defer to the conflict policy below.
-5. If not mirrored, import the record and create a mirror.
+5. If not mirrored, import the record and create a mirror plus an active selection for the source account, unless the user chose to import that domain as local-only.
 
 `listRecords` does not provide durable deletion history. Deletion handling needs extra checks.
 
@@ -478,13 +529,14 @@ For each listed record:
 
 Use soft deletes locally for synced entities. Hard delete only after the remote delete has been confirmed and enough time has passed for recovery.
 
-Local delete flow:
+Local delete flow for selected records:
 
 1. Set local `deletedAt`.
-2. Add outbox delete for the mirrored ATProto record.
-3. For folder membership, delete the `network.cosmik.collectionLink` record if Marker owns it.
-4. If Marker needs to remove a link created by another repo, publish `network.cosmik.collectionLinkRemoval`.
-5. After successful remote delete, keep the mirror as a tombstone with `deletedAt`.
+2. If the row has an active selection and `deleteRemoteOnLocalDelete` is true, add outbox delete for the mirrored ATProto record.
+3. If the row is not selected, do not add a remote delete.
+4. For selected folder membership, delete the `network.cosmik.collectionLink` record if Marker owns it.
+5. If Marker needs to remove a selected link created by another repo, publish `network.cosmik.collectionLinkRemoval`.
+6. After successful remote delete, keep the mirror as a tombstone with `deletedAt`.
 
 Remote delete detection:
 
@@ -541,10 +593,14 @@ Do not dedupe annotations aggressively. Duplicates are safer than accidentally m
 ## Privacy defaults
 
 - Browser history is local only.
-- A bookmark/card is synced only after ATProto sync is enabled for the account.
+- Connecting an ATProto account does not publish existing bookmarks, folders, annotations, tags, notes, or collections.
+- A bookmark/card is synced only after the user explicitly selects that bookmark, a containing folder sync action that includes it, or "all bookmarks" for the account.
+- A bookmark folder/collection and membership links sync only after the user explicitly selects the folder or an all-bookmarks sync action that includes folders.
+- An annotation syncs only after the user explicitly selects that annotation, a containing annotation collection sync action that includes it, or "all annotations" for the account.
+- Imported remote records may remain linked to their source account, but the import UI must allow importing them as local-only.
 - Default collection `accessType` is `CLOSED`.
 - Public/open collections need an explicit UI action.
-- Annotation sync is a separate opt-in setting and defaults off.
+- Selection state is local-only and should not be encoded into Semble/Cosmik or Margin records.
 
 ## Test requirements
 
@@ -553,6 +609,8 @@ Add tests with each implementation step:
 - mapper tests for every record shape Marker writes;
 - migration tests for bookmark join table backfill;
 - outbox idempotency tests;
+- selection tests proving unselected local writes do not enqueue or publish records;
+- tests for selecting an existing item, deselecting an item, and importing remote records as linked versus local-only;
 - push worker tests with fake repo client;
 - pull importer tests for new, updated, duplicate, and malformed records;
 - deletion tests for local soft delete, remote delete confirmation, and collection-link removal;

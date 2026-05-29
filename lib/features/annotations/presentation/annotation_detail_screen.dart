@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:marker/app/app_transitions.dart';
 import 'package:marker/app/navigation.dart';
 import 'package:marker/app/routes.dart';
+import 'package:marker/core/shared/utils/datetime_utils.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/browser/presentation/note_editor_sheet.dart';
@@ -38,6 +39,32 @@ class _AnnotationDetailScreenState extends ConsumerState<AnnotationDetailScreen>
     }
 
     await ref.read(annotationRepositoryProvider).updateMarkdownBody(annotationId: widget.annotationId, value: note);
+    ref.invalidate(annotationDetailProvider(widget.annotationId));
+    ref.invalidate(librarySnapshotProvider);
+  }
+
+  Future<void> _openTagEditor(AnnotationDetail detail) async {
+    final controller = TextEditingController(text: detail.annotation.tags.map((tag) => tag.name).join(', '));
+    final tags = await showCupertinoDialog<String>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Edit Tags'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: CupertinoTextField(controller: controller, placeholder: 'research, later', autocorrect: false),
+        ),
+        actions: [
+          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (tags == null) return;
+    await ref.read(annotationRepositoryProvider).updateTags(annotationId: widget.annotationId, tags: tags.split(','));
     ref.invalidate(annotationDetailProvider(widget.annotationId));
     ref.invalidate(librarySnapshotProvider);
   }
@@ -117,6 +144,7 @@ class _AnnotationDetailScreenState extends ConsumerState<AnnotationDetailScreen>
                 key: ValueKey('annotation-${value.annotation.annotation.id}'),
                 detail: value,
                 onOpenSource: () => _openSource(value),
+                onEditTags: () => _openTagEditor(value),
                 onDelete: () => _deleteAnnotation(value),
               );
             },
@@ -131,10 +159,17 @@ class _AnnotationDetailScreenState extends ConsumerState<AnnotationDetailScreen>
 }
 
 class _AnnotationReadView extends StatelessWidget {
-  const _AnnotationReadView({required this.detail, required this.onOpenSource, required this.onDelete, super.key});
+  const _AnnotationReadView({
+    required this.detail,
+    required this.onOpenSource,
+    required this.onEditTags,
+    required this.onDelete,
+    super.key,
+  });
 
   final AnnotationDetail detail;
   final VoidCallback onOpenSource;
+  final VoidCallback onEditTags;
   final VoidCallback onDelete;
 
   @override
@@ -155,6 +190,12 @@ class _AnnotationReadView extends StatelessWidget {
           )
         else
           _NoteBlock(note: note),
+        const SizedBox(height: 18),
+        const _SectionLabel('Tags'),
+        _TagSection(
+          tags: detail.annotation.tags.map((tag) => tag.name).toList(growable: false),
+          onEditTags: onEditTags,
+        ),
         const SizedBox(height: 22),
         const _SectionLabel('Source'),
         _GroupedRows(
@@ -167,8 +208,8 @@ class _AnnotationReadView extends StatelessWidget {
         const _SectionLabel('Timestamps'),
         _GroupedRows(
           rows: [
-            _MetaRow(label: 'Created', value: _formatTimestamp(detail.annotation.annotation.createdAt)),
-            _MetaRow(label: 'Modified', value: _formatTimestamp(detail.annotation.annotation.modifiedAt)),
+            _MetaRow(label: 'Created', value: formatTimestamp(detail.annotation.annotation.createdAt)),
+            _MetaRow(label: 'Modified', value: formatTimestamp(detail.annotation.annotation.modifiedAt)),
           ],
         ),
         const SizedBox(height: 18),
@@ -191,6 +232,51 @@ class _AnnotationReadView extends StatelessWidget {
       ],
     );
   }
+}
+
+class _TagSection extends StatelessWidget {
+  const _TagSection({required this.tags, required this.onEditTags});
+
+  final List<String> tags;
+  final VoidCallback onEditTags;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(color: const Color(0xFF151519), borderRadius: BorderRadius.circular(8)),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: tags.isEmpty
+                ? const Text('No tags', style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 13))
+                : Wrap(spacing: 6, runSpacing: 6, children: [for (final tag in tags) _TagChip(label: tag)]),
+          ),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(42, 30),
+            onPressed: onEditTags,
+            child: const Text('Edit tags'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _TagChip extends StatelessWidget {
+  const _TagChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(color: const Color(0xFF2A2A30), borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      child: Text(label, style: const TextStyle(color: CupertinoColors.white, fontSize: 12, letterSpacing: 0)),
+    ),
+  );
 }
 
 class _MotivationTag extends StatelessWidget {
@@ -238,28 +324,26 @@ class _QuoteBlock extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF151519),
-        borderRadius: BorderRadius.circular(8),
-        border: Border(left: BorderSide(color: color, width: 4)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        child: Text(
-          '"$text"',
-          style: const TextStyle(
-            color: CupertinoColors.white,
-            fontSize: 17,
-            height: 1.35,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0,
-          ),
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xFF151519),
+      borderRadius: BorderRadius.circular(8),
+      border: Border(left: BorderSide(color: color, width: 4)),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Text(
+        '"$text"',
+        style: const TextStyle(
+          color: CupertinoColors.white,
+          fontSize: 17,
+          height: 1.35,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0,
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _NoteBlock extends StatelessWidget {
@@ -268,28 +352,26 @@ class _NoteBlock extends StatelessWidget {
   final String note;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: MarkdownBody(
-          data: note,
-          selectable: false,
-          styleSheet: MarkdownStyleSheet(
-            p: const TextStyle(color: CupertinoColors.white, fontSize: 15, height: 1.35, letterSpacing: 0),
-            strong: const TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w700, letterSpacing: 0),
-            em: const TextStyle(color: CupertinoColors.systemGrey2, fontStyle: FontStyle.italic, letterSpacing: 0),
-            code: const TextStyle(color: Color(0xFFA5D6FF), fontSize: 13, fontFamily: 'Menlo', letterSpacing: 0),
-          ),
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xFF0D1117),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
+    ),
+    child: Material(
+      type: MaterialType.transparency,
+      child: MarkdownBody(
+        data: note,
+        selectable: false,
+        styleSheet: MarkdownStyleSheet(
+          p: const TextStyle(color: CupertinoColors.white, fontSize: 15, height: 1.35, letterSpacing: 0),
+          strong: const TextStyle(color: CupertinoColors.white, fontWeight: FontWeight.w700, letterSpacing: 0),
+          em: const TextStyle(color: CupertinoColors.systemGrey2, fontStyle: FontStyle.italic, letterSpacing: 0),
+          code: const TextStyle(color: Color(0xFFA5D6FF), fontSize: 13, fontFamily: 'Menlo', letterSpacing: 0),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _GroupedRows extends StatelessWidget {
@@ -298,12 +380,10 @@ class _GroupedRows extends StatelessWidget {
   final List<Widget> rows;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(color: const Color(0xFF151519), borderRadius: BorderRadius.circular(8)),
-      child: Column(children: rows),
-    );
-  }
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(color: const Color(0xFF151519), borderRadius: BorderRadius.circular(8)),
+    child: Column(children: rows),
+  );
 }
 
 class _MetaRow extends StatelessWidget {
@@ -313,26 +393,24 @@ class _MetaRow extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          Text(label, style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 14, letterSpacing: 0)),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: const TextStyle(color: CupertinoColors.white, fontSize: 14, letterSpacing: 0),
-            ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    child: Row(
+      children: [
+        Text(label, style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 14, letterSpacing: 0)),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: const TextStyle(color: CupertinoColors.white, fontSize: 14, letterSpacing: 0),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }
 
 class _ActionRow extends StatelessWidget {
@@ -404,18 +482,16 @@ class _AnnotationError extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          message,
-          style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 14, letterSpacing: 0),
-          textAlign: TextAlign.center,
-        ),
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(
+        message,
+        style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 14, letterSpacing: 0),
+        textAlign: TextAlign.center,
       ),
-    );
-  }
+    ),
+  );
 }
 
 Color _accentColor(PageAnnotation annotation) {
@@ -432,14 +508,3 @@ String _displayUrl(Uri uri) {
   final path = uri.path == '/' ? '' : uri.path;
   return '${uri.host}$path';
 }
-
-String _formatTimestamp(DateTime value) {
-  final local = value.toLocal();
-  final month = _monthNames[local.month - 1];
-  final hour = local.hour == 0 ? 12 : (local.hour > 12 ? local.hour - 12 : local.hour);
-  final minute = local.minute.toString().padLeft(2, '0');
-  final period = local.hour >= 12 ? 'PM' : 'AM';
-  return '$month ${local.day}, ${local.year}, $hour:$minute $period';
-}
-
-const _monthNames = <String>['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

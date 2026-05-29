@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart' show AlwaysStoppedAnimation, LinearProgressIndicator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -416,7 +418,7 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Bookmark sync writes Semble/Cosmik bookmark records to your ATProto repo. Browser history stays local. Annotation sync is separate and off by default.',
+              'Bookmark sync publishes Semble/Cosmik bookmark records. Annotation sync publishes Margin notes with quote selectors, note text, tags, color, style, and source URLs. Browser history stays local.',
               style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, height: 1.35),
             ),
             const SizedBox(height: 12),
@@ -462,7 +464,7 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
                     color: const Color(0xFF2A2A30),
                     disabledColor: const Color(0xFF2A2A30),
                     onPressed: isImporting ? null : () => _showImportSheet(context),
-                    child: Text(isImporting ? 'Syncing...' : 'Sync'),
+                    child: Text(isImporting ? 'Syncing...' : 'Sync now'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -636,6 +638,23 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
             confirmedDeleteCount: confirmedDeletes,
           ),
           const SizedBox(height: 8),
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            color: const Color(0xFF2A2A30),
+            onPressed: () => Clipboard.setData(
+              ClipboardData(
+                text: _diagnosticsExportJson(
+                  syncStates: syncStates,
+                  syncedRecordCounts: syncedRecordCounts,
+                  deletedRecordCounts: deletedRecordCounts,
+                  pendingOutbox: pendingOutbox,
+                  lastPush: lastPush,
+                ),
+              ),
+            ),
+            child: const Text('Copy diagnostics'),
+          ),
+          const SizedBox(height: 8),
           for (final entry in AtprotoSyncCollections.trackedCollections.entries) ...[
             _AtprotoDiagnosticCollectionRow(
               collectionLabel: entry.value,
@@ -651,6 +670,42 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
       ),
     );
   }
+}
+
+String _diagnosticsExportJson({
+  required List<AtprotoSyncStateData> syncStates,
+  required Map<String, int> syncedRecordCounts,
+  required Map<String, int> deletedRecordCounts,
+  required List<AtprotoSyncOutboxData> pendingOutbox,
+  required DateTime? lastPush,
+}) {
+  return const JsonEncoder.withIndent('  ').convert({
+    'generatedAt': DateTime.now().toUtc().toIso8601String(),
+    'lastPush': lastPush?.toUtc().toIso8601String(),
+    'syncStates': [
+      for (final state in syncStates)
+        {
+          'collection': state.collection,
+          'cursor': state.cursor,
+          'lastSuccessfulSyncAt': state.lastSuccessfulSyncAt?.toUtc().toIso8601String(),
+          'lastError': state.lastError,
+        },
+    ],
+    'syncedRecordCounts': syncedRecordCounts,
+    'deletedRecordCounts': deletedRecordCounts,
+    'outbox': [
+      for (final item in pendingOutbox)
+        {
+          'operation': item.operation,
+          'localTable': item.localTable,
+          'collection': item.collection,
+          'createdAt': item.createdAt.toUtc().toIso8601String(),
+          'updatedAt': item.updatedAt.toUtc().toIso8601String(),
+          'attemptCount': item.attemptCount,
+          'lastError': item.lastError,
+        },
+    ],
+  });
 }
 
 class _AtprotoPushSyncStatus extends StatelessWidget {
@@ -1001,8 +1056,8 @@ class _AtprotoImportPresentationState {
 
   String get title {
     if (failureMessage != null) return 'Sync failed';
-    if (result != null) return 'Bookmark sync complete';
-    return 'Syncing bookmarks';
+    if (result != null) return 'ATProto sync complete';
+    return 'Syncing ATProto';
   }
 }
 
