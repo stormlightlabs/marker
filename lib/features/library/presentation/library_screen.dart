@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show SelectableText;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
@@ -461,13 +462,19 @@ class _AllAnnotationsContent extends StatelessWidget {
               child: _LibraryGroupFrame(
                 children: [
                   _AnnotationPageRow(group: group, onPressed: () => onOpenPage(group.id)),
-                  for (final annotation in group.annotations.where(filter.matches))
-                    _AnnotationRow(
-                      annotation: annotation,
-                      isEditing: isEditing,
-                      isSelected: selectedIds.contains(annotation.id),
-                      onPressed: () => isEditing ? onToggleSelection(annotation.id) : onOpenAnnotation(annotation.id),
-                    ),
+                  for (final entry in _annotationSectionEntries(
+                    group.annotations.where(filter.matches).toList(growable: false),
+                  ))
+                    if (entry.label != null)
+                      _AnnotationSourceHeader(label: entry.label!, isMargin: entry.annotation.isMarginBacked)
+                    else
+                      _AnnotationRow(
+                        annotation: entry.annotation,
+                        isEditing: isEditing,
+                        isSelected: selectedIds.contains(entry.annotation.id),
+                        onPressed: () =>
+                            isEditing ? onToggleSelection(entry.annotation.id) : onOpenAnnotation(entry.annotation.id),
+                      ),
                 ],
               ),
             ),
@@ -475,6 +482,25 @@ class _AllAnnotationsContent extends StatelessWidget {
       ],
     ],
   );
+
+  List<_AnnotationSectionEntry> _annotationSectionEntries(List<LibraryAnnotationItem> annotations) {
+    return [
+      for (final (index, annotation) in annotations.indexed)
+        _AnnotationSectionEntry(
+          annotation: annotation,
+          label: index == 0 || annotations[index - 1].isMarginBacked != annotation.isMarginBacked
+              ? (annotation.isMarginBacked ? 'Margin' : 'Local')
+              : null,
+        ),
+    ];
+  }
+}
+
+class _AnnotationSectionEntry {
+  const _AnnotationSectionEntry({required this.annotation, required this.label});
+
+  final LibraryAnnotationItem annotation;
+  final String? label;
 }
 
 class _LibraryGroupFrame extends StatelessWidget {
@@ -511,7 +537,6 @@ class _SectionFrame extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 7),
           child: Funnotation(
-            kind: FunnotationKind.underline,
             color: CupertinoColors.systemYellow,
             strokeWidth: 1.4,
             padding: 2,
@@ -613,14 +638,9 @@ class _AnnotationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _LibraryRowButton(
     onPressed: onPressed,
-    leading: isEditing
-        ? _SelectionDot(isSelected: isSelected)
-        : _LibraryIcon(
-            icon: annotation.isNote ? CupertinoIcons.chat_bubble_text : CupertinoIcons.pencil,
-            color: annotation.isNote ? CupertinoColors.activeBlue : CupertinoColors.systemYellow,
-          ),
+    leading: isEditing ? _SelectionDot(isSelected: isSelected) : _AnnotationSourceIcon(annotation: annotation),
     title: annotation.excerpt,
-    subtitle: '${annotation.typeLabel} · ${annotation.pageTitle}',
+    subtitle: '${annotation.typeLabel} · ${annotation.pageTitle} · ${annotation.isMarginBacked ? 'Margin' : 'Local'}',
   );
 }
 
@@ -641,7 +661,6 @@ class _SearchResultRow extends StatelessWidget {
     ),
     title: result.title,
     titleWidget: Funnotation(
-      kind: FunnotationKind.highlight,
       color: CupertinoColors.systemYellow.withValues(alpha: 0.28),
       padding: 2,
       child: Text(
@@ -658,6 +677,62 @@ class _SearchResultRow extends StatelessWidget {
     ),
     subtitle: result.subtitle,
   );
+}
+
+class _AnnotationSourceHeader extends StatelessWidget {
+  const _AnnotationSourceHeader({required this.label, required this.isMargin});
+
+  final String label;
+  final bool isMargin;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+    child: Row(
+      children: [
+        if (isMargin)
+          SvgPicture.asset('assets/icons/margin.svg', width: 16, height: 16)
+        else
+          const Icon(CupertinoIcons.device_phone_portrait, color: CupertinoColors.systemGrey2, size: 15),
+        const SizedBox(width: 7),
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: CupertinoColors.systemGrey,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _AnnotationSourceIcon extends StatelessWidget {
+  const _AnnotationSourceIcon({required this.annotation});
+
+  final LibraryAnnotationItem annotation;
+
+  @override
+  Widget build(BuildContext context) {
+    if (annotation.isMarginBacked) {
+      return Container(
+        width: 36,
+        height: 36,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: CupertinoColors.activeBlue.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: SvgPicture.asset('assets/icons/margin.svg'),
+      );
+    }
+    return _LibraryIcon(
+      icon: annotation.isNote ? CupertinoIcons.chat_bubble_text : CupertinoIcons.pencil,
+      color: annotation.isNote ? CupertinoColors.activeBlue : CupertinoColors.systemYellow,
+    );
+  }
 }
 
 class _SelectionDot extends StatelessWidget {
@@ -1380,7 +1455,6 @@ class _EmptySearch extends StatelessWidget {
         Icon(CupertinoIcons.search, size: 42, color: CupertinoColors.systemGrey),
         SizedBox(height: 14),
         Funnotation(
-          kind: FunnotationKind.underline,
           child: Text(
             'No Matches',
             style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
@@ -1404,7 +1478,6 @@ class _EmptyLibrary extends StatelessWidget {
         Icon(CupertinoIcons.book, size: 42, color: CupertinoColors.systemGrey),
         SizedBox(height: 14),
         Funnotation(
-          kind: FunnotationKind.underline,
           child: Text(
             'No Saved Pages',
             style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),
@@ -1434,7 +1507,6 @@ class _EmptyAnnotations extends StatelessWidget {
         Icon(CupertinoIcons.pencil, size: 42, color: CupertinoColors.systemGrey),
         SizedBox(height: 14),
         Funnotation(
-          kind: FunnotationKind.underline,
           child: Text(
             'No Annotations',
             style: TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: 0),

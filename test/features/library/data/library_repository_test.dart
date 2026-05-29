@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
+import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/browser/data/favicon_cache.dart';
 import 'package:marker/features/library/data/library_repository.dart';
 
@@ -49,6 +51,30 @@ void main() {
     expect(groups.first.annotations.single.excerpt, 'quote from selector');
     expect(groups.last.title, 'Saved Article');
     expect(groups.last.bookmarkFolderPath, 'Research / Reading');
+  });
+
+  test('groups Margin-backed annotations before local annotations', () async {
+    await _seedLibrary(database);
+    final syncRepository = AtprotoSyncRepository(database, now: () => DateTime.utc(2026, 5, 13, 12));
+    await syncRepository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
+    await syncRepository.upsertMirror(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.annotations.value,
+      localId: 'saved-annotation',
+      collection: MarginSyncCollection.note.value,
+      rkey: 'saved-annotation',
+      uri: 'at://did:plc:alice/${MarginSyncCollection.note.value}/saved-annotation',
+      lastSyncedAt: DateTime.utc(2026, 5, 13, 12),
+    );
+
+    final snapshot = await repository.loadSnapshot();
+    final groups = await repository.loadAnnotationGroups();
+    final savedGroup = groups.singleWhere((group) => group.title == 'Saved Article');
+
+    expect(snapshot.recentAnnotations.first.id, 'saved-annotation');
+    expect(snapshot.recentAnnotations.first.isMarginBacked, isTrue);
+    expect(snapshot.recentAnnotations.last.isMarginBacked, isFalse);
+    expect(savedGroup.annotations.single.isMarginBacked, isTrue);
   });
 
   test('ignores deleted annotations in counts and recent annotations', () async {

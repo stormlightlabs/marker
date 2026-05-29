@@ -8,6 +8,7 @@ import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/browser/data/favicon_cache.dart';
 
 final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
@@ -162,11 +163,12 @@ class LibraryRepository {
           visualStyle: await _visualStyleForAnnotation(annotation.id),
           excerpt: await _excerptForAnnotation(annotation.id),
           modifiedAt: annotation.modifiedAt,
+          isMarginBacked: await _isMarginBacked(annotation.id),
         ),
       );
     }
 
-    return items;
+    return items..sort(_compareAnnotationsBySource);
   }
 
   Future<List<LibraryAnnotationGroup>> loadAnnotationGroups() async {
@@ -213,10 +215,14 @@ class LibraryRepository {
           visualStyle: await _visualStyleForAnnotation(annotation.id),
           excerpt: await _excerptForAnnotation(annotation.id),
           modifiedAt: annotation.modifiedAt,
+          isMarginBacked: await _isMarginBacked(annotation.id),
         ),
       );
     }
 
+    for (final builder in builders.values) {
+      builder.annotations.sort(_compareAnnotationsBySource);
+    }
     return builders.values.map((builder) => builder.build()).toList(growable: false);
   }
 
@@ -277,10 +283,11 @@ class LibraryRepository {
           visualStyle: await _visualStyleForAnnotation(annotation.id),
           excerpt: await _excerptForAnnotation(annotation.id),
           modifiedAt: annotation.modifiedAt,
+          isMarginBacked: await _isMarginBacked(annotation.id),
         ),
       );
     }
-    return items;
+    return items..sort(_compareAnnotationsBySource);
   }
 
   Future<Map<String, Bookmark>> _bookmarksByUrl() async {
@@ -358,6 +365,29 @@ class LibraryRepository {
     }
 
     return _annotationExcerpt(textualBody?.value, target?.selectorJson);
+  }
+
+  Future<bool> _isMarginBacked(String annotationId) async {
+    final row =
+        await (_database.select(_database.atprotoRecordMirrors)
+              ..where(
+                (mirror) =>
+                    mirror.localId.equals(annotationId) &
+                    mirror.localTable.equals(SembleSyncLocalTable.annotations.value) &
+                    mirror.collection.equals(MarginSyncCollection.note.value) &
+                    mirror.deletedAt.isNull() &
+                    mirror.lastSyncedAt.isNotNull(),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
+  }
+
+  int _compareAnnotationsBySource(LibraryAnnotationItem a, LibraryAnnotationItem b) {
+    if (a.isMarginBacked != b.isMarginBacked) {
+      return a.isMarginBacked ? -1 : 1;
+    }
+    return b.modifiedAt.compareTo(a.modifiedAt);
   }
 
   Future<AnnotationVisualStyle> _visualStyleForAnnotation(String annotationId) async {
@@ -599,6 +629,7 @@ class LibraryAnnotationItem {
     required this.visualStyle,
     required this.excerpt,
     required this.modifiedAt,
+    required this.isMarginBacked,
   });
 
   final String id;
@@ -608,6 +639,7 @@ class LibraryAnnotationItem {
   final AnnotationVisualStyle visualStyle;
   final String excerpt;
   final DateTime modifiedAt;
+  final bool isMarginBacked;
 
   bool get isNote => motivation == 'commenting';
   String get typeLabel =>

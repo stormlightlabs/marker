@@ -47,7 +47,6 @@ class AboutScreen extends StatelessWidget {
             child: const Align(
               alignment: Alignment.centerLeft,
               child: Funnotation(
-                kind: FunnotationKind.circle,
                 color: CupertinoColors.systemYellow,
                 padding: 5,
                 child: Text(
@@ -64,7 +63,6 @@ class AboutScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           const Funnotation(
-            kind: FunnotationKind.highlight,
             color: Color(0x445CBEFF),
             padding: 2,
             child: Text(
@@ -133,9 +131,7 @@ class _FunHeading extends ConsumerWidget {
     if (!funEnabled) {
       return child;
     }
-    return Center(
-      child: Funnotation(kind: FunnotationKind.underline, padding: 4, child: child),
-    );
+    return Center(child: Funnotation(padding: 4, child: child));
   }
 }
 

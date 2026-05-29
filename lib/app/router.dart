@@ -5,6 +5,7 @@ import 'package:marker/app/routes.dart';
 import 'package:marker/features/annotations/presentation/annotation_detail_screen.dart';
 import 'package:marker/features/bookmarks/presentation/bookmarks_screen.dart';
 import 'package:marker/features/browser/presentation/browser_screen.dart';
+import 'package:marker/features/feeds/presentation/feeds_screen.dart';
 import 'package:marker/features/library/presentation/library_screen.dart';
 import 'package:marker/features/settings/presentation/about_screen.dart';
 import 'package:marker/features/settings/presentation/browser_history_screen.dart';
@@ -17,14 +18,19 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', redirect: (context, state) => AppRoute.library.path),
       GoRoute(
-        path: AppRoute.library.path,
-        name: AppRoute.library.routeName,
-        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const LibraryScreen()),
-      ),
-      GoRoute(
         path: AppRoute.browser.path,
         name: AppRoute.browser.routeName,
         pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const BrowserScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.feeds.path,
+        name: AppRoute.feeds.routeName,
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const FeedsScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.library.path,
+        name: AppRoute.library.routeName,
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const LibraryScreen()),
       ),
       GoRoute(
         path: AppRoute.bookmarks.path,

@@ -22,9 +22,7 @@ void main() {
     await seedLibrary(database);
 
     await tester.pumpWidget(markerTestApp(database: database));
-
-    await tester.pump();
-    await tester.pump();
+    await _openLibrary(tester);
 
     expect(find.text('LIBRARY'), findsNothing);
     expect(find.text('BOOKMARKS'), findsOneWidget);
@@ -56,9 +54,7 @@ void main() {
     await _seedAdditionalAnnotations(database, count: 5);
 
     await tester.pumpWidget(markerTestApp(database: database));
-
-    await tester.pump();
-    await tester.pump();
+    await _openLibrary(tester);
 
     expect(find.text('Show All'), findsOneWidget);
     expect(find.text('important quote'), findsNothing);
@@ -78,9 +74,7 @@ void main() {
     await seedLibrary(database);
 
     await tester.pumpWidget(markerTestApp(database: database));
-
-    await tester.pump();
-    await tester.pump();
+    await _openLibrary(tester);
 
     await tester.enterText(find.byType(CupertinoSearchTextField), 'important');
     await tester.pump();
@@ -101,9 +95,7 @@ void main() {
     await seedLibrary(database);
 
     await tester.pumpWidget(markerTestApp(database: database));
-
-    await tester.pump();
-    await tester.pump();
+    await _openLibrary(tester);
 
     await tester.tap(find.text('Recent Article').first);
     await pumpRouteTransition(tester);
@@ -124,6 +116,11 @@ void main() {
     )..where((row) => row.id.equals('annotation'))).getSingle();
     expect(annotation.deletedAt, isNotNull);
   });
+}
+
+Future<void> _openLibrary(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump();
 }
 
 Future<void> _seedAdditionalAnnotations(AppDatabase database, {required int count}) async {

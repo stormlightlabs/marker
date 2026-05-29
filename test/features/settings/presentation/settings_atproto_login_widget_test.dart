@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/atproto/application/atproto_login_controller.dart';
@@ -295,10 +295,10 @@ void main() {
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sync bookmarks'));
+    await tester.tap(find.widgetWithText(CupertinoButton, 'Sync'));
     await tester.pump();
     await tester.pump();
-    expect(find.text('Syncing bookmarks'), findsOneWidget);
+    expect(find.text('Syncing...'), findsOneWidget);
     expect(find.textContaining('requests complete'), findsOneWidget);
     expect(find.textContaining('Fetching'), findsOneWidget);
     importCompleter.complete(
@@ -348,7 +348,7 @@ void main() {
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sync bookmarks'));
+    await tester.tap(find.widgetWithText(CupertinoButton, 'Sync'));
     await tester.pumpAndSettle();
 
     expect(find.text('Sync failed'), findsOneWidget);

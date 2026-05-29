@@ -87,17 +87,38 @@ class BookmarkManagerRepository {
       _database.bookmarkFolders,
     )..where((folder) => folder.parentId.equalsNullable(folderId) & folder.deletedAt.isNull())).get();
     final bookmarkRows = await _bookmarkRowsForFolder(folderId);
-    final folders = folderRows.map(BookmarkFolderItem.fromRow).toList(growable: false);
-    final bookmarks = bookmarkRows
-        .map((entry) => BookmarkItem.fromRow(entry.bookmark, folderId: folderId, sortOrder: entry.sortOrder))
-        .toList(growable: false);
+    final folders = <BookmarkFolderItem>[];
+    for (final row in folderRows) {
+      folders.add(
+        BookmarkFolderItem.fromRow(
+          row,
+          isSembleBacked: await _isSembleBacked(row.id, SembleSyncLocalTable.bookmarkFolders),
+        ),
+      );
+    }
+    final bookmarks = <BookmarkItem>[];
+    for (final entry in bookmarkRows) {
+      bookmarks.add(
+        BookmarkItem.fromRow(
+          entry.bookmark,
+          folderId: folderId,
+          sortOrder: entry.sortOrder,
+          isSembleBacked: await _isSembleBacked(entry.bookmark.id, SembleSyncLocalTable.bookmarks),
+        ),
+      );
+    }
     final items = <BookmarkListItem>[
       ...folders.map(BookmarkListItem.folder),
       ...bookmarks.map(BookmarkListItem.bookmark),
     ]..sort(_compareListItems);
 
     return BookmarkFolderContents(
-      folder: folder == null ? null : BookmarkFolderItem.fromRow(folder),
+      folder: folder == null
+          ? null
+          : BookmarkFolderItem.fromRow(
+              folder,
+              isSembleBacked: await _isSembleBacked(folder.id, SembleSyncLocalTable.bookmarkFolders),
+            ),
       folders: folders,
       bookmarks: bookmarks,
       items: items,
@@ -107,14 +128,25 @@ class BookmarkManagerRepository {
   Future<BookmarkDetail?> loadDetail(String id) async {
     final folder = await _folder(id);
     if (folder != null) {
-      return BookmarkDetail.folder(BookmarkFolderItem.fromRow(folder));
+      return BookmarkDetail.folder(
+        BookmarkFolderItem.fromRow(
+          folder,
+          isSembleBacked: await _isSembleBacked(folder.id, SembleSyncLocalTable.bookmarkFolders),
+        ),
+      );
     }
 
     final bookmark = await (_database.select(
       _database.bookmarks,
     )..where((bookmark) => bookmark.id.equals(id) & bookmark.deletedAt.isNull())).getSingleOrNull();
     if (bookmark != null) {
-      return BookmarkDetail.bookmark(BookmarkItem.fromRow(bookmark, folderId: await _bookmarkFolderId(bookmark.id)));
+      return BookmarkDetail.bookmark(
+        BookmarkItem.fromRow(
+          bookmark,
+          folderId: await _bookmarkFolderId(bookmark.id),
+          isSembleBacked: await _isSembleBacked(bookmark.id, SembleSyncLocalTable.bookmarks),
+        ),
+      );
     }
 
     return null;
@@ -124,7 +156,16 @@ class BookmarkManagerRepository {
     final rows = await (_database.select(
       _database.bookmarkFolders,
     )..where((folder) => folder.deletedAt.isNull())).get();
-    return rows.map(BookmarkFolderItem.fromRow).toList(growable: false)..sort((a, b) => a.title.compareTo(b.title));
+    final folders = <BookmarkFolderItem>[];
+    for (final row in rows) {
+      folders.add(
+        BookmarkFolderItem.fromRow(
+          row,
+          isSembleBacked: await _isSembleBacked(row.id, SembleSyncLocalTable.bookmarkFolders),
+        ),
+      );
+    }
+    return folders..sort((a, b) => a.title.compareTo(b.title));
   }
 
   Future<BookmarkFolderItem> createFolder({required String title, String? parentId}) async {
@@ -149,6 +190,7 @@ class BookmarkManagerRepository {
       sortOrder: folder.sortOrder.value,
       createdAt: now,
       updatedAt: now,
+      isSembleBacked: false,
     );
   }
 
@@ -525,7 +567,25 @@ class BookmarkManagerRepository {
     return (_database.select(_database.bookmarkFolders)..where((folder) => folder.id.equals(id))).getSingleOrNull();
   }
 
+  Future<bool> _isSembleBacked(String localId, SembleSyncLocalTable table) async {
+    final row =
+        await (_database.select(_database.atprotoRecordMirrors)
+              ..where(
+                (mirror) =>
+                    mirror.localId.equals(localId) &
+                    mirror.localTable.equals(table.value) &
+                    mirror.deletedAt.isNull() &
+                    mirror.lastSyncedAt.isNotNull(),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
+  }
+
   int _compareListItems(BookmarkListItem a, BookmarkListItem b) {
+    if (a.isSembleBacked != b.isSembleBacked) {
+      return a.isSembleBacked ? -1 : 1;
+    }
     final order = a.sortOrder.compareTo(b.sortOrder);
     if (order != 0) {
       return order;
@@ -593,6 +653,8 @@ class BookmarkListItem {
 
   String get subtitle => folder == null ? bookmark!.url.toString() : 'Folder';
 
+  bool get isSembleBacked => folder?.isSembleBacked ?? bookmark!.isSembleBacked;
+
   BookmarkEntryRef get ref => BookmarkEntryRef(type: type, id: id);
 
   String get key => ref.key;
@@ -606,15 +668,17 @@ class BookmarkFolderItem {
     required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
+    required this.isSembleBacked,
   });
 
-  factory BookmarkFolderItem.fromRow(BookmarkFolder row) => BookmarkFolderItem(
+  factory BookmarkFolderItem.fromRow(BookmarkFolder row, {required bool isSembleBacked}) => BookmarkFolderItem(
     id: row.id,
     parentId: row.parentId,
     title: row.title,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    isSembleBacked: isSembleBacked,
   );
 
   final String id;
@@ -623,6 +687,7 @@ class BookmarkFolderItem {
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isSembleBacked;
 }
 
 class BookmarkItem {
@@ -633,16 +698,19 @@ class BookmarkItem {
     required this.title,
     required this.sortOrder,
     required this.createdAt,
+    required this.isSembleBacked,
   });
 
-  factory BookmarkItem.fromRow(Bookmark row, {String? folderId, int? sortOrder}) => BookmarkItem(
-    id: row.id,
-    folderId: folderId,
-    url: Uri.parse(row.url),
-    title: row.title,
-    sortOrder: sortOrder ?? row.sortOrder,
-    createdAt: row.createdAt,
-  );
+  factory BookmarkItem.fromRow(Bookmark row, {String? folderId, int? sortOrder, required bool isSembleBacked}) =>
+      BookmarkItem(
+        id: row.id,
+        folderId: folderId,
+        url: Uri.parse(row.url),
+        title: row.title,
+        sortOrder: sortOrder ?? row.sortOrder,
+        createdAt: row.createdAt,
+        isSembleBacked: isSembleBacked,
+      );
 
   final String id;
   final String? folderId;
@@ -650,6 +718,7 @@ class BookmarkItem {
   final String? title;
   final int sortOrder;
   final DateTime createdAt;
+  final bool isSembleBacked;
 
   String get displayTitle => title?.trim().isNotEmpty == true ? title!.trim() : url.host;
 }

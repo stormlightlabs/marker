@@ -111,7 +111,6 @@ class _AnnotationToolbarButton extends StatelessWidget {
           Icon(icon, color: color, size: 18),
           const SizedBox(height: 4),
           Funnotation(
-            kind: label == 'Remove' ? FunnotationKind.box : FunnotationKind.underline,
             color: color,
             strokeWidth: 1.2,
             padding: 2,

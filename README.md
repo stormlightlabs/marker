@@ -11,7 +11,8 @@ appear the next time you visit the page.
 
 - Select text, then choose: highlight, underline, or attach a note.
 - Notes can be authored in Markdown
-- Annotations are anchored with layered selectors (quote, position, CSS) modeled on the W3C Web Annotation spec.
+- Annotations are anchored with layered selectors (quote, position, CSS) modeled on the
+  W3C Web Annotation spec.
 - A sidebar panel lists all annotations on the current page, with quick
   actions to jump, edit, or delete.
 - Bookmarks and browsing history are stored alongside annotations.
@@ -74,7 +75,8 @@ flutter run
 
 ### Regenerating native assets
 
-After changing `assets/images/icon.png` or `assets/images/splash.png`, regenerate the native launcher icons and splash screens:
+After changing `assets/images/icon.png` or `assets/images/splash.png`, regenerate the
+native launcher icons and splash screens:
 
 ```sh
 flutter pub get
@@ -88,3 +90,11 @@ dart run flutter_native_splash:create
 flutter analyze
 flutter test --reporter=failures-only
 ```
+
+## Credits
+
+Sync comes via the [ATmosphere](https://atmosphereaccount.com/) built on top of the
+[AT Protocol](https://atproto.com/). Bookmarks are stored as [Semble](https://semble.so)
+records and [Margin](https://margin.at) annotations.
+
+Logos for these services are provided by [atmologos](https://tangled.org/cozylittle.house/atmologos).

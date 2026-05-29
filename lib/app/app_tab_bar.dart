@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' as material show Icons;
 import 'package:go_router/go_router.dart';
 import 'package:marker/app/routes.dart';
 
@@ -22,14 +23,6 @@ class MarkerTabBar extends StatelessWidget {
             children: [
               Expanded(
                 child: _TabBarItem(
-                  icon: CupertinoIcons.collections,
-                  label: 'Library',
-                  isActive: activeRoute == AppRoute.library,
-                  onPressed: () => context.goNamed(AppRoute.library.routeName),
-                ),
-              ),
-              Expanded(
-                child: _TabBarItem(
                   icon: CupertinoIcons.globe,
                   label: 'Browser',
                   isActive: activeRoute == AppRoute.browser,
@@ -38,10 +31,26 @@ class MarkerTabBar extends StatelessWidget {
               ),
               Expanded(
                 child: _TabBarItem(
+                  icon: material.Icons.rss_feed,
+                  label: 'Feeds',
+                  isActive: activeRoute == AppRoute.feeds,
+                  onPressed: () => context.goNamed(AppRoute.feeds.routeName),
+                ),
+              ),
+              Expanded(
+                child: _TabBarItem(
                   icon: CupertinoIcons.bookmark_fill,
                   label: 'Bookmarks',
                   isActive: activeRoute == AppRoute.bookmarks,
                   onPressed: () => context.goNamed(AppRoute.bookmarks.routeName),
+                ),
+              ),
+              Expanded(
+                child: _TabBarItem(
+                  icon: CupertinoIcons.collections,
+                  label: 'Library',
+                  isActive: activeRoute == AppRoute.library,
+                  onPressed: () => context.goNamed(AppRoute.library.routeName),
                 ),
               ),
               Expanded(

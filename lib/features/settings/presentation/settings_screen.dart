@@ -20,6 +20,7 @@ import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -64,7 +65,6 @@ class SettingsScreen extends ConsumerWidget {
                             icon: funEnabled ? CupertinoIcons.scribble : CupertinoIcons.wand_rays,
                             title: 'Fun',
                             titleWidget: const Funnotation(
-                              kind: FunnotationKind.circle,
                               color: CupertinoColors.systemGreen,
                               padding: 8,
                               child: Text(
@@ -86,7 +86,12 @@ class SettingsScreen extends ConsumerWidget {
                             onPressed: () => context.pushNamed(AppRoute.history.routeName),
                           ),
                           const SizedBox(height: 22),
-                          const _SettingsSectionLabel('Sync'),
+                          _SettingsSectionHeader(
+                            label: 'Sync',
+                            trailing: _AtprotoInfoLink(
+                              onPressed: () => _openExternalUrl('https://atmosphereaccount.com/'),
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           _AtprotoAccountRow(state: atprotoAuthState),
                           const SizedBox(height: 22),
@@ -120,22 +125,54 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+Future<void> _openExternalUrl(String value) async {
+  await launchUrl(Uri.parse(value), mode: LaunchMode.externalApplication);
+}
+
 class _SettingsSectionLabel extends StatelessWidget {
   const _SettingsSectionLabel(this.text);
 
   final String text;
 
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: Alignment.centerLeft,
-    child: Text(
-      text,
-      style: const TextStyle(
-        color: CupertinoColors.systemGrey,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0,
-      ),
+  Widget build(BuildContext context) => Text(
+    text,
+    style: const TextStyle(
+      color: CupertinoColors.systemGrey,
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0,
+    ),
+  );
+}
+
+class _SettingsSectionHeader extends StatelessWidget {
+  const _SettingsSectionHeader({required this.label, this.trailing});
+
+  final String label;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) => Row(children: [_SettingsSectionLabel(label), const Spacer(), ?trailing]);
+}
+
+class _AtprotoInfoLink extends StatelessWidget {
+  const _AtprotoInfoLink({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => CupertinoButton(
+    padding: EdgeInsets.zero,
+    minimumSize: const Size(24, 24),
+    onPressed: onPressed,
+    child: const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(CupertinoIcons.at_circle, size: 15),
+        SizedBox(width: 4),
+        Text('What is AT Proto?', style: TextStyle(fontSize: 12, letterSpacing: 0)),
+      ],
     ),
   );
 }
@@ -317,23 +354,21 @@ class _AnnotationSyncOptInRow extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-      decoration: BoxDecoration(color: const Color(0xFF151519), borderRadius: BorderRadius.circular(14)),
-      child: Row(
-        children: [
-          const Expanded(
-            child: _SettingsRowText(
-              title: 'Annotation sync',
-              subtitle: 'Sync highlights, notes, tags, and annotation collections with Margin.',
-            ),
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+    decoration: BoxDecoration(color: const Color(0xFF151519), borderRadius: BorderRadius.circular(14)),
+    child: Row(
+      children: [
+        const Expanded(
+          child: _SettingsRowText(
+            title: 'Annotation sync',
+            subtitle: 'Sync highlights, notes, tags, and annotation collections with Margin.',
           ),
-          CupertinoSwitch(value: enabled, onChanged: onChanged),
-        ],
-      ),
-    );
-  }
+        ),
+        CupertinoSwitch(value: enabled, onChanged: onChanged),
+      ],
+    ),
+  );
 }
 
 class _ConnectedAtprotoAccountCard extends ConsumerWidget {
@@ -346,10 +381,13 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
     final syncStates = ref.watch(_atprotoSyncStatesProvider(account.did)).value ?? const <AtprotoSyncStateData>[];
     final syncedRecordCounts =
         ref.watch(_atprotoSyncedRecordCountsProvider(account.did)).value ?? const <String, int>{};
+
     final deletedRecordCounts =
         ref.watch(_atprotoDeletedRecordCountsProvider(account.did)).value ?? const <String, int>{};
+
     final pendingOutbox =
         ref.watch(_atprotoPendingOutboxProvider(account.did)).value ?? const <AtprotoSyncOutboxData>[];
+
     final lastPush = ref.watch(_atprotoLatestMirrorSyncProvider(account.did)).value;
     final importState = ref.watch(atprotoBookmarkImportControllerProvider);
     final lastImport = _latestSuccessfulSync(syncStates);
@@ -424,7 +462,7 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
                     color: const Color(0xFF2A2A30),
                     disabledColor: const Color(0xFF2A2A30),
                     onPressed: isImporting ? null : () => _showImportSheet(context),
-                    child: Text(isImporting ? 'Syncing bookmarks...' : 'Sync bookmarks'),
+                    child: Text(isImporting ? 'Syncing...' : 'Sync'),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -578,6 +616,7 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
               item.operation == AtprotoSyncOperation.update.value,
         )
         .toList();
+
     final pendingDeletes = pendingOutbox.where((item) => item.operation == AtprotoSyncOperation.delete.value).toList();
     final failedDeletes = pendingDeletes.where((item) => item.lastError?.trim().isNotEmpty == true).length;
     final confirmedDeletes = deletedRecordCounts.values.fold<int>(0, (total, count) => total + count);
@@ -862,6 +901,7 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
     final state = ref.read(atprotoBookmarkImportControllerProvider);
     setState(() {
       _result = result;
+      // TODO: no nested ternaries!
       _failureMessage = result == null && state is AtprotoBookmarkImportFailed
           ? state.message
           : result == null

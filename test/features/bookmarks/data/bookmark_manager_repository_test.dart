@@ -86,6 +86,27 @@ void main() {
     expect(rootContents.folders.map((folder) => folder.title), contains('Child'));
   });
 
+  test('groups Semble-backed bookmark entries before local entries', () async {
+    final syncRepository = AtprotoSyncRepository(database, now: () => DateTime.utc(2026, 5, 13, 12));
+    await syncRepository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
+    await _insertBookmark(database, id: 'local', url: 'https://local.example', title: 'Local');
+    await _insertBookmark(database, id: 'remote', url: 'https://remote.example', title: 'Remote');
+    await syncRepository.upsertMirror(
+      accountDid: 'did:plc:alice',
+      localTable: SembleSyncLocalTable.bookmarks.value,
+      localId: 'remote',
+      collection: SembleSyncCollection.card.value,
+      rkey: 'remote',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/remote',
+      lastSyncedAt: DateTime.utc(2026, 5, 13, 12),
+    );
+
+    final contents = await repository.loadFolderContents();
+    expect(contents.items.map((item) => item.title), ['Remote', 'Local']);
+    expect(contents.items.first.isSembleBacked, isTrue);
+    expect(contents.items.last.isSembleBacked, isFalse);
+  });
+
   test('supports bookmark membership in multiple folders', () async {
     final first = await repository.createFolder(title: 'Programming');
     final second = await repository.createFolder(title: 'Research');

@@ -76,6 +76,20 @@ void main() {
     expect(await database.select(database.browserHistoryEntries).get(), isEmpty);
   });
 
+  testWidgets('shows AT Proto explainer link in sync settings', (tester) async {
+    await tester.pumpWidget(markerTestApp(database: database));
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Settings'));
+    await pumpRouteTransition(tester);
+
+    expect(find.text('Sync'), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.at_circle), findsOneWidget);
+    expect(find.text('What is AT Proto?'), findsOneWidget);
+    expect(find.text('ATProto Sync'), findsOneWidget);
+  });
+
   testWidgets('toggles ad blocking from settings', (tester) async {
     await tester.pumpWidget(markerTestApp(database: database));
 
@@ -105,7 +119,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Marker'), findsOneWidget);
-    expect(find.byType(RoughUnderlineAnnotation), findsOneWidget);
+    expect(find.byType(RoughUnderlineAnnotation), findsWidgets);
   });
 
   testWidgets('toggles fun and opens about screen', (tester) async {

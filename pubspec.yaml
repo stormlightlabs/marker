@@ -70,6 +70,7 @@ flutter:
     - assets/filters/
     - assets/fonts/
     - assets/images/
+    - assets/icons/
 
 flutter_launcher_icons:
   android: true

@@ -3,12 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
 import 'package:rough_notation/rough_notation.dart';
 
-enum FunnotationKind { underline, box, circle, highlight }
-
 class Funnotation extends ConsumerWidget {
   const Funnotation({
     required this.child,
-    required this.kind,
     this.color = CupertinoColors.activeBlue,
     this.strokeWidth = 2,
     this.padding = 3,
@@ -17,7 +14,6 @@ class Funnotation extends ConsumerWidget {
   });
 
   final Widget child;
-  final FunnotationKind kind;
   final Color color;
   final double strokeWidth;
   final double padding;
@@ -30,34 +26,12 @@ class Funnotation extends ConsumerWidget {
       return child;
     }
 
-    return switch (kind) {
-      FunnotationKind.underline => RoughUnderlineAnnotation(
-        color: color,
-        strokeWidth: strokeWidth,
-        padding: padding,
-        iterations: iterations,
-        child: child,
-      ),
-      FunnotationKind.box => RoughBoxAnnotation(
-        color: color,
-        strokeWidth: strokeWidth,
-        padding: padding,
-        iterations: iterations,
-        child: child,
-      ),
-      FunnotationKind.circle => RoughCircleAnnotation(
-        color: color,
-        strokeWidth: strokeWidth,
-        padding: padding,
-        iterations: iterations,
-        child: child,
-      ),
-      FunnotationKind.highlight => RoughHighlightAnnotation(
-        color: color,
-        padding: padding,
-        iterations: iterations,
-        child: child,
-      ),
-    };
+    return RoughUnderlineAnnotation(
+      color: color,
+      strokeWidth: strokeWidth,
+      padding: padding,
+      iterations: iterations,
+      child: child,
+    );
   }
 }
