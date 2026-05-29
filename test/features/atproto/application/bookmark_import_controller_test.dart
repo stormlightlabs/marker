@@ -1,27 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
+import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
+import 'package:marker/features/atproto/data/margin_note_sync_service.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_push_service.dart';
+import 'package:marker/features/settings/data/settings_repository.dart';
 
 void main() {
   test('syncs bookmarks and exposes success state', () async {
+    final deletionService = FakeAtprotoDeletionSyncService();
     final pushService = FakeSembleBookmarkPushService();
     final service = FakeSembleBookmarkPullService(
       result: const SembleBookmarkPullResult(cardsImported: 12, collectionsImported: 3, linksImported: 18),
     );
     final container = ProviderContainer(
       overrides: [
+        atprotoDeletionSyncServiceProvider.overrideWithValue(deletionService),
+        settingsRepositoryProvider.overrideWithValue(FakeSettingsRepository()),
         sembleBookmarkPullServiceProvider.overrideWithValue(service),
         sembleBookmarkPushServiceProvider.overrideWithValue(pushService),
       ],
     );
     addTearDown(container.dispose);
-
     final result = await container
         .read(atprotoBookmarkImportControllerProvider.notifier)
         .syncBookmarks('did:plc:alice');
 
+    expect(deletionService.accountDid, 'did:plc:alice');
     expect(pushService.accountDid, 'did:plc:alice');
     expect(service.accountDid, 'did:plc:alice');
     expect(result?.pull.cardsImported, 12);
@@ -32,6 +38,8 @@ void main() {
     final service = FakeSembleBookmarkPullService(error: StateError('network down'));
     final container = ProviderContainer(
       overrides: [
+        atprotoDeletionSyncServiceProvider.overrideWithValue(FakeAtprotoDeletionSyncService()),
+        settingsRepositoryProvider.overrideWithValue(FakeSettingsRepository()),
         sembleBookmarkPullServiceProvider.overrideWithValue(service),
         sembleBookmarkPushServiceProvider.overrideWithValue(FakeSembleBookmarkPushService()),
       ],
@@ -49,6 +57,29 @@ void main() {
       (state as AtprotoBookmarkImportFailed).message,
       'Could not sync bookmarks. Check your connection and try again.',
     );
+  });
+
+  test('syncs Margin records when annotation sync is enabled', () async {
+    final marginService = FakeMarginNoteSyncService();
+    final container = ProviderContainer(
+      overrides: [
+        atprotoDeletionSyncServiceProvider.overrideWithValue(FakeAtprotoDeletionSyncService()),
+        settingsRepositoryProvider.overrideWithValue(FakeSettingsRepository(annotationSyncEnabled: true)),
+        sembleBookmarkPullServiceProvider.overrideWithValue(FakeSembleBookmarkPullService()),
+        sembleBookmarkPushServiceProvider.overrideWithValue(FakeSembleBookmarkPushService()),
+        marginNoteSyncServiceProvider.overrideWithValue(marginService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final result = await container
+        .read(atprotoBookmarkImportControllerProvider.notifier)
+        .syncBookmarks('did:plc:alice');
+
+    expect(marginService.pushedAccountDid, 'did:plc:alice');
+    expect(marginService.pulledAccountDid, 'did:plc:alice');
+    expect(result?.marginPush?.pushed, 1);
+    expect(result?.marginPull?.imported, 1);
   });
 
   test('formats result summaries for imported, empty, and partial issue imports', () {
@@ -95,6 +126,50 @@ void main() {
       'Bookmarks are up to date.',
     );
   });
+}
+
+class FakeSettingsRepository implements SettingsRepository {
+  FakeSettingsRepository({this.annotationSyncEnabled = false});
+
+  final bool annotationSyncEnabled;
+
+  @override
+  Future<bool> isAnnotationSyncEnabled() async => annotationSyncEnabled;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeAtprotoDeletionSyncService implements AtprotoDeletionSyncService {
+  String? accountDid;
+
+  @override
+  Future<void> pushLocalDeletes(String accountDid) async {
+    this.accountDid = accountDid;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeMarginNoteSyncService implements MarginNoteSyncService {
+  String? pushedAccountDid;
+  String? pulledAccountDid;
+
+  @override
+  Future<MarginNoteSyncResult> pushPending(String accountDid, {int limit = 100}) async {
+    pushedAccountDid = accountDid;
+    return const MarginNoteSyncResult(pushed: 1);
+  }
+
+  @override
+  Future<MarginNoteSyncResult> pull(String accountDid) async {
+    pulledAccountDid = accountDid;
+    return const MarginNoteSyncResult(imported: 1);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class FakeSembleBookmarkPushService implements SembleBookmarkPushService {

@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
+import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
+import 'package:marker/features/atproto/data/margin_note_sync_service.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_push_service.dart';
+import 'package:marker/features/settings/data/settings_repository.dart';
 
 final atprotoBookmarkImportControllerProvider =
     NotifierProvider<AtprotoBookmarkImportController, AtprotoBookmarkImportState>(AtprotoBookmarkImportController.new);
@@ -13,18 +16,73 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
   Future<AtprotoBookmarkSyncResult?> importBookmarks(String accountDid) => syncBookmarks(accountDid);
 
   Future<AtprotoBookmarkSyncResult?> syncBookmarks(String accountDid) async {
-    state = const AtprotoBookmarkImportRunning(
-      SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 5, description: 'Publishing local changes'),
+    final syncAnnotations = await ref.read(settingsRepositoryProvider).isAnnotationSyncEnabled();
+    final totalRequests = syncAnnotations ? 8 : 6;
+    state = AtprotoBookmarkImportRunning(
+      SembleBookmarkPullProgress(
+        completedRequests: 0,
+        totalRequests: totalRequests,
+        description: 'Publishing deleted records',
+      ),
     );
     try {
+      await ref.read(atprotoDeletionSyncServiceProvider).pushLocalDeletes(accountDid);
+      state = AtprotoBookmarkImportRunning(
+        SembleBookmarkPullProgress(
+          completedRequests: 1,
+          totalRequests: totalRequests,
+          description: 'Publishing local bookmark changes',
+        ),
+      );
       final pushResult = await ref.read(sembleBookmarkPushServiceProvider).pushPending(accountDid);
-      state = const AtprotoBookmarkImportRunning(
-        SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 5, description: 'Fetching remote changes'),
+      MarginNoteSyncResult? marginPushResult;
+      if (syncAnnotations) {
+        state = AtprotoBookmarkImportRunning(
+          SembleBookmarkPullProgress(
+            completedRequests: 2,
+            totalRequests: totalRequests,
+            description: 'Publishing local annotation changes',
+          ),
+        );
+        marginPushResult = await ref.read(marginNoteSyncServiceProvider).pushPending(accountDid);
+      }
+      final pullOffset = syncAnnotations ? 3 : 2;
+      state = AtprotoBookmarkImportRunning(
+        SembleBookmarkPullProgress(
+          completedRequests: pullOffset,
+          totalRequests: totalRequests,
+          description: 'Fetching remote bookmark changes',
+        ),
       );
       final pullResult = await ref
           .read(sembleBookmarkPullServiceProvider)
-          .pull(accountDid, onProgress: (progress) => state = AtprotoBookmarkImportRunning(progress.offsetBy(1)));
-      final result = AtprotoBookmarkSyncResult(push: pushResult, pull: pullResult);
+          .pull(
+            accountDid,
+            onProgress: (progress) => state = AtprotoBookmarkImportRunning(
+              SembleBookmarkPullProgress(
+                completedRequests: progress.completedRequests + pullOffset,
+                totalRequests: totalRequests,
+                description: progress.description,
+              ),
+            ),
+          );
+      MarginNoteSyncResult? marginPullResult;
+      if (syncAnnotations) {
+        state = AtprotoBookmarkImportRunning(
+          SembleBookmarkPullProgress(
+            completedRequests: totalRequests - 1,
+            totalRequests: totalRequests,
+            description: 'Fetching remote annotation changes',
+          ),
+        );
+        marginPullResult = await ref.read(marginNoteSyncServiceProvider).pull(accountDid);
+      }
+      final result = AtprotoBookmarkSyncResult(
+        push: pushResult,
+        pull: pullResult,
+        marginPush: marginPushResult,
+        marginPull: marginPullResult,
+      );
       state = AtprotoBookmarkImportSucceeded(result);
       return result;
     } on Object {
@@ -65,16 +123,24 @@ final class AtprotoBookmarkImportFailed extends AtprotoBookmarkImportState {
 }
 
 class AtprotoBookmarkSyncResult {
-  const AtprotoBookmarkSyncResult({required this.push, required this.pull});
+  const AtprotoBookmarkSyncResult({required this.push, required this.pull, this.marginPush, this.marginPull});
 
   final SembleBookmarkPushResult push;
   final SembleBookmarkPullResult pull;
+  final MarginNoteSyncResult? marginPush;
+  final MarginNoteSyncResult? marginPull;
 }
 
 String atprotoBookmarkSyncSummary(AtprotoBookmarkSyncResult result) {
   final push = result.push;
   final pull = result.pull;
-  if (push.pushed == 0 && push.failed == 0 && push.deferred == 0) {
+  final marginPush = result.marginPush;
+  final marginPull = result.marginPull;
+  if (push.pushed == 0 &&
+      push.failed == 0 &&
+      push.deferred == 0 &&
+      (marginPush == null || (marginPush.pushed == 0 && marginPush.failed == 0 && marginPush.deferred == 0)) &&
+      (marginPull == null || _marginPullChangedCount(marginPull) == 0)) {
     final pullSummary = sembleBookmarkPullSummary(pull);
     return pullSummary == 'No new bookmarks found.' ? 'Bookmarks are up to date.' : pullSummary;
   }
@@ -89,12 +155,32 @@ String atprotoBookmarkSyncSummary(AtprotoBookmarkSyncResult result) {
   if (push.failed > 0 || push.deferred > 0) {
     lines.add('Could not publish ${push.failed} ${plural(push.failed, 'change')}; ${push.deferred} waiting to retry.');
   }
+  if (marginPush != null && marginPush.pushed > 0) {
+    lines.add('Published ${marginPush.pushed} annotation ${plural(marginPush.pushed, 'change')}.');
+  }
+  if (marginPush != null && (marginPush.failed > 0 || marginPush.deferred > 0)) {
+    lines.add(
+      'Could not publish ${marginPush.failed} annotation ${plural(marginPush.failed, 'change')}; '
+      '${marginPush.deferred} waiting to retry.',
+    );
+  }
+  if (marginPull != null && _marginPullChangedCount(marginPull) > 0) {
+    lines.add(
+      'Synced ${marginPull.imported} new, ${marginPull.updated} updated, '
+      '${marginPull.deleted} deleted, and ${marginPull.duplicates} duplicate annotation '
+      '${plural(_marginPullChangedCount(marginPull), 'record')}.',
+    );
+  }
 
   final pullSummary = sembleBookmarkPullSummary(pull);
   if (pullSummary != 'No new bookmarks found.') {
     lines.add(pullSummary);
   }
   return lines.isEmpty ? 'Bookmarks are up to date.' : lines.join('\n');
+}
+
+int _marginPullChangedCount(MarginNoteSyncResult result) {
+  return result.imported + result.updated + result.duplicates + result.conflicts + result.malformed + result.deleted;
 }
 
 String sembleBookmarkPullSummary(SembleBookmarkPullResult result) {

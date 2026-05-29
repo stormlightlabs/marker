@@ -19,6 +19,7 @@ import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/core/shared/utils/json_utils.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
+import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -51,6 +52,7 @@ class MarginNoteSyncResult {
     this.malformed = 0,
     this.failed = 0,
     this.deferred = 0,
+    this.deleted = 0,
   });
 
   final int imported;
@@ -61,6 +63,7 @@ class MarginNoteSyncResult {
   final int malformed;
   final int failed;
   final int deferred;
+  final int deleted;
 
   MarginNoteSyncResult operator +(MarginNoteSyncResult other) => MarginNoteSyncResult(
     imported: imported + other.imported,
@@ -71,6 +74,7 @@ class MarginNoteSyncResult {
     malformed: malformed + other.malformed,
     failed: failed + other.failed,
     deferred: deferred + other.deferred,
+    deleted: deleted + other.deleted,
   );
 }
 
@@ -98,17 +102,41 @@ class MarginNoteSyncService {
 
   Future<MarginNoteSyncResult> pull(String accountDid) async {
     var result = const MarginNoteSyncResult();
-    result += await _pullCollection(accountDid, MarginSyncCollection.collection, _importCollection);
-    result += await _pullCollection(accountDid, MarginSyncCollection.note, _importNote);
-    result += await _pullCollection(accountDid, MarginSyncCollection.collectionItem, _importCollectionItem);
+    final seenUrisByCollection = <MarginSyncCollection, Set<String>>{};
+    result += await _pullCollection(
+      accountDid,
+      MarginSyncCollection.collection,
+      _importCollection,
+      onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.collection] ??= <String>{}).add(uri),
+    );
+    result += await _pullCollection(
+      accountDid,
+      MarginSyncCollection.note,
+      _importNote,
+      onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.note] ??= <String>{}).add(uri),
+    );
+    result += await _pullCollection(
+      accountDid,
+      MarginSyncCollection.collectionItem,
+      _importCollectionItem,
+      onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.collectionItem] ??= <String>{}).add(uri),
+    );
+    for (final collection in MarginSyncCollection.values) {
+      result += await _verifyMissingMirrors(
+        accountDid,
+        collection,
+        seenUrisByCollection[collection] ?? const <String>{},
+      );
+    }
     return result;
   }
 
   Future<MarginNoteSyncResult> _pullCollection(
     String accountDid,
     MarginSyncCollection collection,
-    Future<MarginNoteSyncResult> Function(String accountDid, AtprotoRepoRecord record) importRecord,
-  ) async {
+    Future<MarginNoteSyncResult> Function(String accountDid, AtprotoRepoRecord record) importRecord, {
+    void Function(String uri)? onRecordSeen,
+  }) async {
     var result = const MarginNoteSyncResult();
     String? cursor;
     do {
@@ -119,6 +147,7 @@ class MarginNoteSyncService {
         limit: 100,
       );
       for (final record in page.records) {
+        onRecordSeen?.call(record.uri);
         result += await importRecord(accountDid, record);
       }
       cursor = page.cursor;
@@ -452,6 +481,35 @@ class MarginNoteSyncService {
   MarginNoteSyncResult _malformed(AtprotoRepoRecord remote, String message, {Object? error, StackTrace? stackTrace}) {
     _logger?.debug('$message uri=${remote.uri} cid=${remote.cid ?? 'unknown'}', error: error, stackTrace: stackTrace);
     return const MarginNoteSyncResult(malformed: 1);
+  }
+
+  Future<MarginNoteSyncResult> _verifyMissingMirrors(
+    String accountDid,
+    MarginSyncCollection collection,
+    Set<String> seenUris,
+  ) async {
+    var deleted = 0;
+    final deletionSync = AtprotoDeletionSyncService(
+      database: _database,
+      syncRepository: _syncRepository,
+      repoClient: _repoClient,
+      now: _now,
+      logger: _logger,
+    );
+    final mirrors = await _syncRepository.activeMirrors(accountDid: accountDid, collection: collection.value);
+    for (final mirror in mirrors) {
+      if (mirror.dirtyAt != null || seenUris.contains(mirror.uri)) {
+        continue;
+      }
+      final remote = await _repoClient.getRecord(did: accountDid, collection: mirror.collection, rkey: mirror.rkey);
+      if (remote != null) {
+        continue;
+      }
+      await deletionSync.markLocalRowDeleted(localTable: mirror.localTable, localId: mirror.localId, deletedAt: _now());
+      await _syncRepository.markMirrorDeleted(id: mirror.id, deletedAt: _now());
+      deleted += 1;
+    }
+    return MarginNoteSyncResult(deleted: deleted);
   }
 
   Future<void> _pushItem(AtprotoSyncOutboxData item) async {

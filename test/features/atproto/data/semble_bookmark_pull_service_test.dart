@@ -314,7 +314,6 @@ void main() {
     );
 
     final result = await service.pull('did:plc:alice');
-
     expect(result.deleted, 1);
     expect((await database.select(database.bookmarkCollectionLinks).get()).single.deletedAt, isNotNull);
     expect(
@@ -494,6 +493,103 @@ void main() {
     );
   });
 
+  test('skips mirrored duplicate collection links without rewriting another link mirror', () async {
+    await database
+        .into(database.bookmarks)
+        .insert(
+          BookmarksCompanion.insert(
+            id: 'local-bookmark',
+            url: 'https://example.com',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await database
+        .into(database.bookmarkFolders)
+        .insert(
+          BookmarkFoldersCompanion.insert(
+            id: 'local-folder',
+            title: 'Research',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await database
+        .into(database.bookmarkCollectionLinks)
+        .insert(
+          BookmarkCollectionLinksCompanion.insert(
+            id: 'local-link',
+            bookmarkId: 'local-bookmark',
+            folderId: 'local-folder',
+            createdAt: DateTime.utc(2026, 5, 26, 10),
+            updatedAt: DateTime.utc(2026, 5, 26, 10),
+          ),
+        );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: 'local-bookmark',
+      collection: SembleSyncCollection.card.value,
+      rkey: 'card-1',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
+      cid: 'cid-card-1',
+    );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+      localId: 'local-folder',
+      collection: SembleSyncCollection.collection.value,
+      rkey: 'collection-1',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/collection-1',
+      cid: 'cid-collection-1',
+    );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+      localId: 'local-link',
+      collection: SembleSyncCollection.collectionLink.value,
+      rkey: 'link-1',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.collectionLink.value}/link-1',
+      cid: 'cid-link-1',
+    );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+      localId: 'stale-local-link',
+      collection: SembleSyncCollection.collectionLink.value,
+      rkey: 'link-duplicate',
+      uri: 'at://did:plc:alice/${SembleSyncCollection.collectionLink.value}/link-duplicate',
+      cid: 'cid-link-duplicate',
+    );
+    _putRemote(
+      repoClient,
+      did: 'did:plc:alice',
+      collection: SembleSyncCollection.collectionLink.value,
+      rkey: 'link-duplicate',
+      cid: 'cid-link-duplicate-new',
+      value: _linkJson(
+        collectionUri: 'at://did:plc:alice/${SembleSyncCollection.collection.value}/collection-1',
+        collectionCid: 'cid-collection-1',
+        cardUri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
+        cardCid: 'cid-card-1',
+      ),
+    );
+
+    final result = await service.pull('did:plc:alice');
+
+    expect(result.linksImported, 0);
+    expect(result.duplicates, 1);
+    expect(result.malformed, 0);
+    expect(await database.select(database.bookmarkCollectionLinks).get(), hasLength(1));
+    expect(
+      (await syncRepository.mirrorForUri(
+        accountDid: 'did:plc:alice',
+        uri: 'at://did:plc:alice/${SembleSyncCollection.collectionLink.value}/link-duplicate',
+      ))?.localId,
+      'stale-local-link',
+    );
+  });
+
   test('counts and logs malformed records and links with missing refs', () async {
     final logDirectory = await Directory.systemTemp.createTemp('marker_semble_malformed_logs_');
     addTearDown(() async {
@@ -538,6 +634,7 @@ void main() {
 
     expect(result.malformed, 2);
     final logText = await File('${logDirectory.path}/$activeLogFileName').readAsString();
+    expect(logText, contains('"level":"error"'));
     expect(logText, contains('Semble card record is missing a valid URL'));
     expect(logText, contains('Semble collection link references records that are not mirrored locally'));
     expect(await database.select(database.bookmarks).get(), isEmpty);

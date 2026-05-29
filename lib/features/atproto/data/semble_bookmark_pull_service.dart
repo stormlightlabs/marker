@@ -379,7 +379,7 @@ class SembleBookmarkPullService {
             );
       } else {
         localId = existing.id;
-        duplicates = mirror == null ? 1 : 0;
+        duplicates = mirror == null || mirror.localId != existing.id ? 1 : 0;
         await (_database.update(_database.bookmarkCollectionLinks)..where((link) => link.id.equals(existing.id))).write(
           BookmarkCollectionLinksCompanion(
             updatedAt: Value(_newer(existing.updatedAt, record.createdAt ?? existing.updatedAt)),
@@ -389,7 +389,7 @@ class SembleBookmarkPullService {
       }
 
       final json = canonicalJson(remote.value);
-      if (duplicates == 0 || mirror != null) {
+      if (duplicates == 0 || mirror?.localId == localId) {
         await _syncRepository.upsertMirror(
           accountDid: accountDid,
           localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
@@ -470,7 +470,7 @@ class SembleBookmarkPullService {
     Object? error,
     StackTrace? stackTrace,
   }) {
-    _logger?.debug('$message uri=${remote.uri} cid=${remote.cid ?? 'unknown'}', error: error, stackTrace: stackTrace);
+    _logger?.error('$message uri=${remote.uri} cid=${remote.cid ?? 'unknown'}', error: error, stackTrace: stackTrace);
     return const SembleBookmarkPullResult(malformed: 1);
   }
 

@@ -264,6 +264,98 @@ void main() {
     expect(await database.select(database.annotations).get(), hasLength(2));
   });
 
+  test('pull tombstones mirrored Margin rows when remote records are missing', () async {
+    await _seedAnnotation(database, id: 'annotation-1', motivation: 'highlighting');
+    await database
+        .into(database.annotationCollections)
+        .insert(
+          AnnotationCollectionsCompanion.insert(
+            id: 'collection-1',
+            name: 'Research',
+            createdAt: DateTime.utc(2026, 5, 28, 10),
+            updatedAt: DateTime.utc(2026, 5, 28, 10),
+          ),
+        );
+    await database
+        .into(database.annotationCollectionItems)
+        .insert(
+          AnnotationCollectionItemsCompanion.insert(
+            id: 'item-1',
+            collectionId: 'collection-1',
+            annotationId: 'annotation-1',
+            createdAt: DateTime.utc(2026, 5, 28, 10),
+            updatedAt: DateTime.utc(2026, 5, 28, 10),
+          ),
+        );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotationCollections.value,
+      localId: 'collection-1',
+      collection: MarginSyncCollection.collection.value,
+      rkey: 'collection-1',
+      uri: 'at://did:plc:alice/at.margin.collection/collection-1',
+      cid: 'cid-collection-1',
+    );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotations.value,
+      localId: 'annotation-1',
+      collection: MarginSyncCollection.note.value,
+      rkey: 'note-1',
+      uri: 'at://did:plc:alice/at.margin.note/note-1',
+      cid: 'cid-note-1',
+    );
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotationCollectionItems.value,
+      localId: 'item-1',
+      collection: MarginSyncCollection.collectionItem.value,
+      rkey: 'item-1',
+      uri: 'at://did:plc:alice/at.margin.collectionItem/item-1',
+      cid: 'cid-item-1',
+    );
+
+    final result = await service.pull('did:plc:alice');
+
+    expect(result.deleted, 3);
+    expect((await database.select(database.annotationCollections).get()).single.deletedAt, isNotNull);
+    expect((await database.select(database.annotations).get()).single.deletedAt, isNotNull);
+    expect((await database.select(database.annotationCollectionItems).get()).single.deletedAt, isNotNull);
+    expect(
+      (await syncRepository.mirrorForUri(
+        accountDid: 'did:plc:alice',
+        uri: 'at://did:plc:alice/at.margin.note/note-1',
+      ))?.deletedAt,
+      isNotNull,
+    );
+  });
+
+  test('pull keeps dirty Margin mirrors when remote records are missing', () async {
+    await _seedAnnotation(database, id: 'annotation-1', motivation: 'highlighting');
+    await syncRepository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotations.value,
+      localId: 'annotation-1',
+      collection: MarginSyncCollection.note.value,
+      rkey: 'note-1',
+      uri: 'at://did:plc:alice/at.margin.note/note-1',
+      cid: 'cid-note-1',
+      dirtyAt: DateTime.utc(2026, 5, 28, 11),
+    );
+
+    final result = await service.pull('did:plc:alice');
+
+    expect(result.deleted, 0);
+    expect((await database.select(database.annotations).get()).single.deletedAt, isNull);
+    expect(
+      (await syncRepository.mirrorForUri(
+        accountDid: 'did:plc:alice',
+        uri: 'at://did:plc:alice/at.margin.note/note-1',
+      ))?.deletedAt,
+      isNull,
+    );
+  });
+
   test('pull counts and logs malformed selector records without importing', () async {
     final logDirectory = await Directory.systemTemp.createTemp('marker_margin_malformed_logs_');
     addTearDown(() async {
