@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/routes.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
@@ -24,6 +26,13 @@ enum LibraryAnnotationFilter {
   const LibraryAnnotationFilter(this.label);
 
   final String label;
+
+  LibraryAnnotationQueryFilter get queryFilter => switch (this) {
+    LibraryAnnotationFilter.all => LibraryAnnotationQueryFilter.all,
+    LibraryAnnotationFilter.highlights => LibraryAnnotationQueryFilter.highlights,
+    LibraryAnnotationFilter.notes => LibraryAnnotationQueryFilter.notes,
+    LibraryAnnotationFilter.underlines => LibraryAnnotationQueryFilter.underlines,
+  };
 
   bool matches(LibraryAnnotationItem annotation) => switch (this) {
     LibraryAnnotationFilter.all => true,
@@ -73,7 +82,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   onOpenPage: (id) => context.pushNamed(AppRoute.libraryPage.routeName, pathParameters: {'pageId': id}),
                   onOpenUrl: (url) => _openInBrowser(context, ref, url),
                   onOpenAnnotation: (annotationId) => _openAnnotation(context, annotationId),
-                  onOpenBookmarks: () => context.goNamed(AppRoute.bookmarks.routeName),
+                  onOpenBookmarks: () => context.pushNamed(AppRoute.bookmarks.routeName),
                   onOpenAnnotations: () => context.pushNamed(AppRoute.annotations.routeName),
                 ),
                 loading: () => const Center(child: CupertinoActivityIndicator()),
@@ -155,7 +164,7 @@ class _LibraryContent extends StatelessWidget {
           icon: CupertinoIcons.bookmark_fill,
           accentColor: CupertinoColors.activeBlue,
           onOpenPage: onOpenPage,
-          onShowAll: snapshot.bookmarkedPages.length > _librarySectionPreviewLimit ? onOpenBookmarks : null,
+          onShowAll: onOpenBookmarks,
         ),
         _AnnotationSection(
           annotations: snapshot.recentAnnotations,
@@ -270,7 +279,7 @@ class _AnnotationSection extends StatelessWidget {
             children: [
               for (final annotation in annotations.take(_librarySectionPreviewLimit))
                 _AnnotationRow(annotation: annotation, onPressed: () => onOpenAnnotation(annotation.id)),
-              if (annotations.length > _librarySectionPreviewLimit) _ShowAllRow(onPressed: onOpenAnnotations),
+              _ShowAllRow(onPressed: onOpenAnnotations),
             ],
           ),
         );
@@ -285,39 +294,32 @@ class AllAnnotationsScreen extends ConsumerStatefulWidget {
 
 class _AllAnnotationsScreenState extends ConsumerState<AllAnnotationsScreen> {
   final Set<String> _selectedIds = <String>{};
+  List<LibraryAnnotationGroup> _groups = const [];
+  LibraryAnnotationCursor? _nextCursor;
   LibraryAnnotationFilter _filter = LibraryAnnotationFilter.all;
+  Object? _error;
+  Object? _loadMoreError;
   bool _isEditing = false;
+  bool _isLoadingInitial = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = false;
+  int _requestGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_reloadAnnotations);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final groups = ref.watch(allAnnotationGroupsProvider);
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
       child: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            Expanded(
-              child: groups.when(
-                data: (items) => _AllAnnotationsContent(
-                  groups: items,
-                  filter: _filter,
-                  isEditing: _isEditing,
-                  selectedIds: _selectedIds,
-                  onFilterChanged: (value) => setState(() => _filter = value),
-                  onToggleEditing: () => setState(() {
-                    _isEditing = !_isEditing;
-                    _selectedIds.clear();
-                  }),
-                  onExportAll: () => _openExport(context, null, 'markdown'),
-                  onOpenPage: (id) => context.pushNamed(AppRoute.libraryPage.routeName, pathParameters: {'pageId': id}),
-                  onOpenAnnotation: (annotationId) => _openAnnotation(context, annotationId),
-                  onToggleSelection: _toggleSelection,
-                ),
-                loading: () => const Center(child: CupertinoActivityIndicator()),
-                error: (error, stackTrace) => _LibraryError(message: error.toString()),
-              ),
-            ),
+            Expanded(child: _buildBody(context)),
             if (_isEditing)
               _AnnotationEditBar(
                 selectedCount: _selectedIds.length,
@@ -325,11 +327,183 @@ class _AllAnnotationsScreenState extends ConsumerState<AllAnnotationsScreen> {
                 onExportMarkdown: _selectedIds.isEmpty ? null : () => _openExport(context, _selectedIds, 'markdown'),
                 onExportJson: _selectedIds.isEmpty ? null : () => _openExport(context, _selectedIds, 'json'),
                 onDelete: _selectedIds.isEmpty ? null : () => _deleteSelected(),
-              ),
+              )
+            else
+              const MarkerTabBar(activeRoute: AppRoute.annotations),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_isLoadingInitial) {
+      return const Center(child: CupertinoActivityIndicator());
+    }
+    final error = _error;
+    if (error != null) {
+      return _LibraryError(message: error.toString());
+    }
+    return _AllAnnotationsContent(
+      groups: _groups,
+      filter: _filter,
+      isEditing: _isEditing,
+      selectedIds: _selectedIds,
+      hasMore: _hasMore,
+      isLoadingMore: _isLoadingMore,
+      loadMoreError: _loadMoreError?.toString(),
+      onFilterChanged: _changeFilter,
+      onToggleEditing: () => setState(() {
+        _isEditing = !_isEditing;
+        _selectedIds.clear();
+      }),
+      onExportAll: () => _openExport(context, null, 'markdown'),
+      onOpenPage: (id) => context.pushNamed(AppRoute.libraryPage.routeName, pathParameters: {'pageId': id}),
+      onOpenAnnotation: (annotationId) => _openAnnotation(context, annotationId),
+      onToggleSelection: _toggleSelection,
+      onShowMore: _loadMoreAnnotations,
+    );
+  }
+
+  Future<void> _reloadAnnotations() async {
+    if (!mounted) {
+      return;
+    }
+    final repository = ref.read(libraryRepositoryProvider);
+    final logger = ref.read(appLoggerProvider);
+    final generation = ++_requestGeneration;
+    setState(() {
+      _isLoadingInitial = true;
+      _isLoadingMore = false;
+      _error = null;
+      _loadMoreError = null;
+      _nextCursor = null;
+      _hasMore = false;
+    });
+
+    try {
+      final page = await repository.loadAnnotationGroupsPage(limit: _annotationsPageSize, filter: _filter.queryFilter);
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+      setState(() {
+        _groups = page.groups;
+        _nextCursor = page.nextCursor;
+        _hasMore = page.hasMore;
+        _isLoadingInitial = false;
+      });
+      unawaited(_refreshLoadedFavicons(page.groups));
+    } on Object catch (error, stackTrace) {
+      logger.error('Failed to load annotation page.', error: error, stackTrace: stackTrace);
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+      setState(() {
+        _error = error;
+        _groups = const [];
+        _isLoadingInitial = false;
+      });
+    }
+  }
+
+  Future<void> _loadMoreAnnotations() async {
+    final cursor = _nextCursor;
+    if (_isLoadingMore || !_hasMore || cursor == null) {
+      return;
+    }
+    final repository = ref.read(libraryRepositoryProvider);
+    final logger = ref.read(appLoggerProvider);
+    final generation = _requestGeneration;
+    setState(() {
+      _isLoadingMore = true;
+      _loadMoreError = null;
+    });
+
+    try {
+      final page = await repository.loadAnnotationGroupsPage(
+        limit: _annotationsPageSize,
+        filter: _filter.queryFilter,
+        cursor: cursor,
+      );
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+      setState(() {
+        _groups = _mergeAnnotationGroups(_groups, page.groups);
+        _nextCursor = page.nextCursor;
+        _hasMore = page.hasMore;
+        _isLoadingMore = false;
+      });
+      unawaited(_refreshLoadedFavicons(page.groups));
+    } on Object catch (error, stackTrace) {
+      logger.error('Failed to load more annotations.', error: error, stackTrace: stackTrace);
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+      setState(() {
+        _loadMoreError = error;
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  Future<void> _refreshLoadedFavicons(List<LibraryAnnotationGroup> groups) async {
+    final repository = ref.read(libraryRepositoryProvider);
+    final logger = ref.read(appLoggerProvider);
+    try {
+      await repository.refreshMissingFaviconsForPageIds(groups.map((group) => group.id));
+    } on Object catch (error, stackTrace) {
+      logger.debug('Failed to refresh annotation page favicons.', error: error, stackTrace: stackTrace);
+    }
+  }
+
+  void _changeFilter(LibraryAnnotationFilter value) {
+    if (_filter == value) {
+      return;
+    }
+    setState(() {
+      _filter = value;
+      _selectedIds.clear();
+    });
+    unawaited(_reloadAnnotations());
+  }
+
+  List<LibraryAnnotationGroup> _mergeAnnotationGroups(
+    List<LibraryAnnotationGroup> existing,
+    List<LibraryAnnotationGroup> incoming,
+  ) {
+    final merged = existing.toList(growable: true);
+    for (final group in incoming) {
+      final index = merged.indexWhere((candidate) => candidate.url == group.url);
+      if (index == -1) {
+        merged.add(group);
+        continue;
+      }
+      final current = merged[index];
+      final annotationsById = <String, LibraryAnnotationItem>{
+        for (final annotation in current.annotations) annotation.id: annotation,
+        for (final annotation in group.annotations) annotation.id: annotation,
+      };
+      final annotations = annotationsById.values.toList(growable: false)..sort(_compareAnnotationsBySource);
+      merged[index] = LibraryAnnotationGroup(
+        id: current.id,
+        url: current.url,
+        title: current.title,
+        subtitle: current.subtitle,
+        faviconUrl: current.faviconUrl,
+        faviconFilePath: current.faviconFilePath ?? group.faviconFilePath,
+        bookmarkFolderPath: current.bookmarkFolderPath ?? group.bookmarkFolderPath,
+        annotations: annotations,
+      );
+    }
+    return merged;
+  }
+
+  int _compareAnnotationsBySource(LibraryAnnotationItem a, LibraryAnnotationItem b) {
+    if (a.isMarginBacked != b.isMarginBacked) {
+      return a.isMarginBacked ? -1 : 1;
+    }
+    return b.modifiedAt.compareTo(a.modifiedAt);
   }
 
   void _toggleSelection(String annotationId) {
@@ -377,6 +551,7 @@ class _AllAnnotationsScreenState extends ConsumerState<AllAnnotationsScreen> {
       _selectedIds.clear();
       _isEditing = false;
     });
+    unawaited(_reloadAnnotations());
   }
 
   Future<void> _editSelectedNote(String annotationId) async {
@@ -398,8 +573,11 @@ class _AllAnnotationsScreenState extends ConsumerState<AllAnnotationsScreen> {
     await ref.read(annotationRepositoryProvider).updateMarkdownBody(annotationId: annotationId, value: note);
     ref.invalidate(allAnnotationGroupsProvider);
     ref.invalidate(librarySnapshotProvider);
+    unawaited(_reloadAnnotations());
   }
 }
+
+const int _annotationsPageSize = 100;
 
 class _AllAnnotationsContent extends StatelessWidget {
   const _AllAnnotationsContent({
@@ -407,64 +585,70 @@ class _AllAnnotationsContent extends StatelessWidget {
     required this.filter,
     required this.isEditing,
     required this.selectedIds,
+    required this.hasMore,
+    required this.isLoadingMore,
+    required this.loadMoreError,
     required this.onFilterChanged,
     required this.onToggleEditing,
     required this.onExportAll,
     required this.onOpenPage,
     required this.onOpenAnnotation,
     required this.onToggleSelection,
+    required this.onShowMore,
   });
 
   final List<LibraryAnnotationGroup> groups;
   final LibraryAnnotationFilter filter;
   final bool isEditing;
   final Set<String> selectedIds;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final String? loadMoreError;
   final ValueChanged<LibraryAnnotationFilter> onFilterChanged;
   final VoidCallback onToggleEditing;
   final VoidCallback onExportAll;
   final ValueChanged<String> onOpenPage;
   final ValueChanged<String> onOpenAnnotation;
   final ValueChanged<String> onToggleSelection;
+  final VoidCallback onShowMore;
 
   @override
-  Widget build(BuildContext context) => CustomScrollView(
-    slivers: [
-      CupertinoSliverNavigationBar(
-        largeTitle: const Text('Annotations'),
-        backgroundColor: CupertinoColors.black,
-        border: null,
-        previousPageTitle: 'Library',
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: onExportAll,
-              child: const Icon(CupertinoIcons.square_arrow_up, size: 21),
-            ),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: onToggleEditing,
-              child: Text(isEditing ? 'Done' : 'Edit'),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      slivers: [
+        CupertinoSliverNavigationBar(
+          largeTitle: const Funnotation(color: CupertinoColors.activeBlue, child: Text('Annotations')),
+          backgroundColor: CupertinoColors.black,
+          border: null,
+          previousPageTitle: 'Library',
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: onExportAll,
+                child: const Icon(CupertinoIcons.square_arrow_up, size: 21),
+              ),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: onToggleEditing,
+                child: Text(isEditing ? 'Done' : 'Edit'),
+              ),
+            ],
+          ),
         ),
-      ),
-      SliverToBoxAdapter(
-        child: _AnnotationFilterBar(filter: filter, onChanged: onFilterChanged),
-      ),
-      if (groups.isEmpty)
-        const SliverFillRemaining(hasScrollBody: false, child: _EmptyAnnotations())
-      else ...[
-        for (final group in groups)
-          if (group.annotations.any(filter.matches))
+        SliverToBoxAdapter(
+          child: _AnnotationFilterBar(filter: filter, onChanged: onFilterChanged),
+        ),
+        if (groups.isEmpty)
+          const SliverFillRemaining(hasScrollBody: false, child: _EmptyAnnotations())
+        else ...[
+          for (final group in groups)
             SliverToBoxAdapter(
               child: _LibraryGroupFrame(
                 children: [
                   _AnnotationPageRow(group: group, onPressed: () => onOpenPage(group.id)),
-                  for (final entry in _annotationSectionEntries(
-                    group.annotations.where(filter.matches).toList(growable: false),
-                  ))
+                  for (final entry in _annotationSectionEntries(group.annotations))
                     if (entry.label != null)
                       _AnnotationSourceHeader(label: entry.label!, isMargin: entry.annotation.isMarginBacked)
                     else
@@ -478,10 +662,31 @@ class _AllAnnotationsContent extends StatelessWidget {
                 ],
               ),
             ),
-        const SliverToBoxAdapter(child: SizedBox(height: 18)),
+          if (loadMoreError != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                child: Text(
+                  loadMoreError!,
+                  style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 13, letterSpacing: 0),
+                ),
+              ),
+            ),
+          if (hasMore)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                child: CupertinoButton.filled(
+                  onPressed: isLoadingMore ? null : onShowMore,
+                  child: Text(isLoadingMore ? 'Loading…' : 'Load More'),
+                ),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 18)),
+        ],
       ],
-    ],
-  );
+    );
+  }
 
   List<_AnnotationSectionEntry> _annotationSectionEntries(List<LibraryAnnotationItem> annotations) {
     return [
@@ -772,19 +977,7 @@ class _AnnotationGroupFavicon extends StatelessWidget {
       );
     }
 
-    final faviconUrl = group.faviconUrl;
-    if (faviconUrl == null) {
-      return _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal);
-    }
-
-    return _FaviconFrame(
-      child: Image.network(
-        faviconUrl.toString(),
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) =>
-            _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal),
-      ),
-    );
+    return _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal);
   }
 }
 
@@ -889,19 +1082,7 @@ class _PageFavicon extends StatelessWidget {
       );
     }
 
-    final faviconUrl = page.faviconUrl;
-    if (faviconUrl == null) {
-      return _DomainPlaceholder(host: page.subtitle, icon: fallbackIcon, color: fallbackColor);
-    }
-
-    return _FaviconFrame(
-      child: Image.network(
-        faviconUrl.toString(),
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) =>
-            _DomainPlaceholder(host: page.subtitle, icon: fallbackIcon, color: fallbackColor),
-      ),
-    );
+    return _DomainPlaceholder(host: page.subtitle, icon: fallbackIcon, color: fallbackColor);
   }
 }
 
@@ -1304,7 +1485,14 @@ class _AnnotationFilterBar extends StatelessWidget {
               color: filter == candidate ? CupertinoColors.activeBlue : const Color(0xFF1C1C20),
               borderRadius: BorderRadius.circular(8),
               onPressed: () => onChanged(candidate),
-              child: Text(candidate.label, style: const TextStyle(fontSize: 13, letterSpacing: 0)),
+              child: Text(
+                candidate.label,
+                style: TextStyle(
+                  color: filter == candidate ? CupertinoColors.white : CupertinoColors.activeBlue,
+                  fontSize: 13,
+                  letterSpacing: 0,
+                ),
+              ),
             ),
           ),
       ],

@@ -264,13 +264,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
       await createLibrarySearchIndex();
+      await createPerformanceIndexes();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       if (from < 2) {
@@ -321,10 +322,14 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(annotationCollections);
         await m.createTable(annotationCollectionItems);
       }
+      if (from < 15) {
+        await createPerformanceIndexes();
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await createLibrarySearchIndex();
+      await createPerformanceIndexes();
     },
   );
 
@@ -380,6 +385,37 @@ CREATE VIRTUAL TABLE IF NOT EXISTS library_search_fts USING fts5(
   note_text,
   tokenize = 'unicode61'
 )
+''');
+  }
+
+  Future<void> createPerformanceIndexes() async {
+    await customStatement('''
+CREATE INDEX IF NOT EXISTS idx_annotations_deleted_modified
+ON annotations(deleted_at, modified_at DESC)
+''');
+    await customStatement('''
+CREATE INDEX IF NOT EXISTS idx_annotations_page_deleted_modified
+ON annotations(page_id, deleted_at, modified_at DESC)
+''');
+    await customStatement('''
+CREATE INDEX IF NOT EXISTS idx_annotation_targets_annotation
+ON annotation_targets(annotation_id)
+''');
+    await customStatement('''
+CREATE INDEX IF NOT EXISTS idx_annotation_bodies_annotation_type
+ON annotation_bodies(annotation_id, type)
+''');
+    await customStatement('''
+CREATE INDEX IF NOT EXISTS idx_bookmarks_deleted_created
+ON bookmarks(deleted_at, created_at DESC)
+''');
+    await customStatement('''
+CREATE INDEX IF NOT EXISTS idx_bookmark_links_bookmark_deleted_order
+ON bookmark_collection_links(bookmark_id, deleted_at, sort_order, created_at)
+''');
+    await customStatement('''
+CREATE INDEX IF NOT EXISTS idx_atproto_mirrors_annotation_lookup
+ON atproto_record_mirrors(local_id, local_table, collection, deleted_at, last_synced_at)
 ''');
   }
 }

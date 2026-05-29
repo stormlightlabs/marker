@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
 import 'package:marker/features/bookmarks/presentation/bookmarks_screen.dart';
+import 'package:rough_notation/rough_notation.dart';
 
 import '../../../helpers/harness.dart';
 
@@ -29,14 +30,14 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('Bookmarks'));
-    await pumpRouteTransition(tester);
+    await _openBookmarksFromLibrary(tester);
     expect(find.text('Bookmarks'), findsWidgets);
     expect(find.text('Library'), findsOneWidget);
     expect(find.text('Browser'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Programming'), findsOneWidget);
     expect(find.text('Example Article'), findsOneWidget);
+    expect(find.byType(RoughUnderlineAnnotation), findsNothing);
     final list = tester.widget<ReorderableList>(find.byType(ReorderableList));
     expect(list.padding, const EdgeInsets.fromLTRB(0, 10, 0, 24));
 
@@ -53,8 +54,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('Bookmarks'));
-    await pumpRouteTransition(tester);
+    await _openBookmarksFromLibrary(tester);
     await tester.tap(find.text('Programming'));
     await pumpRouteTransition(tester);
     expect(find.text('Child Bookmark'), findsOneWidget);
@@ -72,8 +72,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('Bookmarks'));
-    await pumpRouteTransition(tester);
+    await _openBookmarksFromLibrary(tester);
     await tester.longPress(find.text('Example Article'));
     await pumpRouteTransition(tester);
     expect(find.text('Bookmark'), findsOneWidget);
@@ -87,8 +86,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('Bookmarks'));
-    await pumpRouteTransition(tester);
+    await _openBookmarksFromLibrary(tester);
     await tester.tap(find.text('Edit'));
     await tester.pump();
     await tester.tap(find.text('Example Article'));
@@ -110,8 +108,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.tap(find.text('Bookmarks'));
-    await pumpRouteTransition(tester);
+    await _openBookmarksFromLibrary(tester);
 
     final list = tester.widget<ReorderableList>(find.byType(ReorderableList));
     list.onReorderItem!(0, 1);
@@ -140,6 +137,11 @@ void main() {
     await tester.pump();
     expect(find.text('Edit Bookmark'), findsOneWidget);
   });
+}
+
+Future<void> _openBookmarksFromLibrary(WidgetTester tester) async {
+  await tester.tap(find.text('Show All').first);
+  await pumpRouteTransition(tester);
 }
 
 Future<void> _seedBookmarkManager(AppDatabase database) async {

@@ -22,7 +22,7 @@ void main() {
     expect(find.text('Feeds'), findsWidgets);
     expect(find.text('Feeds are coming soon'), findsOneWidget);
     expect(find.text('Browser'), findsOneWidget);
-    expect(find.text('Bookmarks'), findsOneWidget);
+    expect(find.text('Bookmarks'), findsNothing);
     expect(find.text('Library'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
   });

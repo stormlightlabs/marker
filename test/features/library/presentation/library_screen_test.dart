@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/core/widgets/funnotation.dart';
 
 import '../../../helpers/harness.dart';
 
@@ -31,7 +32,7 @@ void main() {
     final recentAnnotationsTop = tester.getTopLeft(find.text('RECENT ANNOTATIONS')).dy;
     final recentlyAnnotatedTop = tester.getTopLeft(find.text('RECENTLY ANNOTATED')).dy;
     expect(recentAnnotationsTop, lessThan(recentlyAnnotatedTop));
-    expect(find.text('Show All'), findsNothing);
+    expect(find.text('Show All'), findsNWidgets(2));
     expect(find.text('Grouped by page'), findsNothing);
     expect(find.text('Saved Article'), findsOneWidget);
     expect(find.text('Recent Article'), findsWidgets);
@@ -56,18 +57,22 @@ void main() {
     await tester.pumpWidget(markerTestApp(database: database));
     await _openLibrary(tester);
 
-    expect(find.text('Show All'), findsOneWidget);
+    expect(find.text('Show All'), findsNWidgets(2));
     expect(find.text('important quote'), findsNothing);
     expect(find.text('extra quote 5'), findsOneWidget);
     expect(find.text('extra quote 1'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Show All'));
+    await tester.ensureVisible(find.text('Show All').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Show All'));
+    await tester.tap(find.text('Show All').last);
     await pumpRouteTransition(tester);
 
-    expect(find.text('Annotations'), findsOneWidget);
+    expect(find.text('Annotations'), findsWidgets);
+    expect(find.byType(Funnotation), findsWidgets);
     expect(find.text('Recent Article'), findsOneWidget);
+    expect(tester.widget<Text>(find.text('All').first).style?.color, CupertinoColors.white);
+    expect(tester.widget<Text>(find.text('Highlights').first).style?.color, CupertinoColors.activeBlue);
+    expect(find.text('Settings'), findsOneWidget);
   });
 
   testWidgets('searches library and opens recent annotated page detail', (tester) async {

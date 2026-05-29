@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -15,9 +16,15 @@ final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
   return LibraryRepository(ref.watch(databaseProvider), faviconCache: ref.watch(faviconCacheProvider));
 });
 
+enum LibraryAnnotationQueryFilter { all, highlights, notes, underlines }
+
 final librarySnapshotProvider = FutureProvider.autoDispose<LibrarySnapshot>((ref) async {
+  _keepAliveBriefly(ref);
   try {
-    return await ref.watch(libraryRepositoryProvider).loadSnapshot();
+    final repository = ref.watch(libraryRepositoryProvider);
+    final snapshot = await repository.loadSnapshot();
+    unawaited(_refreshSnapshotFavicons(ref, repository, snapshot));
+    return snapshot;
   } on Object catch (error, stackTrace) {
     ref.read(appLoggerProvider).error('Failed to load library snapshot.', error: error, stackTrace: stackTrace);
     rethrow;
@@ -25,8 +32,12 @@ final librarySnapshotProvider = FutureProvider.autoDispose<LibrarySnapshot>((ref
 });
 
 final allAnnotationGroupsProvider = FutureProvider.autoDispose<List<LibraryAnnotationGroup>>((ref) async {
+  _keepAliveBriefly(ref);
   try {
-    return await ref.watch(libraryRepositoryProvider).loadAnnotationGroups();
+    final repository = ref.watch(libraryRepositoryProvider);
+    final groups = await repository.loadAnnotationGroups();
+    unawaited(_refreshAnnotationGroupFavicons(ref, repository, groups));
+    return groups;
   } on Object catch (error, stackTrace) {
     ref
         .read(appLoggerProvider)
@@ -36,6 +47,7 @@ final allAnnotationGroupsProvider = FutureProvider.autoDispose<List<LibraryAnnot
 });
 
 final libraryPageDetailProvider = FutureProvider.autoDispose.family<LibraryPageDetail?, String>((ref, id) async {
+  _keepAliveBriefly(ref);
   try {
     return await ref.watch(libraryRepositoryProvider).loadPageDetail(id);
   } on Object catch (error, stackTrace) {
@@ -44,6 +56,52 @@ final libraryPageDetailProvider = FutureProvider.autoDispose.family<LibraryPageD
   }
 });
 
+const Duration _libraryProviderCacheDuration = Duration(minutes: 2);
+
+void _keepAliveBriefly(Ref ref) {
+  final link = ref.keepAlive();
+  Timer? timer;
+  ref.onCancel(() {
+    timer = Timer(_libraryProviderCacheDuration, link.close);
+  });
+  ref.onResume(() {
+    timer?.cancel();
+    timer = null;
+  });
+  ref.onDispose(() {
+    timer?.cancel();
+  });
+}
+
+Future<void> _refreshSnapshotFavicons(Ref ref, LibraryRepository repository, LibrarySnapshot snapshot) async {
+  try {
+    final changed = await repository.refreshMissingFaviconsForPageIds([
+      for (final page in snapshot.bookmarkedPages) page.id,
+      for (final page in snapshot.recentPages) page.id,
+    ]);
+    if (changed) {
+      ref.invalidateSelf();
+    }
+  } on Object catch (error, stackTrace) {
+    ref.read(appLoggerProvider).debug('Failed to refresh library favicons.', error: error, stackTrace: stackTrace);
+  }
+}
+
+Future<void> _refreshAnnotationGroupFavicons(
+  Ref ref,
+  LibraryRepository repository,
+  List<LibraryAnnotationGroup> groups,
+) async {
+  try {
+    final changed = await repository.refreshMissingFaviconsForPageIds(groups.map((group) => group.id));
+    if (changed) {
+      ref.invalidateSelf();
+    }
+  } on Object catch (error, stackTrace) {
+    ref.read(appLoggerProvider).debug('Failed to refresh annotation favicons.', error: error, stackTrace: stackTrace);
+  }
+}
+
 class LibraryRepository {
   LibraryRepository(this._database, {FaviconCache? faviconCache}) : _faviconCache = faviconCache;
 
@@ -51,11 +109,17 @@ class LibraryRepository {
   final FaviconCache? _faviconCache;
 
   Future<LibrarySnapshot> loadSnapshot() async {
-    final bookmarks = await _loadBookmarkedPages(limit: 12);
-    final recentPages = await _loadRecentPages(limit: 12);
-    final recentAnnotations = await _loadRecentAnnotations(limit: 12);
+    final results = await Future.wait<Object>([
+      _loadBookmarkedPages(limit: 12),
+      _loadRecentPages(limit: 12),
+      _loadRecentAnnotations(limit: 12),
+    ]);
 
-    return LibrarySnapshot(bookmarkedPages: bookmarks, recentPages: recentPages, recentAnnotations: recentAnnotations);
+    return LibrarySnapshot(
+      bookmarkedPages: results[0] as List<LibraryPageItem>,
+      recentPages: results[1] as List<LibraryPageItem>,
+      recentAnnotations: results[2] as List<LibraryAnnotationItem>,
+    );
   }
 
   Future<List<LibraryPageItem>> _loadBookmarkedPages({required int limit}) async {
@@ -65,55 +129,62 @@ class LibraryRepository {
               ..orderBy([(bookmark) => OrderingTerm.desc(bookmark.createdAt)])
               ..limit(limit))
             .get();
+    if (rows.isEmpty) {
+      return const [];
+    }
 
-    final items = <LibraryPageItem>[];
-    for (final bookmark in rows) {
-      final page = await _pageForUrl(bookmark.url);
-      final faviconFilePath = page == null ? null : await _faviconFilePathForPage(page);
-      final bookmarkFolderPath = await _bookmarkFolderPathForBookmark(bookmark.id);
-      items.add(
+    final pagesByUrl = await _pagesByUrls(rows.map((bookmark) => bookmark.url).toSet());
+    final countsByPageId = await _annotationCountsByPageIds({for (final page in pagesByUrl.values) page.id});
+    final folderPathsByBookmarkId = await _bookmarkFolderPathsByBookmarkIds(
+      rows.map((bookmark) => bookmark.id).toSet(),
+    );
+
+    return [
+      for (final bookmark in rows)
         LibraryPageItem(
-          id: page?.id ?? bookmark.id,
+          id: pagesByUrl[bookmark.url]?.id ?? bookmark.id,
           url: Uri.parse(bookmark.url),
           title: _fallbackTitle(bookmark.title, bookmark.url),
           subtitle: _hostFor(bookmark.url),
-          faviconUrl: _parseOptionalUri(page?.faviconUrl),
-          faviconFilePath: faviconFilePath,
-          bookmarkFolderPath: bookmarkFolderPath,
+          faviconUrl: _parseOptionalUri(pagesByUrl[bookmark.url]?.faviconUrl),
+          faviconFilePath: _storedFaviconFilePathForPage(pagesByUrl[bookmark.url]),
+          bookmarkFolderPath: folderPathsByBookmarkId[bookmark.id],
           annotationPreview: null,
-          annotationCount: page == null ? 0 : await _annotationCountForPage(page.id),
-          timestamp: page?.lastVisitedAt ?? bookmark.createdAt,
+          annotationCount: countsByPageId[pagesByUrl[bookmark.url]?.id] ?? 0,
+          timestamp: pagesByUrl[bookmark.url]?.lastVisitedAt ?? bookmark.createdAt,
         ),
-      );
-    }
-
-    return items;
+    ];
   }
 
   Future<List<LibraryPageItem>> _loadRecentPages({required int limit}) async {
-    final bookmarksByUrl = await _bookmarksByUrl();
-    final query = _database.select(_database.annotations)
-      ..where((annotation) => annotation.deletedAt.isNull())
-      ..orderBy([(annotation) => OrderingTerm.desc(annotation.modifiedAt)]);
+    final latestAnnotations = await _latestAnnotationsByPage(limit: limit);
+    if (latestAnnotations.isEmpty) {
+      return const [];
+    }
 
-    final rows = await query.get();
-    final seenPageIds = <String>{};
+    final pageIds = latestAnnotations.map((annotation) => annotation.pageId).toSet();
+    final pagesById = await _pagesByIds(pageIds);
+    final countsByPageId = await _annotationCountsByPageIds(pageIds);
+    final bodiesByAnnotationId = await _bodiesByAnnotationIds(
+      latestAnnotations.map((annotation) => annotation.id).toSet(),
+    );
+    final targetsByAnnotationId = await _targetsByAnnotationIds(
+      latestAnnotations.map((annotation) => annotation.id).toSet(),
+    );
+    final bookmarksByUrl = await _bookmarksByUrl();
+    final usedBookmarkIds = <String>{
+      for (final page in pagesById.values)
+        if (bookmarksByUrl[page.url] != null) bookmarksByUrl[page.url]!.id,
+    };
+    final folderPathsByBookmarkId = await _bookmarkFolderPathsByBookmarkIds(usedBookmarkIds);
 
     final items = <LibraryPageItem>[];
-    for (final annotation in rows) {
-      if (items.length >= limit || !seenPageIds.add(annotation.pageId)) {
-        continue;
-      }
-      final page = await (_database.select(
-        _database.pages,
-      )..where((page) => page.id.equals(annotation.pageId))).getSingleOrNull();
+    for (final annotation in latestAnnotations) {
+      final page = pagesById[annotation.pageId];
       if (page == null) {
         continue;
       }
-      final excerpt = await _excerptForAnnotation(annotation.id);
-      final faviconFilePath = await _faviconFilePathForPage(page);
       final bookmark = bookmarksByUrl[page.url];
-      final bookmarkFolderPath = bookmark == null ? null : await _bookmarkFolderPathForBookmark(bookmark.id);
       items.add(
         LibraryPageItem(
           id: page.id,
@@ -121,10 +192,13 @@ class LibraryRepository {
           title: _fallbackTitle(page.title, page.url),
           subtitle: _hostFor(page.canonicalUrl ?? page.url),
           faviconUrl: _parseOptionalUri(page.faviconUrl),
-          faviconFilePath: faviconFilePath,
-          bookmarkFolderPath: bookmarkFolderPath,
-          annotationPreview: excerpt,
-          annotationCount: await _annotationCountForPage(page.id),
+          faviconFilePath: _storedFaviconFilePathForPage(page),
+          bookmarkFolderPath: bookmark == null ? null : folderPathsByBookmarkId[bookmark.id],
+          annotationPreview: _excerptForAnnotationData(
+            bodiesByAnnotationId[annotation.id] ?? const [],
+            targetsByAnnotationId[annotation.id],
+          ),
+          annotationCount: countsByPageId[page.id] ?? 0,
           timestamp: annotation.modifiedAt,
         ),
       );
@@ -141,33 +215,7 @@ class LibraryRepository {
               ..limit(limit))
             .get();
 
-    final items = <LibraryAnnotationItem>[];
-    for (final annotation in rows) {
-      final page = await (_database.select(
-        _database.pages,
-      )..where((page) => page.id.equals(annotation.pageId))).getSingleOrNull();
-      if (page == null) {
-        continue;
-      }
-      final targets = await (_database.select(
-        _database.annotationTargets,
-      )..where((target) => target.annotationId.equals(annotation.id))).get();
-      final target = targets.firstOrNull;
-
-      items.add(
-        LibraryAnnotationItem(
-          id: annotation.id,
-          url: Uri.parse(target?.sourceUrl ?? page.url),
-          pageTitle: _fallbackTitle(page.title, page.url),
-          motivation: annotation.motivation,
-          visualStyle: await _visualStyleForAnnotation(annotation.id),
-          excerpt: await _excerptForAnnotation(annotation.id),
-          modifiedAt: annotation.modifiedAt,
-          isMarginBacked: await _isMarginBacked(annotation.id),
-        ),
-      );
-    }
-
+    final items = await _annotationItemsForRows(rows);
     return items..sort(_compareAnnotationsBySource);
   }
 
@@ -177,20 +225,96 @@ class LibraryRepository {
               ..where((annotation) => annotation.deletedAt.isNull())
               ..orderBy([(annotation) => OrderingTerm.desc(annotation.modifiedAt)]))
             .get();
-    final bookmarksByUrl = await _bookmarksByUrl();
-    final builders = <String, _LibraryAnnotationGroupBuilder>{};
+    return _annotationGroupsForRows(rows);
+  }
 
+  Future<LibraryAnnotationPage> loadAnnotationGroupsPage({
+    required int limit,
+    LibraryAnnotationQueryFilter filter = LibraryAnnotationQueryFilter.all,
+    LibraryAnnotationCursor? cursor,
+  }) async {
+    if (limit <= 0) {
+      throw ArgumentError.value(limit, 'limit', 'Annotation page limit must be positive.');
+    }
+
+    final rows = await _annotationRowsPage(limit: limit + 1, filter: filter, cursor: cursor);
+    final hasMore = rows.length > limit;
+    final visibleRows = hasMore ? rows.take(limit).toList(growable: false) : rows;
+    return LibraryAnnotationPage(
+      groups: await _annotationGroupsForRows(visibleRows),
+      nextCursor: hasMore && visibleRows.isNotEmpty ? LibraryAnnotationCursor.fromAnnotation(visibleRows.last) : null,
+      hasMore: hasMore,
+    );
+  }
+
+  Future<List<Annotation>> _annotationRowsPage({
+    required int limit,
+    required LibraryAnnotationQueryFilter filter,
+    LibraryAnnotationCursor? cursor,
+  }) {
+    final query = _database.select(_database.annotations)
+      ..where((annotation) {
+        Expression<bool> predicate = annotation.deletedAt.isNull();
+        if (cursor != null) {
+          predicate =
+              predicate &
+              (annotation.modifiedAt.isSmallerThanValue(cursor.modifiedAt) |
+                  (annotation.modifiedAt.equals(cursor.modifiedAt) & annotation.id.isSmallerThanValue(cursor.id)));
+        }
+
+        final isUnderline = CustomExpression<bool>(
+          '''EXISTS (SELECT 1 FROM annotation_bodies body WHERE body.annotation_id = annotations.id AND body.type = 'StyleHint' AND body.value LIKE '%${AnnotationVisualStyle.underline.name}%')''',
+        );
+        return switch (filter) {
+          LibraryAnnotationQueryFilter.all => predicate,
+          LibraryAnnotationQueryFilter.notes => predicate & annotation.motivation.equals('commenting'),
+          LibraryAnnotationQueryFilter.underlines => predicate & isUnderline,
+          LibraryAnnotationQueryFilter.highlights =>
+            predicate & annotation.motivation.equals('commenting').not() & isUnderline.not(),
+        };
+      })
+      ..orderBy([
+        (annotation) => OrderingTerm.desc(annotation.modifiedAt),
+        (annotation) => OrderingTerm.desc(annotation.id),
+      ])
+      ..limit(limit);
+    return query.get();
+  }
+
+  Future<List<LibraryAnnotationGroup>> _annotationGroupsForRows(List<Annotation> rows) async {
+    if (rows.isEmpty) {
+      return const [];
+    }
+
+    final pageIds = rows.map((annotation) => annotation.pageId).toSet();
+    final annotationIds = rows.map((annotation) => annotation.id).toSet();
+    final pagesById = await _pagesByIds(pageIds);
+    final targetsByAnnotationId = await _targetsByAnnotationIds(annotationIds);
+    final bodiesByAnnotationId = await _bodiesByAnnotationIds(annotationIds);
+    final marginBackedIds = await _marginBackedAnnotationIds(annotationIds);
+    final bookmarksByUrl = await _bookmarksByUrl();
+    final usedBookmarkIds = <String>{};
     for (final annotation in rows) {
-      final page = await (_database.select(
-        _database.pages,
-      )..where((page) => page.id.equals(annotation.pageId))).getSingleOrNull();
+      final page = pagesById[annotation.pageId];
       if (page == null) {
         continue;
       }
-      final targets = await (_database.select(
-        _database.annotationTargets,
-      )..where((target) => target.annotationId.equals(annotation.id))).get();
-      final target = targets.firstOrNull;
+      final target = targetsByAnnotationId[annotation.id];
+      final sourceUrl = target?.sourceUrl ?? page.url;
+      final bookmark = bookmarksByUrl[sourceUrl] ?? bookmarksByUrl[page.url];
+      if (bookmark != null) {
+        usedBookmarkIds.add(bookmark.id);
+      }
+    }
+    final folderPathsByBookmarkId = await _bookmarkFolderPathsByBookmarkIds(usedBookmarkIds);
+    final builders = <String, _LibraryAnnotationGroupBuilder>{};
+
+    for (final annotation in rows) {
+      final page = pagesById[annotation.pageId];
+      if (page == null) {
+        continue;
+      }
+      final target = targetsByAnnotationId[annotation.id];
       final sourceUrl = target?.sourceUrl ?? page.url;
       final url = Uri.parse(sourceUrl);
       final bookmark = bookmarksByUrl[sourceUrl] ?? bookmarksByUrl[page.url];
@@ -204,18 +328,18 @@ class LibraryRepository {
           faviconUrl: _parseOptionalUri(page.faviconUrl),
         ),
       );
-      builder.faviconFilePath ??= await _faviconFilePathForPage(page);
-      builder.bookmarkFolderPath ??= bookmark == null ? null : await _bookmarkFolderPathForBookmark(bookmark.id);
+      builder.faviconFilePath ??= _storedFaviconFilePathForPage(page);
+      builder.bookmarkFolderPath ??= bookmark == null ? null : folderPathsByBookmarkId[bookmark.id];
       builder.annotations.add(
         LibraryAnnotationItem(
           id: annotation.id,
           url: url,
           pageTitle: _fallbackTitle(page.title, page.url),
           motivation: annotation.motivation,
-          visualStyle: await _visualStyleForAnnotation(annotation.id),
-          excerpt: await _excerptForAnnotation(annotation.id),
+          visualStyle: _visualStyleForAnnotationBodies(bodiesByAnnotationId[annotation.id] ?? const []),
+          excerpt: _excerptForAnnotationData(bodiesByAnnotationId[annotation.id] ?? const [], target),
           modifiedAt: annotation.modifiedAt,
-          isMarginBacked: await _isMarginBacked(annotation.id),
+          isMarginBacked: marginBackedIds.contains(annotation.id),
         ),
       );
     }
@@ -251,42 +375,19 @@ class LibraryRepository {
       subtitle: _hostFor(page?.canonicalUrl ?? urlText),
       description: page?.description,
       faviconUrl: _parseOptionalUri(page?.faviconUrl),
-      faviconFilePath: page == null ? null : await _faviconFilePathForPage(page),
+      faviconFilePath: _storedFaviconFilePathForPage(page),
       bookmarkFolderPath: bookmark == null ? null : await _bookmarkFolderPathForBookmark(bookmark.id),
       annotations: annotations,
     );
   }
 
   Future<List<LibraryAnnotationItem>> _annotationsForPage(String pageId) async {
-    final page = await (_database.select(_database.pages)..where((page) => page.id.equals(pageId))).getSingleOrNull();
     final rows =
         await (_database.select(_database.annotations)
               ..where((annotation) => annotation.pageId.equals(pageId) & annotation.deletedAt.isNull())
               ..orderBy([(annotation) => OrderingTerm.desc(annotation.modifiedAt)]))
             .get();
-    final items = <LibraryAnnotationItem>[];
-    for (final annotation in rows) {
-      final targets = await (_database.select(
-        _database.annotationTargets,
-      )..where((target) => target.annotationId.equals(annotation.id))).get();
-      final target = targets.firstOrNull;
-      final sourceUrl = target?.sourceUrl ?? page?.url;
-      if (sourceUrl == null) {
-        continue;
-      }
-      items.add(
-        LibraryAnnotationItem(
-          id: annotation.id,
-          url: Uri.parse(sourceUrl),
-          pageTitle: _fallbackTitle(page?.title, sourceUrl),
-          motivation: annotation.motivation,
-          visualStyle: await _visualStyleForAnnotation(annotation.id),
-          excerpt: await _excerptForAnnotation(annotation.id),
-          modifiedAt: annotation.modifiedAt,
-          isMarginBacked: await _isMarginBacked(annotation.id),
-        ),
-      );
-    }
+    final items = await _annotationItemsForRows(rows);
     return items..sort(_compareAnnotationsBySource);
   }
 
@@ -316,72 +417,192 @@ class LibraryRepository {
     return rows.isEmpty ? null : rows.first;
   }
 
-  Future<int> _annotationCountForPage(String pageId) async {
+  Future<bool> refreshMissingFaviconsForPageIds(Iterable<String> pageIds) async {
+    final faviconCache = _faviconCache;
+    final ids = pageIds.toSet();
+    if (faviconCache == null || ids.isEmpty) {
+      return false;
+    }
+
+    final pagesById = await _pagesByIds(ids);
+    var changed = false;
+    for (final page in pagesById.values) {
+      final faviconUrl = _parseOptionalUri(page.faviconUrl);
+      if (faviconUrl == null) {
+        continue;
+      }
+
+      final storedPath = normalize(page.faviconFilePath);
+      if (storedPath != null && await File(storedPath).exists()) {
+        continue;
+      }
+
+      final refreshedPath = await faviconCache.cacheFavicon(faviconUrl);
+      if (refreshedPath == null || refreshedPath == storedPath) {
+        continue;
+      }
+
+      await (_database.update(
+        _database.pages,
+      )..where((row) => row.id.equals(page.id))).write(PagesCompanion(faviconFilePath: Value(refreshedPath)));
+      changed = true;
+    }
+    return changed;
+  }
+
+  Future<Map<String, Page>> _pagesByUrls(Set<String> urls) async {
+    if (urls.isEmpty) {
+      return const {};
+    }
+    final rows = await (_database.select(_database.pages)..where((page) => page.url.isIn(urls))).get();
+    return {for (final page in rows) page.url: page};
+  }
+
+  Future<Map<String, Page>> _pagesByIds(Set<String> ids) async {
+    if (ids.isEmpty) {
+      return const {};
+    }
+    final rows = await (_database.select(_database.pages)..where((page) => page.id.isIn(ids))).get();
+    return {for (final page in rows) page.id: page};
+  }
+
+  Future<Map<String, int>> _annotationCountsByPageIds(Set<String> pageIds) async {
+    if (pageIds.isEmpty) {
+      return const {};
+    }
     final count = _database.annotations.id.count();
     final query = _database.selectOnly(_database.annotations)
-      ..addColumns([count])
-      ..where(_database.annotations.pageId.equals(pageId) & _database.annotations.deletedAt.isNull());
-    final row = await query.getSingle();
-    return row.read(count) ?? 0;
+      ..addColumns([_database.annotations.pageId, count])
+      ..where(_database.annotations.pageId.isIn(pageIds) & _database.annotations.deletedAt.isNull())
+      ..groupBy([_database.annotations.pageId]);
+    final rows = await query.get();
+    return {
+      for (final row in rows)
+        if (row.read(_database.annotations.pageId) != null)
+          row.read(_database.annotations.pageId)!: row.read(count) ?? 0,
+    };
   }
 
-  Future<String?> _faviconFilePathForPage(Page page) async {
-    final storedPath = normalize(page.faviconFilePath);
-    if (storedPath != null && await File(storedPath).exists()) {
-      return storedPath;
-    }
+  Future<List<Annotation>> _latestAnnotationsByPage({required int limit}) async {
+    final latestModified = _database.annotations.modifiedAt.max();
+    final query = _database.selectOnly(_database.annotations)
+      ..addColumns([_database.annotations.pageId, latestModified])
+      ..where(_database.annotations.deletedAt.isNull())
+      ..groupBy([_database.annotations.pageId])
+      ..orderBy([OrderingTerm(expression: latestModified, mode: OrderingMode.desc)])
+      ..limit(limit);
+    final groupedRows = await query.get();
 
-    final faviconUrl = _parseOptionalUri(page.faviconUrl);
-    final faviconCache = _faviconCache;
-    if (faviconUrl == null || faviconCache == null) {
-      return storedPath;
-    }
-
-    final refreshedPath = await faviconCache.cacheFavicon(faviconUrl);
-    if (refreshedPath == null) {
-      return storedPath;
-    }
-
-    await (_database.update(
-      _database.pages,
-    )..where((row) => row.id.equals(page.id))).write(PagesCompanion(faviconFilePath: Value(refreshedPath)));
-    return refreshedPath;
-  }
-
-  Future<String> _excerptForAnnotation(String annotationId) async {
-    final bodies = await (_database.select(
-      _database.annotationBodies,
-    )..where((body) => body.annotationId.equals(annotationId))).get();
-    final targets = await (_database.select(
-      _database.annotationTargets,
-    )..where((target) => target.annotationId.equals(annotationId))).get();
-    final target = targets.firstOrNull;
-    AnnotationBody? textualBody;
-    for (final body in bodies) {
-      if (body.type == 'TextualBody') {
-        textualBody = body;
-        break;
+    final annotations = <Annotation>[];
+    for (final row in groupedRows) {
+      final pageId = row.read(_database.annotations.pageId);
+      final modifiedAt = row.read(latestModified);
+      if (pageId == null || modifiedAt == null) {
+        continue;
+      }
+      final annotation =
+          await (_database.select(_database.annotations)
+                ..where(
+                  (annotation) =>
+                      annotation.pageId.equals(pageId) &
+                      annotation.modifiedAt.equals(modifiedAt) &
+                      annotation.deletedAt.isNull(),
+                )
+                ..orderBy([(annotation) => OrderingTerm.desc(annotation.id)])
+                ..limit(1))
+              .getSingleOrNull();
+      if (annotation != null) {
+        annotations.add(annotation);
       }
     }
-
-    return _annotationExcerpt(textualBody?.value, target?.selectorJson);
+    return annotations;
   }
 
-  Future<bool> _isMarginBacked(String annotationId) async {
-    final row =
-        await (_database.select(_database.atprotoRecordMirrors)
-              ..where(
-                (mirror) =>
-                    mirror.localId.equals(annotationId) &
-                    mirror.localTable.equals(AtprotoSyncLocalTable.annotations.value) &
-                    mirror.collection.equals(MarginSyncCollection.note.value) &
-                    mirror.deletedAt.isNull() &
-                    mirror.lastSyncedAt.isNotNull(),
-              )
-              ..limit(1))
-            .getSingleOrNull();
-    return row != null;
+  Future<Map<String, AnnotationTarget>> _targetsByAnnotationIds(Set<String> annotationIds) async {
+    if (annotationIds.isEmpty) {
+      return const {};
+    }
+    final rows =
+        await (_database.select(_database.annotationTargets)
+              ..where((target) => target.annotationId.isIn(annotationIds))
+              ..orderBy([(target) => OrderingTerm.asc(target.id)]))
+            .get();
+    final targets = <String, AnnotationTarget>{};
+    for (final target in rows) {
+      targets.putIfAbsent(target.annotationId, () => target);
+    }
+    return targets;
   }
+
+  Future<Map<String, List<AnnotationBody>>> _bodiesByAnnotationIds(Set<String> annotationIds) async {
+    if (annotationIds.isEmpty) {
+      return const {};
+    }
+    final rows =
+        await (_database.select(_database.annotationBodies)
+              ..where((body) => body.annotationId.isIn(annotationIds))
+              ..orderBy([(body) => OrderingTerm.asc(body.id)]))
+            .get();
+    final bodies = <String, List<AnnotationBody>>{};
+    for (final body in rows) {
+      bodies.putIfAbsent(body.annotationId, () => []).add(body);
+    }
+    return bodies;
+  }
+
+  Future<Set<String>> _marginBackedAnnotationIds(Set<String> annotationIds) async {
+    if (annotationIds.isEmpty) {
+      return const {};
+    }
+    final rows =
+        await (_database.select(_database.atprotoRecordMirrors)..where(
+              (mirror) =>
+                  mirror.localId.isIn(annotationIds) &
+                  mirror.localTable.equals(AtprotoSyncLocalTable.annotations.value) &
+                  mirror.collection.equals(MarginSyncCollection.note.value) &
+                  mirror.deletedAt.isNull() &
+                  mirror.lastSyncedAt.isNotNull(),
+            ))
+            .get();
+    return {for (final row in rows) row.localId};
+  }
+
+  Future<List<LibraryAnnotationItem>> _annotationItemsForRows(List<Annotation> rows) async {
+    if (rows.isEmpty) {
+      return [];
+    }
+
+    final pageIds = rows.map((annotation) => annotation.pageId).toSet();
+    final annotationIds = rows.map((annotation) => annotation.id).toSet();
+    final pagesById = await _pagesByIds(pageIds);
+    final targetsByAnnotationId = await _targetsByAnnotationIds(annotationIds);
+    final bodiesByAnnotationId = await _bodiesByAnnotationIds(annotationIds);
+    final marginBackedIds = await _marginBackedAnnotationIds(annotationIds);
+
+    final items = <LibraryAnnotationItem>[];
+    for (final annotation in rows) {
+      final page = pagesById[annotation.pageId];
+      if (page == null) {
+        continue;
+      }
+      final target = targetsByAnnotationId[annotation.id];
+      items.add(
+        LibraryAnnotationItem(
+          id: annotation.id,
+          url: Uri.parse(target?.sourceUrl ?? page.url),
+          pageTitle: _fallbackTitle(page.title, page.url),
+          motivation: annotation.motivation,
+          visualStyle: _visualStyleForAnnotationBodies(bodiesByAnnotationId[annotation.id] ?? const []),
+          excerpt: _excerptForAnnotationData(bodiesByAnnotationId[annotation.id] ?? const [], target),
+          modifiedAt: annotation.modifiedAt,
+          isMarginBacked: marginBackedIds.contains(annotation.id),
+        ),
+      );
+    }
+    return items;
+  }
+
+  String? _storedFaviconFilePathForPage(Page? page) => page == null ? null : normalize(page.faviconFilePath);
 
   int _compareAnnotationsBySource(LibraryAnnotationItem a, LibraryAnnotationItem b) {
     if (a.isMarginBacked != b.isMarginBacked) {
@@ -390,10 +611,7 @@ class LibraryRepository {
     return b.modifiedAt.compareTo(a.modifiedAt);
   }
 
-  Future<AnnotationVisualStyle> _visualStyleForAnnotation(String annotationId) async {
-    final bodies = await (_database.select(
-      _database.annotationBodies,
-    )..where((body) => body.annotationId.equals(annotationId))).get();
+  AnnotationVisualStyle _visualStyleForAnnotationBodies(List<AnnotationBody> bodies) {
     for (final body in bodies) {
       if (body.type != 'StyleHint') {
         continue;
@@ -408,6 +626,17 @@ class LibraryRepository {
       }
     }
     return AnnotationVisualStyle.highlight;
+  }
+
+  String _excerptForAnnotationData(List<AnnotationBody> bodies, AnnotationTarget? target) {
+    AnnotationBody? textualBody;
+    for (final body in bodies) {
+      if (body.type == 'TextualBody') {
+        textualBody = body;
+        break;
+      }
+    }
+    return _annotationExcerpt(textualBody?.value, target?.selectorJson);
   }
 
   String _annotationExcerpt(String? bodyValue, String? selectorJson) {
@@ -470,16 +699,39 @@ class LibraryRepository {
     return normalized == null ? null : Uri.tryParse(normalized);
   }
 
-  Future<String?> _bookmarkFolderPathForBookmark(String bookmarkId) async {
+  Future<Map<String, String>> _bookmarkFolderPathsByBookmarkIds(Set<String> bookmarkIds) async {
+    if (bookmarkIds.isEmpty) {
+      return const {};
+    }
+
     final links =
         await (_database.select(_database.bookmarkCollectionLinks)
-              ..where((row) => row.bookmarkId.equals(bookmarkId) & row.deletedAt.isNull())
+              ..where((row) => row.bookmarkId.isIn(bookmarkIds) & row.deletedAt.isNull())
               ..orderBy([(row) => OrderingTerm.asc(row.sortOrder), (row) => OrderingTerm.asc(row.createdAt)]))
             .get();
-    return _bookmarkFolderPath(links.firstOrNull?.folderId);
+    final firstFolderIdByBookmarkId = <String, String>{};
+    for (final link in links) {
+      firstFolderIdByBookmarkId.putIfAbsent(link.bookmarkId, () => link.folderId);
+    }
+    if (firstFolderIdByBookmarkId.isEmpty) {
+      return const {};
+    }
+
+    final folders = await _database.select(_database.bookmarkFolders).get();
+    final foldersById = {for (final folder in folders) folder.id: folder};
+    return {
+      for (final entry in firstFolderIdByBookmarkId.entries)
+        if (_bookmarkFolderPathFromMap(entry.value, foldersById) != null)
+          entry.key: _bookmarkFolderPathFromMap(entry.value, foldersById)!,
+    };
   }
 
-  Future<String?> _bookmarkFolderPath(String? folderId) async {
+  Future<String?> _bookmarkFolderPathForBookmark(String bookmarkId) async {
+    final paths = await _bookmarkFolderPathsByBookmarkIds({bookmarkId});
+    return paths[bookmarkId];
+  }
+
+  String? _bookmarkFolderPathFromMap(String? folderId, Map<String, BookmarkFolder> foldersById) {
     if (folderId == null) {
       return null;
     }
@@ -492,9 +744,7 @@ class LibraryRepository {
       if (!seen.add(folderKey)) {
         break;
       }
-      final folder = await (_database.select(
-        _database.bookmarkFolders,
-      )..where((folder) => folder.id.equals(folderKey))).getSingleOrNull();
+      final folder = foldersById[folderKey];
       if (folder == null) {
         break;
       }
@@ -566,6 +816,25 @@ class LibraryPageItem {
   final String? annotationPreview;
   final int annotationCount;
   final DateTime timestamp;
+}
+
+class LibraryAnnotationPage {
+  const LibraryAnnotationPage({required this.groups, required this.nextCursor, required this.hasMore});
+
+  final List<LibraryAnnotationGroup> groups;
+  final LibraryAnnotationCursor? nextCursor;
+  final bool hasMore;
+}
+
+class LibraryAnnotationCursor {
+  const LibraryAnnotationCursor({required this.modifiedAt, required this.id});
+
+  factory LibraryAnnotationCursor.fromAnnotation(Annotation annotation) {
+    return LibraryAnnotationCursor(modifiedAt: annotation.modifiedAt, id: annotation.id);
+  }
+
+  final DateTime modifiedAt;
+  final String id;
 }
 
 class LibraryAnnotationGroup {

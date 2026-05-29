@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/core/shared/utils/json_utils.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
@@ -19,6 +20,7 @@ final sembleBookmarkPushServiceProvider = Provider<SembleBookmarkPushService>((r
     database: ref.watch(databaseProvider),
     syncRepository: ref.watch(atprotoSyncRepositoryProvider),
     repoClient: ref.watch(atprotoRepoClientProvider),
+    logger: ref.watch(appLoggerProvider),
   );
 });
 
@@ -27,15 +29,18 @@ class SembleBookmarkPushService {
     required AppDatabase database,
     required AtprotoSyncRepository syncRepository,
     required AtprotoRepoClient repoClient,
+    AppLogger? logger,
     DateTime Function()? now,
   }) : _database = database,
        _syncRepository = syncRepository,
        _repoClient = repoClient,
+       _logger = logger,
        _now = now ?? (() => DateTime.now().toUtc());
 
   final AppDatabase _database;
   final AtprotoSyncRepository _syncRepository;
   final AtprotoRepoClient _repoClient;
+  final AppLogger? _logger;
   final DateTime Function() _now;
 
   Future<SembleBookmarkPushResult> pushPending(String accountDid, {int limit = 100}) async {
@@ -43,7 +48,8 @@ class SembleBookmarkPushService {
     var result = const SembleBookmarkPushResult();
     for (final item in pending.where(
       (item) =>
-          item.operation == AtprotoSyncOperation.create.value || item.operation == AtprotoSyncOperation.update.value,
+          _isSembleOutboxItem(item) &&
+          (item.operation == AtprotoSyncOperation.create.value || item.operation == AtprotoSyncOperation.update.value),
     )) {
       if (!_isDue(item)) {
         result += const SembleBookmarkPushResult(deferred: 1);
@@ -57,7 +63,13 @@ class SembleBookmarkPushService {
           created: item.operation == AtprotoSyncOperation.create.value ? 1 : 0,
           updated: item.operation == AtprotoSyncOperation.update.value ? 1 : 0,
         );
-      } on Object catch (error) {
+      } on Object catch (error, stackTrace) {
+        _logger?.error(
+          'Failed to push Semble bookmark outbox item. '
+          'id=${item.id} localTable=${item.localTable} localId=${item.localId} collection=${item.collection}',
+          error: error,
+          stackTrace: stackTrace,
+        );
         await _syncRepository.markOutboxAttempt(
           id: item.id,
           attemptCount: item.attemptCount + 1,
@@ -73,6 +85,22 @@ class SembleBookmarkPushService {
     if (item.attemptCount <= 0) return true;
     final backoff = Duration(minutes: 1 << (item.attemptCount - 1).clamp(0, 5));
     return !item.updatedAt.add(backoff).isAfter(_now());
+  }
+
+  bool _isSembleOutboxItem(AtprotoSyncOutboxData item) {
+    if (item.localTable == AtprotoSyncLocalTable.bookmarks.value &&
+        item.collection == SembleSyncCollection.card.value) {
+      return true;
+    }
+    if (item.localTable == AtprotoSyncLocalTable.bookmarkFolders.value &&
+        item.collection == SembleSyncCollection.collection.value) {
+      return true;
+    }
+    if (item.localTable == AtprotoSyncLocalTable.bookmarkCollectionLinks.value &&
+        item.collection == SembleSyncCollection.collectionLink.value) {
+      return true;
+    }
+    return false;
   }
 
   Future<void> _pushItem(AtprotoSyncOutboxData item) async {

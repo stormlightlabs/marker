@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/navigation.dart';
 import 'package:marker/app/routes.dart';
-import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
@@ -34,7 +33,7 @@ class BookmarksScreen extends ConsumerWidget {
                 error: (error, stackTrace) => _BookmarkError(message: error.toString()),
               ),
             ),
-            if (folderId == null) const MarkerTabBar(activeRoute: AppRoute.bookmarks),
+            if (folderId == null) const MarkerTabBar(activeRoute: AppRoute.library),
           ],
         ),
       ),
@@ -227,7 +226,7 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
         _BookmarkHeader(
           title: contents.folder?.title ?? 'Bookmarks',
           funEnabled: funEnabled,
-          canPop: folderId != null,
+          canPop: folderId != null || context.canPop(),
           isEditing: _isEditing,
           onBackPressed: () => popOrGoNamed(context, AppRoute.bookmarks),
           onCreateFolder: () => _createFolder(context, ref),
@@ -513,7 +512,8 @@ class _BookmarkTitle extends StatelessWidget {
   final String text;
   final bool funEnabled;
 
-  Widget get _title => Text(
+  @override
+  Widget build(BuildContext context) => Text(
     text,
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
@@ -526,10 +526,6 @@ class _BookmarkTitle extends StatelessWidget {
           )
         : const TextStyle(color: CupertinoColors.white, fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 0),
   );
-
-  @override
-  Widget build(BuildContext context) =>
-      !funEnabled ? _title : Funnotation(color: CupertinoColors.activeBlue, strokeWidth: 2, padding: 3, child: _title);
 }
 
 class _BookmarkItemBlock extends ConsumerWidget {
@@ -558,41 +554,39 @@ class _BookmarkItemBlock extends ConsumerWidget {
   final VoidCallback? onInfoPressed;
   final ValueChanged<BookmarkEntryRef> onDroppedOnFolder;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final row = _BookmarkRow(
-      item: item,
-      index: index,
-      isEditing: isEditing,
-      isSelected: isSelected,
-      isExpanded: isExpanded,
-      onPressed: onPressed,
-      onLongPress: onLongPress,
-      onInfoPressed: onInfoPressed,
-    );
+  Widget get _row => _BookmarkRow(
+    item: item,
+    index: index,
+    isEditing: isEditing,
+    isSelected: isSelected,
+    isExpanded: isExpanded,
+    onPressed: onPressed,
+    onLongPress: onLongPress,
+    onInfoPressed: onInfoPressed,
+  );
 
-    return Column(
-      key: key,
-      children: [
-        if (sectionLabel != null) _BookmarkSourceHeader(label: sectionLabel!, isSemble: item.isSembleBacked),
-        if (item.type == BookmarkEntryType.folder)
-          DragTarget<BookmarkEntryRef>(
-            onWillAcceptWithDetails: (details) => details.data.key != item.key,
-            onAcceptWithDetails: (details) => onDroppedOnFolder(details.data),
-            builder: (context, candidateData, rejectedData) => DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: candidateData.isEmpty ? null : Border.all(color: CupertinoColors.activeBlue, width: 1.5),
-              ),
-              child: row,
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Column(
+    key: key,
+    children: [
+      if (sectionLabel != null) _BookmarkSourceHeader(label: sectionLabel!, isSemble: item.isSembleBacked),
+      if (item.type == BookmarkEntryType.folder)
+        DragTarget<BookmarkEntryRef>(
+          onWillAcceptWithDetails: (details) => details.data.key != item.key,
+          onAcceptWithDetails: (details) => onDroppedOnFolder(details.data),
+          builder: (context, candidateData, rejectedData) => DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: candidateData.isEmpty ? null : Border.all(color: CupertinoColors.activeBlue, width: 1.5),
             ),
-          )
-        else
-          row,
-        if (item.type == BookmarkEntryType.folder && isExpanded) _ExpandedFolderContents(folderId: item.id, depth: 1),
-      ],
-    );
-  }
+            child: _row,
+          ),
+        )
+      else
+        _row,
+      if (item.type == BookmarkEntryType.folder && isExpanded) _ExpandedFolderContents(folderId: item.id, depth: 1),
+    ],
+  );
 }
 
 class _ExpandedFolderContents extends ConsumerWidget {
@@ -762,6 +756,7 @@ class _BookmarkRow extends StatelessWidget {
             LongPressDraggable<BookmarkEntryRef>(
               data: item.ref,
               feedback: _DragFeedback(title: item.title),
+              // FIXME: this icon choice is awful
               childWhenDragging: const Icon(CupertinoIcons.arrow_right_arrow_left, color: CupertinoColors.systemGrey3),
               child: const Icon(CupertinoIcons.arrow_right_arrow_left, color: CupertinoColors.systemGrey2, size: 20),
             ),
@@ -818,6 +813,7 @@ class _BookmarkSourceIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = item.type == BookmarkEntryType.folder ? CupertinoColors.systemYellow : CupertinoColors.activeBlue;
+    final kind = item.type == BookmarkEntryType.folder ? CupertinoIcons.folder_fill : CupertinoIcons.bookmark_fill;
     return Container(
       width: 36,
       height: 36,
@@ -825,11 +821,7 @@ class _BookmarkSourceIcon extends StatelessWidget {
       alignment: Alignment.center,
       child: item.isSembleBacked
           ? SvgPicture.asset('assets/icons/semble.svg', width: 21, height: 21)
-          : Icon(
-              item.type == BookmarkEntryType.folder ? CupertinoIcons.folder_fill : CupertinoIcons.bookmark_fill,
-              color: color,
-              size: 19,
-            ),
+          : Icon(kind, color: color, size: 19),
     );
   }
 }

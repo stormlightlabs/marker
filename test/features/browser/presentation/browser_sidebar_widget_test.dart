@@ -33,7 +33,7 @@ void main() {
     await tester.tap(find.text('3'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Annotations'), findsOneWidget);
+    expect(find.text('Annotations'), findsWidgets);
     expect(find.text('All (3)'), findsOneWidget);
     expect(find.text('Highlights'), findsOneWidget);
     expect(find.text('Notes'), findsOneWidget);

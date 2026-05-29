@@ -35,7 +35,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoute.bookmarks.path,
         name: AppRoute.bookmarks.routeName,
-        pageBuilder: (context, state) => MarkerTabPage<void>(key: state.pageKey, child: const BookmarksScreen()),
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const BookmarksScreen()),
       ),
       GoRoute(
         path: AppRoute.bookmarksExport.path,
@@ -97,9 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoute.annotations.path,
         name: AppRoute.annotations.routeName,
-        pageBuilder: (context, state) {
-          return MarkerTransitionPage<void>(key: state.pageKey, child: const AllAnnotationsScreen());
-        },
+        pageBuilder: (context, state) => MarkerTabPage<void>(key: state.pageKey, child: const AllAnnotationsScreen()),
       ),
       GoRoute(
         path: AppRoute.libraryPage.path,

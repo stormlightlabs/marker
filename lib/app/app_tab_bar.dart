@@ -9,64 +9,55 @@ class MarkerTabBar extends StatelessWidget {
   final AppRoute activeRoute;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: Color(0xFF111114),
-        border: Border(top: BorderSide(color: Color(0xFF2A2A30), width: 0.5)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 58,
-          child: Row(
-            children: [
-              Expanded(
-                child: _TabBarItem(
-                  icon: CupertinoIcons.globe,
-                  label: 'Browser',
-                  isActive: activeRoute == AppRoute.browser,
-                  onPressed: () => context.goNamed(AppRoute.browser.routeName),
-                ),
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      color: Color(0xFF111114),
+      border: Border(top: BorderSide(color: Color(0xFF2A2A30), width: 0.5)),
+    ),
+    child: SafeArea(
+      top: false,
+      child: SizedBox(
+        height: 58,
+        child: Row(
+          children: [
+            Expanded(
+              child: _TabBarItem(
+                icon: CupertinoIcons.globe,
+                label: 'Browser',
+                isActive: activeRoute == AppRoute.browser,
+                onPressed: () => context.goNamed(AppRoute.browser.routeName),
               ),
-              Expanded(
-                child: _TabBarItem(
-                  icon: material.Icons.rss_feed,
-                  label: 'Feeds',
-                  isActive: activeRoute == AppRoute.feeds,
-                  onPressed: () => context.goNamed(AppRoute.feeds.routeName),
-                ),
+            ),
+            Expanded(
+              child: _TabBarItem(
+                icon: material.Icons.rss_feed,
+                label: 'Feeds',
+                isActive: activeRoute == AppRoute.feeds,
+                onPressed: () => context.goNamed(AppRoute.feeds.routeName),
               ),
-              Expanded(
-                child: _TabBarItem(
-                  icon: CupertinoIcons.collections,
-                  label: 'Library',
-                  isActive: activeRoute == AppRoute.library,
-                  onPressed: () => context.goNamed(AppRoute.library.routeName),
-                ),
+            ),
+            Expanded(
+              child: _TabBarItem(
+                icon: CupertinoIcons.collections,
+                label: 'Library',
+                isActive: activeRoute == AppRoute.library,
+                onPressed: () => context.goNamed(AppRoute.library.routeName),
               ),
-              Expanded(
-                child: _TabBarItem(
-                  icon: CupertinoIcons.bookmark_fill,
-                  label: 'Bookmarks',
-                  isActive: activeRoute == AppRoute.bookmarks,
-                  onPressed: () => context.goNamed(AppRoute.bookmarks.routeName),
-                ),
+            ),
+
+            Expanded(
+              child: _TabBarItem(
+                icon: CupertinoIcons.settings,
+                label: 'Settings',
+                isActive: activeRoute == AppRoute.settings,
+                onPressed: () => context.goNamed(AppRoute.settings.routeName),
               ),
-              Expanded(
-                child: _TabBarItem(
-                  icon: CupertinoIcons.settings,
-                  label: 'Settings',
-                  isActive: activeRoute == AppRoute.settings,
-                  onPressed: () => context.goNamed(AppRoute.settings.routeName),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _TabBarItem extends StatelessWidget {
@@ -80,7 +71,6 @@ class _TabBarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isActive ? CupertinoColors.activeBlue : CupertinoColors.systemGrey;
-
     return Semantics(
       button: true,
       selected: isActive,

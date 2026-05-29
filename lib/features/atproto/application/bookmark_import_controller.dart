@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
 import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/margin_note_sync_service.dart';
@@ -85,7 +86,8 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
       );
       state = AtprotoBookmarkImportSucceeded(result);
       return result;
-    } on Object {
+    } on Object catch (error, stackTrace) {
+      ref.read(appLoggerProvider).error('ATProto bookmark sync failed.', error: error, stackTrace: stackTrace);
       state = const AtprotoBookmarkImportFailed('Could not sync bookmarks. Check your connection and try again.');
       return null;
     }

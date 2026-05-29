@@ -178,7 +178,13 @@ class MarginNoteSyncService {
         await _pushItem(item);
         await _syncRepository.deleteOutbox(item.id);
         result += const MarginNoteSyncResult(pushed: 1);
-      } on Object catch (error) {
+      } on Object catch (error, stackTrace) {
+        _logger?.error(
+          'Failed to push Margin outbox item. '
+          'id=${item.id} localTable=${item.localTable} localId=${item.localId} collection=${item.collection}',
+          error: error,
+          stackTrace: stackTrace,
+        );
         await _syncRepository.markOutboxAttempt(
           id: item.id,
           attemptCount: item.attemptCount + 1,

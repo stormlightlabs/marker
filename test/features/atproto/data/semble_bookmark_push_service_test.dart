@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/core/logging/app_logger.dart';
+import 'package:marker/core/logging/log_files.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -139,7 +143,41 @@ void main() {
     expect(mirror?.lastSyncedRecordJson, contains('Updated'));
   });
 
-  test('defers retries during backoff and records useful errors', () async {
+  test('ignores Margin outbox items instead of trying to push them to Semble', () async {
+    await syncRepository.enqueueOutbox(
+      accountDid: 'did:plc:alice',
+      operation: AtprotoSyncOperation.create.value,
+      localTable: AtprotoSyncLocalTable.annotations.value,
+      localId: 'annotation-1',
+      collection: MarginSyncCollection.note.value,
+    );
+
+    final result = await service.pushPending('did:plc:alice');
+    final pending = await syncRepository.pendingOutbox(accountDid: 'did:plc:alice');
+
+    expect(result.pushed, 0);
+    expect(result.failed, 0);
+    expect(repoClient.calls, isEmpty);
+    expect(pending.single.collection, MarginSyncCollection.note.value);
+    expect(pending.single.attemptCount, 0);
+    expect(pending.single.lastError, isNull);
+  });
+
+  test('defers retries during backoff and records and logs useful errors', () async {
+    final logDirectory = await Directory.systemTemp.createTemp('marker_semble_push_logs_');
+    addTearDown(() async {
+      if (await logDirectory.exists()) await logDirectory.delete(recursive: true);
+    });
+    final logger = await AppLogger.initialize(directory: logDirectory);
+    addTearDown(logger.close);
+    service = SembleBookmarkPushService(
+      database: database,
+      syncRepository: syncRepository,
+      repoClient: repoClient,
+      logger: logger,
+      now: () => DateTime.utc(2026, 5, 27, 12),
+    );
+
     await database
         .into(database.bookmarks)
         .insert(
@@ -185,6 +223,10 @@ void main() {
     expect(attempted.id, outbox.id);
     expect(attempted.attemptCount, 1);
     expect(attempted.lastError, contains('Sync the bookmark folder before its folder link'));
+    final logText = await File('${logDirectory.path}/$activeLogFileName').readAsString();
+    expect(logText, contains('Failed to push Semble bookmark outbox item'));
+    expect(logText, contains('localTable=bookmark_collection_links'));
+    expect(logText, contains('Sync the bookmark folder before its folder link'));
 
     final deferred = await service.pushPending('did:plc:alice');
     expect(deferred.deferred, 1);

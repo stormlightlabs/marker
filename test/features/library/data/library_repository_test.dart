@@ -77,6 +77,56 @@ void main() {
     expect(savedGroup.annotations.single.isMarginBacked, isTrue);
   });
 
+  test('paginates annotation groups with keyset cursors and database filters', () async {
+    await _seedLibrary(database);
+    final base = DateTime.utc(2026, 5, 13, 12);
+    await _insertAnnotation(
+      database,
+      id: 'highlight-annotation',
+      pageId: 'recent-page',
+      modifiedAt: base.add(const Duration(minutes: 1)),
+      exact: 'highlight quote',
+    );
+    await _insertAnnotation(
+      database,
+      id: 'underline-annotation',
+      pageId: 'recent-page',
+      modifiedAt: base.add(const Duration(minutes: 2)),
+      exact: 'underline quote',
+      isUnderline: true,
+    );
+    await _insertAnnotation(
+      database,
+      id: 'note-annotation',
+      pageId: 'recent-page',
+      modifiedAt: base.add(const Duration(minutes: 3)),
+      exact: 'note quote',
+      motivation: 'commenting',
+    );
+
+    final first = await repository.loadAnnotationGroupsPage(limit: 2);
+    final second = await repository.loadAnnotationGroupsPage(limit: 2, cursor: first.nextCursor);
+    final notes = await repository.loadAnnotationGroupsPage(limit: 10, filter: LibraryAnnotationQueryFilter.notes);
+    final underlines = await repository.loadAnnotationGroupsPage(
+      limit: 10,
+      filter: LibraryAnnotationQueryFilter.underlines,
+    );
+    final highlights = await repository.loadAnnotationGroupsPage(
+      limit: 10,
+      filter: LibraryAnnotationQueryFilter.highlights,
+    );
+
+    expect(first.hasMore, isTrue);
+    expect(_annotationIds(first.groups), ['note-annotation', 'underline-annotation']);
+    expect(second.hasMore, isTrue);
+    expect(_annotationIds(second.groups), ['highlight-annotation', 'recent-annotation']);
+    expect(_annotationIds(notes.groups), ['note-annotation']);
+    expect(_annotationIds(underlines.groups), ['underline-annotation']);
+    expect(_annotationIds(highlights.groups), isNot(contains('note-annotation')));
+    expect(_annotationIds(highlights.groups), isNot(contains('underline-annotation')));
+    expect(_annotationIds(highlights.groups), containsAll(['highlight-annotation', 'recent-annotation']));
+  });
+
   test('ignores deleted annotations in counts and recent annotations', () async {
     final now = DateTime.utc(2026, 5, 13, 12);
     await database
@@ -109,7 +159,28 @@ void main() {
     expect(snapshot.recentAnnotations, isEmpty);
   });
 
-  test('recaches favicon files when the stored cache path is missing', () async {
+  test('snapshot load returns stored favicon paths without network recaching', () async {
+    var fetchCount = 0;
+    await _seedLibrary(database);
+    repository = LibraryRepository(
+      database,
+      faviconCache: FaviconCache(
+        fetcher: (url) async {
+          fetchCount += 1;
+          return FaviconFetchResult(bytes: Uint8List.fromList([7, 8, 9]), contentType: 'image/x-icon');
+        },
+      ),
+    );
+
+    final snapshot = await repository.loadSnapshot();
+    final page = await (database.select(database.pages)..where((row) => row.id.equals('recent-page'))).getSingle();
+
+    expect(snapshot.recentPages.first.faviconFilePath, '/cache/favicons/example.ico');
+    expect(page.faviconFilePath, '/cache/favicons/example.ico');
+    expect(fetchCount, 0);
+  });
+
+  test('refreshes missing favicon files on demand', () async {
     final directory = await Directory.systemTemp.createTemp('marker_library_favicon_test_');
     addTearDown(() async {
       if (directory.existsSync()) {
@@ -125,13 +196,64 @@ void main() {
       ),
     );
 
-    final snapshot = await repository.loadSnapshot();
+    final changed = await repository.refreshMissingFaviconsForPageIds(['recent-page']);
     final page = await (database.select(database.pages)..where((row) => row.id.equals('recent-page'))).getSingle();
 
-    expect(snapshot.recentPages.first.faviconFilePath, isNot('/cache/favicons/example.ico'));
-    expect(snapshot.recentPages.first.faviconFilePath, page.faviconFilePath);
+    expect(changed, isTrue);
+    expect(page.faviconFilePath, isNot('/cache/favicons/example.ico'));
     expect(await File(page.faviconFilePath!).readAsBytes(), [7, 8, 9]);
   });
+}
+
+List<String> _annotationIds(List<LibraryAnnotationGroup> groups) {
+  return [
+    for (final group in groups)
+      for (final annotation in group.annotations) annotation.id,
+  ];
+}
+
+Future<void> _insertAnnotation(
+  AppDatabase database, {
+  required String id,
+  required String pageId,
+  required DateTime modifiedAt,
+  required String exact,
+  String motivation = 'highlighting',
+  bool isUnderline = false,
+}) async {
+  await database
+      .into(database.annotations)
+      .insert(
+        AnnotationsCompanion.insert(
+          id: id,
+          pageId: pageId,
+          motivation: motivation,
+          createdAt: modifiedAt,
+          modifiedAt: modifiedAt,
+        ),
+      );
+  await database
+      .into(database.annotationTargets)
+      .insert(
+        AnnotationTargetsCompanion.insert(
+          id: '$id-target',
+          annotationId: id,
+          sourceUrl: 'https://example.com/recent',
+          selectorJson: '{"selector":[{"type":"TextQuoteSelector","exact":"$exact"}]}',
+        ),
+      );
+  if (isUnderline) {
+    await database
+        .into(database.annotationBodies)
+        .insert(
+          AnnotationBodiesCompanion.insert(
+            id: '$id-style',
+            annotationId: id,
+            type: 'StyleHint',
+            value: '{"style":"underline"}',
+          ),
+        );
+  }
 }
 
 Future<void> _seedLibrary(AppDatabase database) async {
