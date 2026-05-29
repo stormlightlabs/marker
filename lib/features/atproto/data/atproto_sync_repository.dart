@@ -9,6 +9,10 @@ final atprotoSyncRepositoryProvider = Provider<AtprotoSyncRepository>((ref) {
   return AtprotoSyncRepository(ref.watch(databaseProvider));
 });
 
+const String atprotoAutoSelectPageAnnotationsSettingPrefix = 'atproto.auto_select_page_annotations.';
+
+enum AtprotoLocalSyncStatus { localOnly, syncPending, synced, needsAttention }
+
 class AtprotoSyncRepository {
   AtprotoSyncRepository(this._database, {Uuid? uuid, DateTime Function()? now})
     : _uuid = uuid ?? const Uuid(),
@@ -348,6 +352,51 @@ class AtprotoSyncRepository {
         .getSingleOrNull();
   }
 
+  Future<Map<String, AtprotoLocalSyncStatus>> localSyncStatuses({
+    required String accountDid,
+    required String localTable,
+    required String collection,
+    required Iterable<String> localIds,
+  }) async {
+    final ids = localIds.toSet();
+    if (ids.isEmpty) return const <String, AtprotoLocalSyncStatus>{};
+
+    final selections = await activeSelections(accountDid: accountDid, localTable: localTable, collection: collection);
+    final selectedIds = selections.map((selection) => selection.localId).where(ids.contains).toSet();
+    final mirrors =
+        await (_database.select(_database.atprotoRecordMirrors)..where(
+              (mirror) =>
+                  mirror.accountDid.equals(accountDid) &
+                  mirror.localTable.equals(localTable) &
+                  mirror.collection.equals(collection) &
+                  mirror.localId.isIn(ids),
+            ))
+            .get();
+    final pending = await pendingOutbox(accountDid: accountDid, limit: 1000);
+    final pendingById = <String, AtprotoSyncOutboxData>{};
+    for (final item in pending.where(
+      (item) => item.localTable == localTable && item.collection == collection && ids.contains(item.localId),
+    )) {
+      pendingById[item.localId] = item;
+    }
+    final syncedIds = mirrors
+        .where((mirror) => mirror.lastSyncedAt != null && mirror.deletedAt == null)
+        .map((mirror) => mirror.localId)
+        .toSet();
+
+    return {
+      for (final id in ids)
+        id: (() {
+          final pendingItem = pendingById[id];
+          if (pendingItem?.lastError?.trim().isNotEmpty == true) return AtprotoLocalSyncStatus.needsAttention;
+          if (syncedIds.contains(id)) return AtprotoLocalSyncStatus.synced;
+          if (!selectedIds.contains(id)) return AtprotoLocalSyncStatus.localOnly;
+          if (pendingItem != null) return AtprotoLocalSyncStatus.syncPending;
+          return AtprotoLocalSyncStatus.syncPending;
+        })(),
+    };
+  }
+
   Future<List<AtprotoSyncSelection>> activeSelections({String? accountDid, String? localTable, String? collection}) {
     final query = _database.select(_database.atprotoSyncSelections)
       ..where((selection) => selection.deselectedAt.isNull())
@@ -510,6 +559,112 @@ class AtprotoSyncRepository {
     }
   }
 
+  Future<void> selectBookmarkForSync(String accountDid, String bookmarkId) async {
+    final links = await (_database.select(
+      _database.bookmarkCollectionLinks,
+    )..where((row) => row.bookmarkId.equals(bookmarkId) & row.deletedAt.isNull())).get();
+    await transaction((sync) async {
+      await sync.selectForSync(
+        accountDid: accountDid,
+        localTable: AtprotoSyncLocalTable.bookmarks.value,
+        localId: bookmarkId,
+        collection: SembleSyncCollection.card.value,
+      );
+      for (final link in links) {
+        await sync.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+          localId: link.folderId,
+          collection: SembleSyncCollection.collection.value,
+        );
+        await sync.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+          localId: link.id,
+          collection: SembleSyncCollection.collectionLink.value,
+        );
+      }
+    });
+  }
+
+  Future<void> selectBookmarkFolderForSync(String accountDid, String folderId) async {
+    final folders = await (_database.select(_database.bookmarkFolders)..where((row) => row.deletedAt.isNull())).get();
+    final links = await (_database.select(
+      _database.bookmarkCollectionLinks,
+    )..where((row) => row.deletedAt.isNull())).get();
+    final folderIds = <String>{folderId};
+    var foundChild = true;
+    while (foundChild) {
+      foundChild = false;
+      for (final folder in folders) {
+        if (folder.parentId != null && folderIds.contains(folder.parentId) && folderIds.add(folder.id)) {
+          foundChild = true;
+        }
+      }
+    }
+    final bookmarkIds = links.where((link) => folderIds.contains(link.folderId)).map((link) => link.bookmarkId).toSet();
+    await transaction((sync) async {
+      for (final id in folderIds) {
+        await sync.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+          localId: id,
+          collection: SembleSyncCollection.collection.value,
+        );
+      }
+      for (final bookmarkId in bookmarkIds) {
+        await sync.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.bookmarks.value,
+          localId: bookmarkId,
+          collection: SembleSyncCollection.card.value,
+        );
+      }
+      for (final link in links.where((link) => folderIds.contains(link.folderId))) {
+        await sync.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+          localId: link.id,
+          collection: SembleSyncCollection.collectionLink.value,
+        );
+      }
+    });
+  }
+
+  Future<void> deselectBookmarkForSync(String accountDid, String bookmarkId, {bool deleteRemote = false}) async {
+    final links = await (_database.select(
+      _database.bookmarkCollectionLinks,
+    )..where((row) => row.bookmarkId.equals(bookmarkId) & row.deletedAt.isNull())).get();
+    await transaction((sync) async {
+      await sync.deselectForSync(
+        accountDid: accountDid,
+        localTable: AtprotoSyncLocalTable.bookmarks.value,
+        localId: bookmarkId,
+        collection: SembleSyncCollection.card.value,
+        deleteRemote: deleteRemote,
+      );
+      for (final link in links) {
+        await sync.deselectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+          localId: link.id,
+          collection: SembleSyncCollection.collectionLink.value,
+          deleteRemote: deleteRemote,
+        );
+      }
+    });
+  }
+
+  Future<void> deselectBookmarkFolderForSync(String accountDid, String folderId, {bool deleteRemote = false}) {
+    return deselectForSync(
+      accountDid: accountDid,
+      localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+      localId: folderId,
+      collection: SembleSyncCollection.collection.value,
+      deleteRemote: deleteRemote,
+    );
+  }
+
   Future<void> selectAllBookmarksForSync(String accountDid) async {
     final folders = await (_database.select(_database.bookmarkFolders)..where((row) => row.deletedAt.isNull())).get();
     final bookmarks = await (_database.select(_database.bookmarks)..where((row) => row.deletedAt.isNull())).get();
@@ -542,6 +697,64 @@ class AtprotoSyncRepository {
         );
       }
     });
+  }
+
+  Future<void> selectAnnotationsForPageForSync(String accountDid, String pageId) async {
+    final annotations = await (_database.select(
+      _database.annotations,
+    )..where((row) => row.pageId.equals(pageId) & row.deletedAt.isNull())).get();
+    await transaction((sync) async {
+      for (final annotation in annotations) {
+        await sync.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.annotations.value,
+          localId: annotation.id,
+          collection: MarginSyncCollection.note.value,
+        );
+      }
+      await sync._setAutoSelectEnabled('$atprotoAutoSelectPageAnnotationsSettingPrefix$accountDid.$pageId', true);
+    });
+  }
+
+  Future<void> deselectAnnotationsForPageForSync(String accountDid, String pageId, {bool deleteRemote = false}) async {
+    final annotations = await (_database.select(
+      _database.annotations,
+    )..where((row) => row.pageId.equals(pageId) & row.deletedAt.isNull())).get();
+    await transaction((sync) async {
+      for (final annotation in annotations) {
+        await sync.deselectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.annotations.value,
+          localId: annotation.id,
+          collection: MarginSyncCollection.note.value,
+          deleteRemote: deleteRemote,
+        );
+      }
+      await sync._setAutoSelectEnabled('$atprotoAutoSelectPageAnnotationsSettingPrefix$accountDid.$pageId', false);
+    });
+  }
+
+  Future<List<String>> accountsWithAutoSelectForAnnotationPage(String pageId) async {
+    const prefix = atprotoAutoSelectPageAnnotationsSettingPrefix;
+    final rows = await (_database.select(
+      _database.appSettings,
+    )..where((setting) => setting.key.like('$prefix%.$pageId') & setting.value.equals('true'))).get();
+    return rows
+        .map((row) => row.key.substring(prefix.length, row.key.length - '.$pageId'.length))
+        .where((accountDid) => accountDid.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<void> selectAnnotationForPageAutoSyncAccounts({required String pageId, required String annotationId}) async {
+    final accountDids = await accountsWithAutoSelectForAnnotationPage(pageId);
+    for (final accountDid in accountDids) {
+      await selectForSync(
+        accountDid: accountDid,
+        localTable: AtprotoSyncLocalTable.annotations.value,
+        localId: annotationId,
+        collection: MarginSyncCollection.note.value,
+      );
+    }
   }
 
   Future<void> selectAllAnnotationsForSync(String accountDid) async {

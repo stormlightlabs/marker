@@ -518,8 +518,36 @@ class BookmarkManagerRepository {
     await (_database.update(
       _database.bookmarks,
     )..where((bookmark) => bookmark.id.equals(bookmarkId))).write(BookmarksCompanion(updatedAt: Value(now)));
+    await _selectLinkForSyncedFolder(bookmarkId: bookmarkId, folderId: folderId, linkId: link.id);
     await _enqueueBookmarkChange(bookmarkId);
     await _enqueueLinkChange(link.id);
+  }
+
+  Future<void> _selectLinkForSyncedFolder({
+    required String bookmarkId,
+    required String folderId,
+    required String linkId,
+  }) async {
+    final syncRepository = _syncRepository;
+    if (syncRepository == null) return;
+    final folderSelections = await syncRepository.activeSelections(
+      localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+      collection: SembleSyncCollection.collection.value,
+    );
+    for (final selection in folderSelections.where((selection) => selection.localId == folderId)) {
+      await syncRepository.selectForSync(
+        accountDid: selection.accountDid,
+        localTable: AtprotoSyncLocalTable.bookmarks.value,
+        localId: bookmarkId,
+        collection: SembleSyncCollection.card.value,
+      );
+      await syncRepository.selectForSync(
+        accountDid: selection.accountDid,
+        localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+        localId: linkId,
+        collection: SembleSyncCollection.collectionLink.value,
+      );
+    }
   }
 
   Future<void> _enqueueBookmarkChange(String bookmarkId) async {

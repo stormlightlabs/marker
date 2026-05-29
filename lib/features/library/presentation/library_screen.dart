@@ -11,18 +11,31 @@ import 'package:marker/app/routes.dart';
 import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
+import 'package:marker/features/atproto/application/bookmark_import_controller.dart';
 import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
-import 'package:marker/features/atproto/presentation/atproto_sync_status_row.dart';
+import 'package:marker/features/atproto/presentation/sync_state_badge.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/browser/presentation/note_editor_sheet.dart';
+import 'package:marker/features/library/data/library_refresh.dart';
 import 'package:marker/features/library/data/library_repository.dart';
 import 'package:marker/features/library/data/library_search_repository.dart';
 import 'package:marker/shared/widgets/marker_list_widgets.dart';
 
-enum LibraryTab { library, bookmarks, annotations }
+final _annotationSyncStatusProvider = FutureProvider.autoDispose
+    .family<AtprotoLocalSyncStatus, ({String accountDid, String annotationId})>((ref, args) async {
+      final statuses = await ref
+          .watch(atprotoSyncRepositoryProvider)
+          .localSyncStatuses(
+            accountDid: args.accountDid,
+            localTable: AtprotoSyncLocalTable.annotations.value,
+            collection: MarginSyncCollection.note.value,
+            localIds: [args.annotationId],
+          );
+      return statuses[args.annotationId] ?? AtprotoLocalSyncStatus.localOnly;
+    });
 
 enum LibraryAnnotationFilter {
   all('All'),
@@ -60,7 +73,6 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   late final TextEditingController _searchController = TextEditingController();
   String _query = '';
-  LibraryTab _activeTab = LibraryTab.library;
 
   @override
   void dispose() {
@@ -86,9 +98,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   query: _query,
                   searchController: _searchController,
                   searchResults: searchResults,
-                  activeTab: _activeTab,
-                  onTabChanged: (value) => setState(() => _activeTab = value),
                   onSearchChanged: (value) => setState(() => _query = value),
+                  onRefresh: _refreshLibrary,
                   onOpenPage: (id) => context.pushNamed(AppRoute.libraryPage.routeName, pathParameters: {'pageId': id}),
                   onOpenUrl: (url) => _openInBrowser(context, ref, url),
                   onOpenAnnotation: (annotationId) => _openAnnotation(context, annotationId),
@@ -106,6 +117,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
+  Future<void> _refreshLibrary() async {
+    invalidateLibraryWidgetData(ref);
+    await ref.read(librarySnapshotProvider.future);
+    if (_query.trim().isNotEmpty) {
+      await ref.read(librarySearchProvider(_query).future);
+    }
+  }
+
   void _openInBrowser(BuildContext context, WidgetRef ref, Uri url) {
     final controller = ref.read(readerControllerProvider.notifier);
     controller.setUrlText(url.toString());
@@ -117,15 +136,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 }
 
-class _LibraryContent extends StatelessWidget {
+class _LibraryContent extends ConsumerWidget {
   const _LibraryContent({
     required this.snapshot,
     required this.query,
     required this.searchController,
     required this.searchResults,
-    required this.activeTab,
-    required this.onTabChanged,
     required this.onSearchChanged,
+    required this.onRefresh,
     required this.onOpenPage,
     required this.onOpenUrl,
     required this.onOpenAnnotation,
@@ -137,9 +155,8 @@ class _LibraryContent extends StatelessWidget {
   final String query;
   final TextEditingController searchController;
   final AsyncValue<List<LibrarySearchResult>>? searchResults;
-  final LibraryTab activeTab;
-  final ValueChanged<LibraryTab> onTabChanged;
   final ValueChanged<String> onSearchChanged;
+  final Future<void> Function() onRefresh;
   final ValueChanged<String> onOpenPage;
   final ValueChanged<Uri> onOpenUrl;
   final ValueChanged<String> onOpenAnnotation;
@@ -147,17 +164,25 @@ class _LibraryContent extends StatelessWidget {
   final VoidCallback onOpenAnnotations;
 
   @override
-  Widget build(BuildContext context) => CustomScrollView(
+  Widget build(BuildContext context, WidgetRef ref) => CustomScrollView(
+    physics: const AlwaysScrollableScrollPhysics(),
     slivers: [
-      const CupertinoSliverNavigationBar(
-        largeTitle: Text('Library'),
+      CupertinoSliverNavigationBar(
+        largeTitle: Row(
+          children: [
+            const Expanded(child: Text('Library')),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size.square(34),
+              onPressed: () => _showLibraryMenu(context, ref),
+              child: const Icon(CupertinoIcons.ellipsis_circle, size: 24),
+            ),
+          ],
+        ),
         backgroundColor: CupertinoColors.black,
         border: null,
       ),
-      const SliverToBoxAdapter(child: AtprotoSyncStatusRow()),
-      SliverToBoxAdapter(
-        child: _LibraryTabBar(activeTab: activeTab, onChanged: onTabChanged),
-      ),
+      CupertinoSliverRefreshControl(onRefresh: onRefresh),
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
@@ -171,17 +196,49 @@ class _LibraryContent extends StatelessWidget {
           ),
         ),
       ),
-      if (query.trim().isNotEmpty)
-        ..._searchSlivers()
-      else if (snapshot.isEmpty)
-        const SliverFillRemaining(hasScrollBody: false, child: _EmptyLibrary())
-      else
-        ..._tabSlivers(),
+      if (query.trim().isNotEmpty) ..._searchSlivers() else ..._librarySlivers(),
     ],
   );
 
-  List<Widget> _tabSlivers() => switch (activeTab) {
-    LibraryTab.library => [
+  Future<void> _showLibraryMenu(BuildContext context, WidgetRef ref) async {
+    final authState = ref.read(atprotoAuthRepositoryProvider).state;
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('Library'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () async {
+              Navigator.of(sheetContext).pop();
+              if (authState case AtprotoAuthConnected(:final account)) {
+                await ref.read(atprotoBookmarkImportControllerProvider.notifier).syncBookmarks(account.did);
+                return;
+              }
+              if (context.mounted) await context.pushNamed(AppRoute.sync.routeName);
+            },
+            child: Text(authState is AtprotoAuthConnected ? 'Sync now' : 'Connect sync account'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () async {
+              Navigator.of(sheetContext).pop();
+              await context.pushNamed(AppRoute.sync.routeName);
+            },
+            child: const Text('Sync settings'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _librarySlivers() {
+    if (snapshot.isEmpty) {
+      return const [SliverFillRemaining(hasScrollBody: false, child: _EmptyLibrary())];
+    }
+    return [
       _LibraryPageSection(
         title: 'Bookmarks',
         pages: snapshot.bookmarkedPages,
@@ -204,35 +261,8 @@ class _LibraryContent extends StatelessWidget {
         onShowAll: snapshot.recentPages.length > _librarySectionPreviewLimit ? onOpenAnnotations : null,
       ),
       const SliverToBoxAdapter(child: SizedBox(height: 18)),
-    ],
-    LibraryTab.bookmarks => [
-      _LibraryPageSection(
-        title: 'Bookmarks',
-        pages: snapshot.bookmarkedPages,
-        icon: CupertinoIcons.bookmark_fill,
-        accentColor: CupertinoColors.activeBlue,
-        onOpenPage: onOpenPage,
-        onShowAll: onOpenBookmarks,
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: 18)),
-    ],
-    LibraryTab.annotations => [
-      _AnnotationSection(
-        annotations: snapshot.recentAnnotations,
-        onOpenAnnotation: onOpenAnnotation,
-        onOpenAnnotations: onOpenAnnotations,
-      ),
-      _LibraryPageSection(
-        title: 'Recently Annotated',
-        pages: snapshot.recentPages,
-        icon: CupertinoIcons.globe,
-        accentColor: CupertinoColors.systemTeal,
-        onOpenPage: onOpenPage,
-        onShowAll: snapshot.recentPages.length > _librarySectionPreviewLimit ? onOpenAnnotations : null,
-      ),
-      const SliverToBoxAdapter(child: SizedBox(height: 18)),
-    ],
-  };
+    ];
+  }
 
   List<Widget> _searchSlivers() {
     final results = searchResults;
@@ -276,40 +306,6 @@ class _LibraryContent extends StatelessWidget {
 }
 
 const int _librarySectionPreviewLimit = 5;
-
-class _LibraryTabBar extends StatelessWidget {
-  const _LibraryTabBar({required this.activeTab, required this.onChanged});
-
-  final LibraryTab activeTab;
-  final ValueChanged<LibraryTab> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-    child: CupertinoSlidingSegmentedControl<LibraryTab>(
-      groupValue: activeTab,
-      backgroundColor: const Color(0xFF1C1C20),
-      thumbColor: const Color(0xFF2A2A30),
-      onValueChanged: (value) {
-        if (value != null) onChanged(value);
-      },
-      children: const {
-        LibraryTab.library: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          child: Text('Library', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
-        ),
-        LibraryTab.bookmarks: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          child: Text('Bookmarks', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
-        ),
-        LibraryTab.annotations: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          child: Text('Annotations', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
-        ),
-      },
-    ),
-  );
-}
 
 class _LibraryPageSection extends StatelessWidget {
   const _LibraryPageSection({
@@ -370,7 +366,9 @@ class _AnnotationSection extends StatelessWidget {
 }
 
 class AllAnnotationsScreen extends ConsumerStatefulWidget {
-  const AllAnnotationsScreen({super.key});
+  const AllAnnotationsScreen({this.embedded = false, super.key});
+
+  final bool embedded;
 
   @override
   ConsumerState<AllAnnotationsScreen> createState() => _AllAnnotationsScreenState();
@@ -430,6 +428,7 @@ class _AllAnnotationsScreenState extends ConsumerState<AllAnnotationsScreen> {
       return _LibraryError(message: error.toString());
     }
     return _AllAnnotationsContent(
+      embedded: widget.embedded,
       groups: _groups,
       filter: _filter,
       isEditing: _isEditing,
@@ -616,14 +615,26 @@ class _AllAnnotationsScreenState extends ConsumerState<AllAnnotationsScreen> {
       );
       return;
     }
+    final action = await _chooseSyncSelectionAction(context, 'Annotations');
+    if (action == null || !mounted) return;
     final sync = ref.read(atprotoSyncRepositoryProvider);
     for (final annotationId in _selectedIds) {
-      await sync.selectForSync(
-        accountDid: state.account.did,
-        localTable: AtprotoSyncLocalTable.annotations.value,
-        localId: annotationId,
-        collection: MarginSyncCollection.note.value,
-      );
+      if (action == _SyncSelectionAction.keepSynced) {
+        await sync.selectForSync(
+          accountDid: state.account.did,
+          localTable: AtprotoSyncLocalTable.annotations.value,
+          localId: annotationId,
+          collection: MarginSyncCollection.note.value,
+        );
+      } else {
+        await sync.deselectForSync(
+          accountDid: state.account.did,
+          localTable: AtprotoSyncLocalTable.annotations.value,
+          localId: annotationId,
+          collection: MarginSyncCollection.note.value,
+          deleteRemote: action == _SyncSelectionAction.stopAndDeleteRemote,
+        );
+      }
     }
     if (mounted) setState(_selectedIds.clear);
   }
@@ -691,6 +702,7 @@ const int _annotationsPageSize = 100;
 
 class _AllAnnotationsContent extends StatelessWidget {
   const _AllAnnotationsContent({
+    required this.embedded,
     required this.groups,
     required this.filter,
     required this.isEditing,
@@ -707,6 +719,7 @@ class _AllAnnotationsContent extends StatelessWidget {
     required this.onShowMore,
   });
 
+  final bool embedded;
   final List<LibraryAnnotationGroup> groups;
   final LibraryAnnotationFilter filter;
   final bool isEditing;
@@ -747,7 +760,7 @@ class _AllAnnotationsContent extends StatelessWidget {
             ],
           ),
         ),
-        const SliverToBoxAdapter(child: AtprotoSyncStatusRow()),
+
         SliverToBoxAdapter(
           child: _AnnotationFilterBar(filter: filter, onChanged: onFilterChanged),
         ),
@@ -887,7 +900,7 @@ class _AnnotationPageRow extends StatelessWidget {
   }
 }
 
-class _AnnotationRow extends StatelessWidget {
+class _AnnotationRow extends ConsumerWidget {
   const _AnnotationRow({
     required this.annotation,
     required this.onPressed,
@@ -901,12 +914,34 @@ class _AnnotationRow extends StatelessWidget {
   final bool isSelected;
 
   @override
-  Widget build(BuildContext context) => MarkerRowButton(
-    onPressed: onPressed,
-    leading: isEditing ? _SelectionDot(isSelected: isSelected) : _AnnotationSourceIcon(annotation: annotation),
-    title: annotation.excerpt,
-    subtitle: '${annotation.typeLabel} · ${annotation.pageTitle} · ${annotation.isMarginBacked ? 'Margin' : 'Local'}',
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(atprotoAuthRepositoryProvider).state;
+    final syncState = authState is AtprotoAuthConnected
+        ? SyncRecordState.fromAtproto(
+            ref
+                    .watch(
+                      _annotationSyncStatusProvider((accountDid: authState.account.did, annotationId: annotation.id)),
+                    )
+                    .value ??
+                AtprotoLocalSyncStatus.localOnly,
+          )
+        : SyncRecordState.localOnly;
+    return MarkerRowButton(
+      onPressed: onPressed,
+      leading: isEditing ? _SelectionDot(isSelected: isSelected) : _AnnotationSourceIcon(annotation: annotation),
+      title: annotation.excerpt,
+      subtitle:
+          '${annotation.typeLabel} · ${annotation.pageTitle} · Source: ${annotation.isMarginBacked ? 'Margin' : 'Local'}',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SyncStateBadge(state: syncState),
+          const SizedBox(width: 8),
+          const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey2, size: 17),
+        ],
+      ),
+    );
+  }
 }
 
 class _SearchResultRow extends StatelessWidget {
@@ -1081,6 +1116,7 @@ class _LibraryPageDetailScreenState extends ConsumerState<LibraryPageDetailScree
                         onSearchChanged: (value) => setState(() => _query = value),
                         onFilterChanged: (value) => setState(() => _filter = value),
                         onOpenSource: () => _openInBrowser(value.url),
+                        onKeepPageSynced: () => _syncPageAnnotations(value.pageId),
                         onOpenAnnotation: (id) =>
                             context.goNamed(AppRoute.annotation.routeName, pathParameters: {'annotationId': id}),
                         onToggleSelection: _toggleSelection,
@@ -1114,6 +1150,26 @@ class _LibraryPageDetailScreenState extends ConsumerState<LibraryPageDetailScree
   void _openInBrowser(Uri url) {
     ref.read(readerControllerProvider.notifier).setUrlText(url.toString());
     context.goNamed(AppRoute.browser.routeName);
+  }
+
+  Future<void> _syncPageAnnotations(String? pageId) async {
+    if (pageId == null) return;
+    final state = ref.read(atprotoAuthRepositoryProvider).state;
+    if (state is! AtprotoAuthConnected) {
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: const Text('Connect ATProto'),
+          content: const Text('Connect an ATProto account before keeping page annotations synced.'),
+          actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+        ),
+      );
+      return;
+    }
+    await ref.read(atprotoSyncRepositoryProvider).selectAnnotationsForPageForSync(state.account.did, pageId);
+    ref.invalidate(libraryPageDetailProvider(widget.pageId));
+    ref.invalidate(allAnnotationGroupsProvider);
+    ref.invalidate(librarySnapshotProvider);
   }
 
   Future<void> _syncSelected() async {
@@ -1209,6 +1265,7 @@ class _PageDetailContent extends StatelessWidget {
     required this.onSearchChanged,
     required this.onFilterChanged,
     required this.onOpenSource,
+    required this.onKeepPageSynced,
     required this.onOpenAnnotation,
     required this.onToggleSelection,
     required this.onExportAll,
@@ -1223,6 +1280,7 @@ class _PageDetailContent extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<LibraryAnnotationFilter> onFilterChanged;
   final VoidCallback onOpenSource;
+  final VoidCallback onKeepPageSynced;
   final ValueChanged<String> onOpenAnnotation;
   final ValueChanged<String> onToggleSelection;
   final VoidCallback onExportAll;
@@ -1291,6 +1349,11 @@ class _PageDetailContent extends StatelessWidget {
         _GroupedRows(
           children: [
             _PlainActionRow(icon: CupertinoIcons.globe, label: 'Open source page', onPressed: onOpenSource),
+            _PlainActionRow(
+              icon: CupertinoIcons.cloud_upload,
+              label: 'Keep page annotations synced',
+              onPressed: onKeepPageSynced,
+            ),
             _PlainActionRow(icon: CupertinoIcons.square_arrow_up, label: 'Export annotations', onPressed: onExportAll),
           ],
         ),
@@ -1368,6 +1431,37 @@ class AnnotationExportScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+enum _SyncSelectionAction { keepSynced, stopOnly, stopAndDeleteRemote }
+
+Future<_SyncSelectionAction?> _chooseSyncSelectionAction(BuildContext context, String title) {
+  return showCupertinoModalPopup<_SyncSelectionAction>(
+    context: context,
+    builder: (sheetContext) => CupertinoActionSheet(
+      title: Text('Selected $title'),
+      message: const Text('Keep these items continuously synced, or stop syncing future changes.'),
+      actions: [
+        CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(_SyncSelectionAction.keepSynced),
+          child: const Text('Keep synced'),
+        ),
+        CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(_SyncSelectionAction.stopOnly),
+          child: const Text('Stop syncing'),
+        ),
+        CupertinoActionSheetAction(
+          isDestructiveAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(_SyncSelectionAction.stopAndDeleteRemote),
+          child: const Text('Delete synced copies…'),
+        ),
+      ],
+      cancelButton: CupertinoActionSheetAction(
+        onPressed: () => Navigator.of(sheetContext).pop(),
+        child: const Text('Cancel'),
+      ),
+    ),
+  );
 }
 
 class _AnnotationFilterBar extends StatelessWidget {

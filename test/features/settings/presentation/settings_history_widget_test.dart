@@ -88,10 +88,15 @@ void main() {
     await tester.tap(find.text('Settings'));
     await pumpRouteTransition(tester);
 
-    expect(find.text('Sync'), findsOneWidget);
+    expect(find.text('Sync'), findsWidgets);
+    expect(find.text('Connect an account and choose what syncs'), findsOneWidget);
+
+    await tester.tap(find.text('Connect an account and choose what syncs'));
+    await pumpRouteTransition(tester);
+
     expect(find.byIcon(CupertinoIcons.at_circle), findsOneWidget);
-    expect(find.text('What is AT Proto?'), findsOneWidget);
-    expect(find.text('ATProto Sync'), findsOneWidget);
+    expect(find.text('What is ATProto / the Atmosphere?'), findsOneWidget);
+    expect(find.text('Sync'), findsWidgets);
   });
 
   testWidgets('toggles ad blocking from settings', (tester) async {

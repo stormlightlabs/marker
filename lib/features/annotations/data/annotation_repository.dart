@@ -218,6 +218,7 @@ class AnnotationRepository {
               mode: InsertMode.insertOrIgnore,
             );
       }
+      await _selectAnnotationForPageSync(pageId: page.id, annotationId: annotationId);
       await _enqueueAnnotationSync(annotationId);
     });
 
@@ -475,6 +476,10 @@ class AnnotationRepository {
       }
     }
     return details;
+  }
+
+  Future<void> _selectAnnotationForPageSync({required String pageId, required String annotationId}) async {
+    await _syncRepository?.selectAnnotationForPageAutoSyncAccounts(pageId: pageId, annotationId: annotationId);
   }
 
   Future<void> _enqueueAnnotationSync(

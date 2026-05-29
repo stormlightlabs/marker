@@ -101,9 +101,11 @@ class _AtprotoSyncSheetState extends ConsumerState<_AtprotoSyncSheet> {
     final state = ref.read(atprotoBookmarkImportControllerProvider);
     setState(() {
       _result = result;
-      _failureMessage = result == null && state is AtprotoBookmarkImportFailed
-          ? state.message
-          : (result == null ? 'Could not sync. Check your connection and try again.' : null);
+      _failureMessage = switch (state) {
+        AtprotoBookmarkImportFailed(:final message) when result == null => message,
+        AtprotoBookmarkImportCanceled() when result == null => 'Sync canceled.',
+        _ => result == null ? 'Could not sync. Check your connection and try again.' : null,
+      };
     });
   }
 
@@ -113,7 +115,8 @@ class _AtprotoSyncSheetState extends ConsumerState<_AtprotoSyncSheet> {
     final progress = importState is AtprotoBookmarkImportRunning
         ? importState.progress
         : const SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 6, description: 'Starting sync');
-    final isRunning = _result == null && _failureMessage == null;
+    final isCanceled = importState is AtprotoBookmarkImportCanceled;
+    final isRunning = _result == null && _failureMessage == null && !isCanceled;
     return CupertinoPopupSurface(
       isSurfacePainted: true,
       child: SafeArea(
@@ -127,7 +130,11 @@ class _AtprotoSyncSheetState extends ConsumerState<_AtprotoSyncSheet> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  _failureMessage != null ? 'Sync failed' : (_result == null ? 'Syncing ATProto' : 'Sync complete'),
+                  isCanceled
+                      ? 'Sync canceled'
+                      : (_failureMessage != null
+                            ? 'Sync failed'
+                            : (_result == null ? 'Syncing ATProto' : 'Sync complete')),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700),
                 ),
@@ -148,9 +155,11 @@ class _AtprotoSyncSheetState extends ConsumerState<_AtprotoSyncSheet> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: CupertinoColors.white, fontSize: 14),
                   ),
-                ] else if (_failureMessage != null) ...[
+                ] else if (isCanceled || _failureMessage != null) ...[
                   Text(
-                    _failureMessage!,
+                    isCanceled
+                        ? 'No more sync work will be started. Any request already in flight may finish first.'
+                        : _failureMessage!,
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 14),
                   ),
@@ -163,8 +172,10 @@ class _AtprotoSyncSheetState extends ConsumerState<_AtprotoSyncSheet> {
                 ],
                 const SizedBox(height: 18),
                 CupertinoButton.filled(
-                  onPressed: isRunning ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Done'),
+                  onPressed: isRunning
+                      ? () => ref.read(atprotoBookmarkImportControllerProvider.notifier).cancelSync()
+                      : () => Navigator.of(context).pop(),
+                  child: Text(isRunning ? 'Cancel sync' : 'Done'),
                 ),
               ],
             ),

@@ -8,6 +8,7 @@ enum AppRoute {
   bookmarkEdit(path: '/bookmarks/:id/edit', routeName: 'bookmark-edit'),
   bookmarksExport(path: '/bookmarks/export', routeName: 'bookmarks-export'),
   settings(path: '/settings', routeName: 'settings'),
+  sync(path: '/settings/sync', routeName: 'sync'),
   history(path: '/settings/history', routeName: 'history'),
   logs(path: '/settings/logs', routeName: 'logs'),
   about(path: '/settings/about', routeName: 'about'),

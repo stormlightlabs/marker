@@ -59,6 +59,68 @@ void main() {
     );
   });
 
+  test('keeps progress totals in sync with paginated bookmark pulls', () async {
+    final service = FakeSembleBookmarkPullService(
+      progressEvents: const [
+        SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 4, description: 'Fetching cards'),
+        SembleBookmarkPullProgress(completedRequests: 4, totalRequests: 7, description: 'Fetching more cards'),
+        SembleBookmarkPullProgress(completedRequests: 7, totalRequests: 7, description: 'Import complete'),
+      ],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        atprotoDeletionSyncServiceProvider.overrideWithValue(FakeAtprotoDeletionSyncService()),
+        settingsRepositoryProvider.overrideWithValue(FakeSettingsRepository(annotationSyncEnabled: true)),
+        sembleBookmarkPullServiceProvider.overrideWithValue(service),
+        sembleBookmarkPushServiceProvider.overrideWithValue(FakeSembleBookmarkPushService()),
+        marginNoteSyncServiceProvider.overrideWithValue(FakeMarginNoteSyncService()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final states = <AtprotoBookmarkImportState>[];
+    final subscription = container.listen(atprotoBookmarkImportControllerProvider, (_, next) => states.add(next));
+    addTearDown(subscription.close);
+
+    await container.read(atprotoBookmarkImportControllerProvider.notifier).syncBookmarks('did:plc:alice');
+
+    final runningProgress = states.whereType<AtprotoBookmarkImportRunning>().map((state) => state.progress);
+    expect(
+      runningProgress,
+      everyElement(
+        predicate<SembleBookmarkPullProgress>((progress) {
+          return progress.completedRequests <= progress.totalRequests;
+        }),
+      ),
+    );
+    expect(runningProgress.any((progress) => progress.totalRequests == 11), isTrue);
+  });
+
+  test('cancels sync before starting additional work', () async {
+    final pullService = FakeSembleBookmarkPullService(cancelOnFirstProgress: true);
+    late ProviderContainer container;
+    container = ProviderContainer(
+      overrides: [
+        atprotoDeletionSyncServiceProvider.overrideWithValue(FakeAtprotoDeletionSyncService()),
+        settingsRepositoryProvider.overrideWithValue(FakeSettingsRepository(annotationSyncEnabled: true)),
+        sembleBookmarkPullServiceProvider.overrideWithValue(pullService),
+        sembleBookmarkPushServiceProvider.overrideWithValue(FakeSembleBookmarkPushService()),
+        marginNoteSyncServiceProvider.overrideWithValue(FakeMarginNoteSyncService()),
+      ],
+    );
+    addTearDown(container.dispose);
+    pullService.onProgressObserved = () {
+      container.read(atprotoBookmarkImportControllerProvider.notifier).cancelSync();
+    };
+
+    final result = await container
+        .read(atprotoBookmarkImportControllerProvider.notifier)
+        .syncBookmarks('did:plc:alice');
+
+    expect(result, isNull);
+    expect(container.read(atprotoBookmarkImportControllerProvider), isA<AtprotoBookmarkImportCanceled>());
+  });
+
   test('syncs Margin records when annotation sync is enabled', () async {
     final marginService = FakeMarginNoteSyncService();
     final container = ProviderContainer(
@@ -144,7 +206,7 @@ class FakeAtprotoDeletionSyncService implements AtprotoDeletionSyncService {
   String? accountDid;
 
   @override
-  Future<void> pushLocalDeletes(String accountDid) async {
+  Future<void> pushLocalDeletes(String accountDid, {bool Function()? isCancelled}) async {
     this.accountDid = accountDid;
   }
 
@@ -157,13 +219,17 @@ class FakeMarginNoteSyncService implements MarginNoteSyncService {
   String? pulledAccountDid;
 
   @override
-  Future<MarginNoteSyncResult> pushPending(String accountDid, {int limit = 100}) async {
+  Future<MarginNoteSyncResult> pushPending(String accountDid, {int limit = 100, bool Function()? isCancelled}) async {
     pushedAccountDid = accountDid;
     return const MarginNoteSyncResult(pushed: 1);
   }
 
   @override
-  Future<MarginNoteSyncResult> pull(String accountDid, {bool importAsLocalOnly = false}) async {
+  Future<MarginNoteSyncResult> pull(
+    String accountDid, {
+    bool importAsLocalOnly = false,
+    bool Function()? isCancelled,
+  }) async {
     pulledAccountDid = accountDid;
     return const MarginNoteSyncResult(imported: 1);
   }
@@ -179,7 +245,11 @@ class FakeSembleBookmarkPushService implements SembleBookmarkPushService {
   String? accountDid;
 
   @override
-  Future<SembleBookmarkPushResult> pushPending(String accountDid, {int limit = 100}) async {
+  Future<SembleBookmarkPushResult> pushPending(
+    String accountDid, {
+    int limit = 100,
+    bool Function()? isCancelled,
+  }) async {
     this.accountDid = accountDid;
     return result;
   }
@@ -189,22 +259,36 @@ class FakeSembleBookmarkPushService implements SembleBookmarkPushService {
 }
 
 class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
-  FakeSembleBookmarkPullService({this.result = const SembleBookmarkPullResult(), this.error});
+  FakeSembleBookmarkPullService({
+    this.result = const SembleBookmarkPullResult(),
+    this.error,
+    this.progressEvents,
+    this.cancelOnFirstProgress = false,
+  });
 
   final SembleBookmarkPullResult result;
   final Object? error;
+  final List<SembleBookmarkPullProgress>? progressEvents;
+  final bool cancelOnFirstProgress;
   String? accountDid;
+  void Function()? onProgressObserved;
 
   @override
   Future<SembleBookmarkPullResult> pull(
     String accountDid, {
     SembleBookmarkPullProgressListener? onProgress,
     bool importAsLocalOnly = false,
+    bool Function()? isCancelled,
   }) async {
     this.accountDid = accountDid;
-    onProgress?.call(
-      const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 4, description: 'Fetching cards'),
-    );
+    final events =
+        progressEvents ??
+        const [SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 4, description: 'Fetching cards')];
+    for (final event in events) {
+      onProgress?.call(event);
+      onProgressObserved?.call();
+      if (cancelOnFirstProgress || (isCancelled?.call() ?? false)) return result;
+    }
     final error = this.error;
     if (error != null) throw error;
     return result;

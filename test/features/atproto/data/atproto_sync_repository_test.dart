@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
@@ -170,6 +171,164 @@ void main() {
       collection: SembleSyncCollection.card.value,
     );
     expect(await repository.pendingOutbox(accountDid: 'did:plc:alice'), hasLength(1));
+  });
+
+  test('selects bookmark with active folder membership and supports destructive deselection', () async {
+    await repository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
+    final now = DateTime.utc(2026, 5, 26, 12);
+    await database
+        .into(database.bookmarkFolders)
+        .insert(BookmarkFoldersCompanion.insert(id: 'folder-1', title: 'Folder', createdAt: now, updatedAt: now));
+    await database
+        .into(database.bookmarks)
+        .insert(
+          BookmarksCompanion.insert(
+            id: 'bookmark-1',
+            url: 'https://example.com',
+            title: const Value('Example'),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await database
+        .into(database.bookmarkCollectionLinks)
+        .insert(
+          BookmarkCollectionLinksCompanion.insert(
+            id: 'link-1',
+            bookmarkId: 'bookmark-1',
+            folderId: 'folder-1',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    await repository.selectBookmarkForSync('did:plc:alice', 'bookmark-1');
+
+    final selections = await repository.activeSelections(accountDid: 'did:plc:alice');
+    expect(selections.map((selection) => selection.localId), containsAll(['bookmark-1', 'folder-1', 'link-1']));
+    await repository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: 'bookmark-1',
+      collection: SembleSyncCollection.card.value,
+      rkey: 'bookmark-1',
+      uri: 'at://did:plc:alice/network.cosmik.card/bookmark-1',
+      cid: 'cid-bookmark-1',
+    );
+
+    await repository.deselectBookmarkForSync('did:plc:alice', 'bookmark-1', deleteRemote: true);
+
+    final selectedAfterDeselect = await repository.activeSelections(accountDid: 'did:plc:alice');
+    expect(selectedAfterDeselect.map((selection) => selection.localId), isNot(contains('bookmark-1')));
+    expect(
+      (await repository.pendingOutbox(accountDid: 'did:plc:alice')).map((item) => item.operation),
+      contains(AtprotoSyncOperation.delete.value),
+    );
+  });
+
+  test('reports local sync status from selection mirror and outbox state', () async {
+    await repository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
+
+    expect(
+      await repository.localSyncStatuses(
+        accountDid: 'did:plc:alice',
+        localTable: AtprotoSyncLocalTable.annotations.value,
+        collection: MarginSyncCollection.note.value,
+        localIds: ['a1'],
+      ),
+      {'a1': AtprotoLocalSyncStatus.localOnly},
+    );
+
+    await repository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotations.value,
+      localId: 'a1',
+      collection: MarginSyncCollection.note.value,
+    );
+    expect(
+      (await repository.localSyncStatuses(
+        accountDid: 'did:plc:alice',
+        localTable: AtprotoSyncLocalTable.annotations.value,
+        collection: MarginSyncCollection.note.value,
+        localIds: ['a1'],
+      ))['a1'],
+      AtprotoLocalSyncStatus.syncPending,
+    );
+
+    final outbox = (await repository.pendingOutbox(accountDid: 'did:plc:alice')).single;
+    await repository.markOutboxAttempt(id: outbox.id, attemptCount: 1, lastError: 'offline');
+    expect(
+      (await repository.localSyncStatuses(
+        accountDid: 'did:plc:alice',
+        localTable: AtprotoSyncLocalTable.annotations.value,
+        collection: MarginSyncCollection.note.value,
+        localIds: ['a1'],
+      ))['a1'],
+      AtprotoLocalSyncStatus.needsAttention,
+    );
+
+    await repository.deleteOutbox(outbox.id);
+    await repository.createMirror(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotations.value,
+      localId: 'a1',
+      collection: MarginSyncCollection.note.value,
+      rkey: 'a1',
+      uri: 'at://did:plc:alice/at.margin.note/a1',
+      lastSyncedAt: DateTime.utc(2026, 5, 26, 12),
+    );
+    expect(
+      (await repository.localSyncStatuses(
+        accountDid: 'did:plc:alice',
+        localTable: AtprotoSyncLocalTable.annotations.value,
+        collection: MarginSyncCollection.note.value,
+        localIds: ['a1'],
+      ))['a1'],
+      AtprotoLocalSyncStatus.synced,
+    );
+  });
+
+  test('selects current and future annotations for a page', () async {
+    await repository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
+    final now = DateTime.utc(2026, 5, 26, 12);
+    await database
+        .into(database.pages)
+        .insert(PagesCompanion.insert(id: 'page-1', url: 'https://example.com', createdAt: now, lastVisitedAt: now));
+    await database
+        .into(database.annotations)
+        .insert(
+          AnnotationsCompanion.insert(
+            id: 'annotation-1',
+            pageId: 'page-1',
+            motivation: 'highlighting',
+            createdAt: now,
+            modifiedAt: now,
+          ),
+        );
+
+    await repository.selectAnnotationsForPageForSync('did:plc:alice', 'page-1');
+    expect(
+      (await repository.activeSelections(accountDid: 'did:plc:alice')).map((selection) => selection.localId),
+      contains('annotation-1'),
+    );
+    expect(await repository.accountsWithAutoSelectForAnnotationPage('page-1'), ['did:plc:alice']);
+
+    await database
+        .into(database.annotations)
+        .insert(
+          AnnotationsCompanion.insert(
+            id: 'annotation-2',
+            pageId: 'page-1',
+            motivation: 'highlighting',
+            createdAt: now,
+            modifiedAt: now,
+          ),
+        );
+    await repository.selectAnnotationForPageAutoSyncAccounts(pageId: 'page-1', annotationId: 'annotation-2');
+    expect(
+      (await repository.activeSelections(accountDid: 'did:plc:alice')).map((selection) => selection.localId),
+      containsAll(['annotation-1', 'annotation-2']),
+    );
   });
 
   test('enqueues outbox records in the same transaction as local writes', () async {

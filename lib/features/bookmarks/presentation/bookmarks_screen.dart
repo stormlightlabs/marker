@@ -12,32 +12,67 @@ import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
 import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
-import 'package:marker/features/atproto/presentation/atproto_sync_status_row.dart';
+import 'package:marker/features/atproto/presentation/sync_state_badge.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
 
+final _bookmarkSyncStatusesProvider = FutureProvider.autoDispose
+    .family<Map<String, AtprotoLocalSyncStatus>, ({String accountDid, List<BookmarkEntryRef> entries})>((
+      ref,
+      args,
+    ) async {
+      final repository = ref.watch(atprotoSyncRepositoryProvider);
+      final folderIds = args.entries
+          .where((entry) => entry.type == BookmarkEntryType.folder)
+          .map((entry) => entry.id)
+          .toSet();
+      final bookmarkIds = args.entries
+          .where((entry) => entry.type == BookmarkEntryType.bookmark)
+          .map((entry) => entry.id)
+          .toSet();
+      return {
+        if (folderIds.isNotEmpty)
+          for (final entry in (await repository.localSyncStatuses(
+            accountDid: args.accountDid,
+            localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+            collection: SembleSyncCollection.collection.value,
+            localIds: folderIds,
+          )).entries)
+            'folder:${entry.key}': entry.value,
+        if (bookmarkIds.isNotEmpty)
+          for (final entry in (await repository.localSyncStatuses(
+            accountDid: args.accountDid,
+            localTable: AtprotoSyncLocalTable.bookmarks.value,
+            collection: SembleSyncCollection.card.value,
+            localIds: bookmarkIds,
+          )).entries)
+            'bookmark:${entry.key}': entry.value,
+      };
+    });
+
 class BookmarksScreen extends ConsumerWidget {
-  const BookmarksScreen({this.folderId, super.key});
+  const BookmarksScreen({this.folderId, this.embedded = false, super.key});
 
   final String? folderId;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final contents = ref.watch(bookmarkFolderContentsProvider(folderId));
+    final body = contents.when(
+      data: (data) => _BookmarksContent(folderId: folderId, contents: data, embedded: embedded),
+      loading: () => const Center(child: CupertinoActivityIndicator()),
+      error: (error, stackTrace) => _BookmarkError(message: error.toString()),
+    );
+    if (embedded) return body;
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.black,
       child: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            Expanded(
-              child: contents.when(
-                data: (data) => _BookmarksContent(folderId: folderId, contents: data),
-                loading: () => const Center(child: CupertinoActivityIndicator()),
-                error: (error, stackTrace) => _BookmarkError(message: error.toString()),
-              ),
-            ),
+            Expanded(child: body),
             if (folderId == null) const MarkerTabBar(activeRoute: AppRoute.library),
           ],
         ),
@@ -204,10 +239,11 @@ class BookmarksExportScreen extends ConsumerWidget {
 }
 
 class _BookmarksContent extends ConsumerStatefulWidget {
-  const _BookmarksContent({required this.folderId, required this.contents});
+  const _BookmarksContent({required this.folderId, required this.contents, required this.embedded});
 
   final String? folderId;
   final BookmarkFolderContents contents;
+  final bool embedded;
 
   @override
   ConsumerState<_BookmarksContent> createState() => _BookmarksContentState();
@@ -226,12 +262,23 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
       return const _BookmarkEmpty(title: 'Folder Not Found');
     }
     final funEnabled = ref.watch(funEnabledProvider).value ?? true;
+    final authState = ref.watch(atprotoAuthRepositoryProvider).state;
+    final syncStatuses = authState is AtprotoAuthConnected
+        ? ref
+              .watch(
+                _bookmarkSyncStatusesProvider((
+                  accountDid: authState.account.did,
+                  entries: contents.items.map((item) => item.ref).toList(growable: false),
+                )),
+              )
+              .value
+        : null;
     return Column(
       children: [
         _BookmarkHeader(
           title: contents.folder?.title ?? 'Bookmarks',
           funEnabled: funEnabled,
-          canPop: folderId != null || context.canPop(),
+          canPop: !widget.embedded && (folderId != null || context.canPop()),
           isEditing: _isEditing,
           onBackPressed: () => popOrGoNamed(context, AppRoute.bookmarks),
           onCreateFolder: () => _createFolder(context, ref),
@@ -244,7 +291,7 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
             _selectedKeys.clear();
           }),
         ),
-        if (folderId == null) const AtprotoSyncStatusRow(),
+
         Expanded(
           child: contents.isEmpty
               ? const _BookmarkEmpty(title: 'No Bookmarks')
@@ -269,6 +316,9 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
                       sectionLabel: _sectionLabelFor(contents.items, index),
                       isEditing: _isEditing,
                       isSelected: _selectedKeys.contains(item.key),
+                      syncState: SyncRecordState.fromAtproto(
+                        syncStatuses?[item.key] ?? AtprotoLocalSyncStatus.localOnly,
+                      ),
                       isExpanded: item.type == BookmarkEntryType.folder && _expandedFolderIds.contains(item.id),
                       onPressed: () => _pressItem(context, ref, item),
                       onLongPress: () => _longPressItem(context, item),
@@ -397,23 +447,31 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
       );
       return;
     }
+    final action = await _chooseSyncSelectionAction(context, 'Bookmarks');
+    if (action == null || !mounted) return;
     final sync = ref.read(atprotoSyncRepositoryProvider);
     for (final entry in _selectedRefs()) {
       switch (entry.type) {
         case BookmarkEntryType.folder:
-          await sync.selectForSync(
-            accountDid: state.account.did,
-            localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
-            localId: entry.id,
-            collection: SembleSyncCollection.collection.value,
-          );
+          if (action == _SyncSelectionAction.keepSynced) {
+            await sync.selectBookmarkFolderForSync(state.account.did, entry.id);
+          } else {
+            await sync.deselectBookmarkFolderForSync(
+              state.account.did,
+              entry.id,
+              deleteRemote: action == _SyncSelectionAction.stopAndDeleteRemote,
+            );
+          }
         case BookmarkEntryType.bookmark:
-          await sync.selectForSync(
-            accountDid: state.account.did,
-            localTable: AtprotoSyncLocalTable.bookmarks.value,
-            localId: entry.id,
-            collection: SembleSyncCollection.card.value,
-          );
+          if (action == _SyncSelectionAction.keepSynced) {
+            await sync.selectBookmarkForSync(state.account.did, entry.id);
+          } else {
+            await sync.deselectBookmarkForSync(
+              state.account.did,
+              entry.id,
+              deleteRemote: action == _SyncSelectionAction.stopAndDeleteRemote,
+            );
+          }
       }
     }
     if (mounted) {
@@ -489,6 +547,37 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
     }
     return null;
   }
+}
+
+enum _SyncSelectionAction { keepSynced, stopOnly, stopAndDeleteRemote }
+
+Future<_SyncSelectionAction?> _chooseSyncSelectionAction(BuildContext context, String title) {
+  return showCupertinoModalPopup<_SyncSelectionAction>(
+    context: context,
+    builder: (sheetContext) => CupertinoActionSheet(
+      title: Text('Selected $title'),
+      message: const Text('Keep these items continuously synced, or stop syncing future changes.'),
+      actions: [
+        CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(_SyncSelectionAction.keepSynced),
+          child: const Text('Keep synced'),
+        ),
+        CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(_SyncSelectionAction.stopOnly),
+          child: const Text('Stop syncing'),
+        ),
+        CupertinoActionSheetAction(
+          isDestructiveAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(_SyncSelectionAction.stopAndDeleteRemote),
+          child: const Text('Delete synced copies…'),
+        ),
+      ],
+      cancelButton: CupertinoActionSheetAction(
+        onPressed: () => Navigator.of(sheetContext).pop(),
+        child: const Text('Cancel'),
+      ),
+    ),
+  );
 }
 
 class _BookmarkHeader extends StatelessWidget {
@@ -580,6 +669,7 @@ class _BookmarkItemBlock extends ConsumerWidget {
     required this.sectionLabel,
     required this.isEditing,
     required this.isSelected,
+    required this.syncState,
     required this.isExpanded,
     required this.onPressed,
     required this.onLongPress,
@@ -592,6 +682,7 @@ class _BookmarkItemBlock extends ConsumerWidget {
   final String? sectionLabel;
   final bool isEditing;
   final bool isSelected;
+  final SyncRecordState syncState;
   final bool isExpanded;
   final VoidCallback onPressed;
   final VoidCallback onLongPress;
@@ -603,6 +694,7 @@ class _BookmarkItemBlock extends ConsumerWidget {
     index: index,
     isEditing: isEditing,
     isSelected: isSelected,
+    syncState: syncState,
     isExpanded: isExpanded,
     onPressed: onPressed,
     onLongPress: onLongPress,
@@ -653,6 +745,7 @@ class _ExpandedFolderContents extends ConsumerWidget {
                   index: 0,
                   isEditing: false,
                   isSelected: false,
+                  syncState: item.isSembleBacked ? SyncRecordState.synced : SyncRecordState.localOnly,
                   isExpanded: false,
                   onPressed: () {
                     if (item.type == BookmarkEntryType.folder) {
@@ -719,6 +812,7 @@ class _BookmarkRow extends StatelessWidget {
     required this.index,
     required this.isEditing,
     required this.isSelected,
+    required this.syncState,
     required this.isExpanded,
     required this.onPressed,
     required this.onLongPress,
@@ -730,6 +824,7 @@ class _BookmarkRow extends StatelessWidget {
   final int index;
   final bool isEditing;
   final bool isSelected;
+  final SyncRecordState syncState;
   final bool isExpanded;
   final VoidCallback onPressed;
   final VoidCallback onLongPress;
@@ -777,13 +872,19 @@ class _BookmarkRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  item.type == BookmarkEntryType.folder && isExpanded
-                      ? 'Expanded folder · ${item.isSembleBacked ? 'Semble' : 'Local'}'
-                      : '${item.subtitle} · ${item.isSembleBacked ? 'Semble' : 'Local'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        '${item.type == BookmarkEntryType.folder && isExpanded ? 'Expanded folder' : item.subtitle} · Source: ${item.isSembleBacked ? 'Semble' : 'Local'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    SyncStateBadge(state: syncState),
+                  ],
                 ),
               ],
             ),

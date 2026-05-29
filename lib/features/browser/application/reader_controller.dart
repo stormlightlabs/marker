@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
 import 'package:marker/features/browser/data/bookmark_repository.dart';
 import 'package:marker/features/browser/domain/reader_session_state.dart';
+import 'package:marker/features/library/data/library_refresh.dart';
 
 final readerControllerProvider = NotifierProvider<ReaderController, ReaderSessionState>(ReaderController.new);
 
@@ -158,16 +159,19 @@ class ReaderController extends Notifier<ReaderSessionState> {
 
     if (state.bookmarks.any((bookmark) => bookmark.url == url)) {
       final bookmarks = await ref.read(bookmarkRepositoryProvider).removeBookmark(url);
+      invalidateLibraryData(ref);
       state = state.copyWith(bookmarks: bookmarks);
       return;
     }
 
     final bookmarks = await ref.read(bookmarkRepositoryProvider).addBookmark(url: url, title: state.title);
+    invalidateLibraryData(ref);
     state = state.copyWith(bookmarks: bookmarks);
   }
 
   Future<void> bookmarkUrl(Uri url, {String? title}) async {
     final bookmarks = await ref.read(bookmarkRepositoryProvider).addBookmark(url: url, title: title);
+    invalidateLibraryData(ref);
     state = state.copyWith(bookmarks: bookmarks);
   }
 

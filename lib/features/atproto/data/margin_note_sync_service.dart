@@ -100,7 +100,11 @@ class MarginNoteSyncService {
   final Uuid _uuid;
   final DateTime Function() _now;
 
-  Future<MarginNoteSyncResult> pull(String accountDid, {bool importAsLocalOnly = false}) async {
+  Future<MarginNoteSyncResult> pull(
+    String accountDid, {
+    bool importAsLocalOnly = false,
+    bool Function()? isCancelled,
+  }) async {
     var result = const MarginNoteSyncResult();
     final seenUrisByCollection = <MarginSyncCollection, Set<String>>{};
     result += await _pullCollection(
@@ -108,20 +112,26 @@ class MarginNoteSyncService {
       MarginSyncCollection.collection,
       (accountDid, record) => _importCollection(accountDid, record, importAsLocalOnly: importAsLocalOnly),
       onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.collection] ??= <String>{}).add(uri),
+      isCancelled: isCancelled,
     );
+    if (isCancelled?.call() ?? false) return result;
     result += await _pullCollection(
       accountDid,
       MarginSyncCollection.note,
       (accountDid, record) => _importNote(accountDid, record, importAsLocalOnly: importAsLocalOnly),
       onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.note] ??= <String>{}).add(uri),
+      isCancelled: isCancelled,
     );
+    if (isCancelled?.call() ?? false) return result;
     result += await _pullCollection(
       accountDid,
       MarginSyncCollection.collectionItem,
       (accountDid, record) => _importCollectionItem(accountDid, record, importAsLocalOnly: importAsLocalOnly),
       onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.collectionItem] ??= <String>{}).add(uri),
+      isCancelled: isCancelled,
     );
     for (final collection in MarginSyncCollection.values) {
+      if (isCancelled?.call() ?? false) return result;
       result += await _verifyMissingMirrors(
         accountDid,
         collection,
@@ -136,17 +146,21 @@ class MarginNoteSyncService {
     MarginSyncCollection collection,
     Future<MarginNoteSyncResult> Function(String accountDid, AtprotoRepoRecord record) importRecord, {
     void Function(String uri)? onRecordSeen,
+    bool Function()? isCancelled,
   }) async {
     var result = const MarginNoteSyncResult();
     String? cursor;
     do {
+      if (isCancelled?.call() ?? false) return result;
       final page = await _repoClient.listRecords(
         did: accountDid,
         collection: collection.value,
         cursor: cursor,
         limit: 100,
       );
+      if (isCancelled?.call() ?? false) return result;
       for (final record in page.records) {
+        if (isCancelled?.call() ?? false) return result;
         onRecordSeen?.call(record.uri);
         result += await importRecord(accountDid, record);
       }
@@ -162,7 +176,7 @@ class MarginNoteSyncService {
     return result;
   }
 
-  Future<MarginNoteSyncResult> pushPending(String accountDid, {int limit = 100}) async {
+  Future<MarginNoteSyncResult> pushPending(String accountDid, {int limit = 100, bool Function()? isCancelled}) async {
     final pending = await _syncRepository.pendingOutbox(accountDid: accountDid, limit: limit);
     var result = const MarginNoteSyncResult();
     for (final item in pending.where(
@@ -170,12 +184,14 @@ class MarginNoteSyncService {
           _isMarginOutboxItem(item) &&
           (item.operation == AtprotoSyncOperation.create.value || item.operation == AtprotoSyncOperation.update.value),
     )) {
+      if (isCancelled?.call() ?? false) return result;
       if (!_isDue(item)) {
         result += const MarginNoteSyncResult(deferred: 1);
         continue;
       }
       try {
         await _pushItem(item);
+        if (isCancelled?.call() ?? false) return result;
         await _syncRepository.deleteOutbox(item.id);
         result += const MarginNoteSyncResult(pushed: 1);
       } on Object catch (error, stackTrace) {

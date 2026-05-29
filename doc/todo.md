@@ -35,6 +35,16 @@ updated: 2026-05-28
       </DL><p>
       ```
 
+### Library
+
+- Make Library data reactive instead of relying on explicit provider invalidation.
+  - The current Library snapshot/search/detail providers are one-shot Drift reads
+    (`.get()` through `FutureProvider`s), so bookmark/annotation writes and sync
+    completion need manual invalidation to refresh cached data.
+  - Prefer Drift `.watch()`/`StreamProvider`-based snapshots, or a dedicated
+    change-notification layer, so Library updates automatically after local saves and
+    remote syncs.
+
 ### Social integration
 
 - Integrate with [semble](https://semble.so/) & [margin](https://margin.at)

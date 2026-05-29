@@ -83,9 +83,10 @@ class AtprotoDeletionSyncService {
     });
   }
 
-  Future<void> pushLocalDeletes(String accountDid) async {
+  Future<void> pushLocalDeletes(String accountDid, {bool Function()? isCancelled}) async {
     final outbox = await _syncRepository.pendingOutbox(accountDid: accountDid);
     for (final item in outbox.where((item) => item.operation == AtprotoSyncOperation.delete.value)) {
+      if (isCancelled?.call() ?? false) return;
       final mirror = await _syncRepository.mirrorForLocal(
         accountDid: accountDid,
         localTable: item.localTable,
@@ -97,6 +98,7 @@ class AtprotoDeletionSyncService {
         continue;
       }
 
+      if (isCancelled?.call() ?? false) return;
       if (item.localTable == AtprotoSyncLocalTable.bookmarkCollectionLinks.value &&
           _repoDid(mirror.uri) != accountDid) {
         await _publishCollectionLinkRemoval(accountDid: accountDid, removedLink: mirror);
@@ -108,6 +110,7 @@ class AtprotoDeletionSyncService {
           swapRecord: mirror.cid,
         );
       }
+      if (isCancelled?.call() ?? false) return;
       await _syncRepository.markMirrorDeleted(id: mirror.id, deletedAt: _now());
       await _syncRepository.deleteOutbox(item.id);
     }

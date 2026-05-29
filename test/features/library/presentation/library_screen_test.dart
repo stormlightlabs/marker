@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,6 +74,54 @@ void main() {
     expect(tester.widget<Text>(find.text('All').first).style?.color, CupertinoColors.white);
     expect(tester.widget<Text>(find.text('Highlights').first).style?.color, CupertinoColors.activeBlue);
     expect(find.text('Settings'), findsOneWidget);
+  });
+
+  testWidgets('refreshes library data with pull to refresh', (tester) async {
+    await tester.pumpWidget(markerTestApp(database: database));
+    await _openLibrary(tester);
+
+    expect(find.text('No Saved Pages'), findsOneWidget);
+
+    final now = DateTime.utc(2026, 5, 13, 12);
+    await database
+        .into(database.bookmarks)
+        .insert(
+          BookmarksCompanion.insert(
+            id: 'new-bookmark',
+            url: 'https://example.com/new',
+            title: const Value('New Bookmark'),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 320));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+
+    expect(find.text('New Bookmark'), findsOneWidget);
+  });
+
+  testWidgets('opens bookmarks and annotations as separate screens', (tester) async {
+    await seedLibrary(database);
+
+    await tester.pumpWidget(markerTestApp(database: database));
+    await _openLibrary(tester);
+
+    await tester.tap(find.text('Show All').first);
+    await pumpRouteTransition(tester);
+    expect(find.text('Bookmarks'), findsOneWidget);
+    expect(find.text('Saved Article'), findsOneWidget);
+
+    await tester.tap(find.byIcon(CupertinoIcons.chevron_back));
+    await pumpRouteTransition(tester);
+    await tester.ensureVisible(find.text('Show All').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show All').last);
+    await pumpRouteTransition(tester);
+    expect(find.text('Annotations'), findsWidgets);
+    expect(find.text('Recent Article'), findsOneWidget);
   });
 
   testWidgets('searches library and opens recent annotated page detail', (tester) async {

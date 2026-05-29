@@ -5,12 +5,15 @@ import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart'
 import 'package:marker/features/atproto/data/margin_note_sync_service.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_push_service.dart';
+import 'package:marker/features/library/data/library_refresh.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
 
 final atprotoBookmarkImportControllerProvider =
     NotifierProvider<AtprotoBookmarkImportController, AtprotoBookmarkImportState>(AtprotoBookmarkImportController.new);
 
 class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportState> {
+  var _cancelRequested = false;
+
   @override
   AtprotoBookmarkImportState build() => const AtprotoBookmarkImportIdle();
 
@@ -18,8 +21,16 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
       syncBookmarks(accountDid, importAsLocalOnly: importAsLocalOnly);
 
   Future<AtprotoBookmarkSyncResult?> syncBookmarks(String accountDid, {bool importAsLocalOnly = false}) async {
+    _cancelRequested = false;
     final syncAnnotations = await ref.read(settingsRepositoryProvider).isAnnotationSyncEnabled();
-    final totalRequests = syncAnnotations ? 8 : 6;
+    const bookmarkPullMinimumRequests = 4;
+    final pullOffset = syncAnnotations ? 3 : 2;
+    var bookmarkPullTotalRequests = bookmarkPullMinimumRequests;
+    final totalRequests = _syncTotalRequests(
+      pullOffset: pullOffset,
+      bookmarkPullTotalRequests: bookmarkPullTotalRequests,
+      syncAnnotations: syncAnnotations,
+    );
     state = AtprotoBookmarkImportRunning(
       SembleBookmarkPullProgress(
         completedRequests: 0,
@@ -28,7 +39,11 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
       ),
     );
     try {
-      await ref.read(atprotoDeletionSyncServiceProvider).pushLocalDeletes(accountDid);
+      _throwIfCanceled();
+      await ref
+          .read(atprotoDeletionSyncServiceProvider)
+          .pushLocalDeletes(accountDid, isCancelled: () => _cancelRequested);
+      _throwIfCanceled();
       state = AtprotoBookmarkImportRunning(
         SembleBookmarkPullProgress(
           completedRequests: 1,
@@ -36,7 +51,10 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
           description: 'Publishing local bookmark changes',
         ),
       );
-      final pushResult = await ref.read(sembleBookmarkPushServiceProvider).pushPending(accountDid);
+      final pushResult = await ref
+          .read(sembleBookmarkPushServiceProvider)
+          .pushPending(accountDid, isCancelled: () => _cancelRequested);
+      _throwIfCanceled();
       MarginNoteSyncResult? marginPushResult;
       if (syncAnnotations) {
         state = AtprotoBookmarkImportRunning(
@@ -46,9 +64,11 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
             description: 'Publishing local annotation changes',
           ),
         );
-        marginPushResult = await ref.read(marginNoteSyncServiceProvider).pushPending(accountDid);
+        marginPushResult = await ref
+            .read(marginNoteSyncServiceProvider)
+            .pushPending(accountDid, isCancelled: () => _cancelRequested);
+        _throwIfCanceled();
       }
-      final pullOffset = syncAnnotations ? 3 : 2;
       state = AtprotoBookmarkImportRunning(
         SembleBookmarkPullProgress(
           completedRequests: pullOffset,
@@ -61,26 +81,40 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
           .pull(
             accountDid,
             importAsLocalOnly: importAsLocalOnly,
-            onProgress: (progress) => state = AtprotoBookmarkImportRunning(
-              SembleBookmarkPullProgress(
-                completedRequests: progress.completedRequests + pullOffset,
-                totalRequests: totalRequests,
-                description: progress.description,
-              ),
-            ),
+            isCancelled: () => _cancelRequested,
+            onProgress: (progress) {
+              bookmarkPullTotalRequests = progress.totalRequests;
+              state = AtprotoBookmarkImportRunning(
+                SembleBookmarkPullProgress(
+                  completedRequests: progress.completedRequests + pullOffset,
+                  totalRequests: _syncTotalRequests(
+                    pullOffset: pullOffset,
+                    bookmarkPullTotalRequests: bookmarkPullTotalRequests,
+                    syncAnnotations: syncAnnotations,
+                  ),
+                  description: progress.description,
+                ),
+              );
+            },
           );
+      _throwIfCanceled();
       MarginNoteSyncResult? marginPullResult;
       if (syncAnnotations) {
+        final currentTotalRequests = _syncTotalRequests(
+          pullOffset: pullOffset,
+          bookmarkPullTotalRequests: bookmarkPullTotalRequests,
+          syncAnnotations: true,
+        );
         state = AtprotoBookmarkImportRunning(
           SembleBookmarkPullProgress(
-            completedRequests: totalRequests - 1,
-            totalRequests: totalRequests,
+            completedRequests: currentTotalRequests - 1,
+            totalRequests: currentTotalRequests,
             description: 'Fetching remote annotation changes',
           ),
         );
         marginPullResult = await ref
             .read(marginNoteSyncServiceProvider)
-            .pull(accountDid, importAsLocalOnly: importAsLocalOnly);
+            .pull(accountDid, importAsLocalOnly: importAsLocalOnly, isCancelled: () => _cancelRequested);
       }
       final result = AtprotoBookmarkSyncResult(
         push: pushResult,
@@ -88,8 +122,13 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
         marginPush: marginPushResult,
         marginPull: marginPullResult,
       );
+      invalidateLibraryData(ref);
+      _throwIfCanceled();
       state = AtprotoBookmarkImportSucceeded(result);
       return result;
+    } on _AtprotoSyncCanceled {
+      state = const AtprotoBookmarkImportCanceled();
+      return null;
     } on Object catch (error, stackTrace) {
       ref.read(appLoggerProvider).error('ATProto bookmark sync failed.', error: error, stackTrace: stackTrace);
       state = const AtprotoBookmarkImportFailed('Could not sync bookmarks. Check your connection and try again.');
@@ -97,7 +136,29 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
     }
   }
 
+  void cancelSync() {
+    if (!state.isImporting) return;
+    _cancelRequested = true;
+    state = const AtprotoBookmarkImportCanceled();
+  }
+
   void reset() => state = const AtprotoBookmarkImportIdle();
+
+  void _throwIfCanceled() {
+    if (_cancelRequested) throw const _AtprotoSyncCanceled();
+  }
+
+  int _syncTotalRequests({
+    required int pullOffset,
+    required int bookmarkPullTotalRequests,
+    required bool syncAnnotations,
+  }) {
+    return pullOffset + bookmarkPullTotalRequests + (syncAnnotations ? 1 : 0);
+  }
+}
+
+class _AtprotoSyncCanceled implements Exception {
+  const _AtprotoSyncCanceled();
 }
 
 sealed class AtprotoBookmarkImportState {
@@ -126,6 +187,10 @@ final class AtprotoBookmarkImportFailed extends AtprotoBookmarkImportState {
   const AtprotoBookmarkImportFailed(this.message);
 
   final String message;
+}
+
+final class AtprotoBookmarkImportCanceled extends AtprotoBookmarkImportState {
+  const AtprotoBookmarkImportCanceled();
 }
 
 class AtprotoBookmarkSyncResult {

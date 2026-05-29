@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/material.dart' show AlwaysStoppedAnimation, LinearProgressIndicator;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -96,7 +96,7 @@ class SettingsScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          _AtprotoAccountRow(state: atprotoAuthState),
+                          _SyncSettingsSummaryRow(state: atprotoAuthState),
                           const SizedBox(height: 22),
                           const SettingsSectionLabel('Advanced'),
                           const SizedBox(height: 8),
@@ -193,6 +193,63 @@ final _annotationSyncEnabledProvider = FutureProvider<bool>((ref) {
   return ref.watch(settingsRepositoryProvider).isAnnotationSyncEnabled();
 });
 
+class SyncScreen extends ConsumerWidget {
+  const SyncScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final atprotoAuthState =
+        ref.watch(_atprotoAuthStateProvider).value ?? ref.watch(atprotoAuthRepositoryProvider).state;
+    return CupertinoPageScaffold(
+      backgroundColor: CupertinoColors.black,
+      navigationBar: const CupertinoNavigationBar(
+        backgroundColor: CupertinoColors.black,
+        border: null,
+        middle: Text('Sync'),
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _AtprotoAccountRow(state: atprotoAuthState),
+              const SizedBox(height: 12),
+              SettingsLinkRow(
+                icon: CupertinoIcons.at_circle,
+                title: 'What is ATProto / the Atmosphere?',
+                subtitle: 'Learn how Marker sync works with open social web accounts',
+                onPressed: () => _openExternalUrl('https://atmosphereaccount.com/'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SyncSettingsSummaryRow extends StatelessWidget {
+  const _SyncSettingsSummaryRow({required this.state});
+
+  final AtprotoAuthState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = switch (state) {
+      AtprotoAuthConnected(:final account) => 'Connected as ${_ConnectedAtprotoAccountCard._accountLabel(account)}',
+      AtprotoAuthFailure(:final message) => message,
+      AtprotoAuthDisconnected() => 'Connect an account and choose what syncs',
+    };
+    return SettingsLinkRow(
+      icon: CupertinoIcons.cloud,
+      title: 'Sync',
+      subtitle: subtitle,
+      onPressed: () => context.pushNamed(AppRoute.sync.routeName),
+    );
+  }
+}
+
 class _AtprotoAccountRow extends ConsumerWidget {
   const _AtprotoAccountRow({required this.state});
 
@@ -218,7 +275,7 @@ class _AtprotoAccountRow extends ConsumerWidget {
             const Icon(CupertinoIcons.cloud, color: CupertinoColors.activeBlue, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: SettingsRowText(title: 'ATProto Sync', subtitle: _subtitle),
+              child: SettingsRowText(title: 'Sync', subtitle: _subtitle),
             ),
             CupertinoButton(
               padding: EdgeInsets.zero,
@@ -305,13 +362,13 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: SettingsRowText(title: 'ATProto Sync', subtitle: 'Connected as ${_accountLabel(account)}'),
+                  child: SettingsRowText(title: 'Sync', subtitle: 'Connected as ${_accountLabel(account)}'),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             const Text(
-              'Connected accounts do not publish local data until you select items for sync. Bookmark sync can publish Semble/Cosmik bookmark records. Annotation sync can publish Margin notes with quote selectors, note text, tags, color, style, and source URLs. Browser history stays local.',
+              'Marker only syncs items you choose to keep synced, plus future items covered by your defaults. Browser history stays local.',
               style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, height: 1.35),
             ),
             const SizedBox(height: 12),
@@ -559,15 +616,6 @@ class _AtprotoSelectionControls extends ConsumerWidget {
         },
       ),
       const SizedBox(height: 8),
-      _SyncSelectionActionRow(
-        title: 'Sync all bookmarks',
-        subtitle: 'Select existing bookmarks, folders, and folder memberships.',
-        onPressed: () async {
-          await ref.read(atprotoSyncRepositoryProvider).selectAllBookmarksForSync(accountDid);
-          _invalidateAtprotoSyncUi(ref, accountDid);
-        },
-      ),
-      const SizedBox(height: 8),
       _SyncSelectionSwitchRow(
         title: 'Sync local new bookmarks',
         subtitle: 'Automatically select new bookmarks, folders, and memberships for this account.',
@@ -578,14 +626,7 @@ class _AtprotoSelectionControls extends ConsumerWidget {
         },
       ),
       const SizedBox(height: 8),
-      _SyncSelectionActionRow(
-        title: 'Sync all annotations',
-        subtitle: 'Select existing notes, highlights, and annotation collections.',
-        onPressed: () async {
-          await ref.read(atprotoSyncRepositoryProvider).selectAllAnnotationsForSync(accountDid);
-          _invalidateAtprotoSyncUi(ref, accountDid);
-        },
-      ),
+      const _UnderlineSyncInfoBlock(),
       const SizedBox(height: 8),
       _SyncSelectionSwitchRow(
         title: 'Sync local new annotations',
@@ -610,12 +651,12 @@ class _SyncOptionsHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Sync options',
+          'What syncs',
           style: TextStyle(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.w600),
         ),
         SizedBox(height: 3),
         Text(
-          'Choose what Marker is allowed to publish. Existing local items stay private until selected.',
+          'Choose what Marker is allowed to keep synced. Existing local items stay private until selected.',
           style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 11, height: 1.35),
         ),
       ],
@@ -636,45 +677,25 @@ class _SyncOptionBlock extends StatelessWidget {
   );
 }
 
-class _SyncSelectionActionRow extends StatefulWidget {
-  const _SyncSelectionActionRow({required this.title, required this.subtitle, required this.onPressed});
-
-  final String title;
-  final String subtitle;
-  final Future<void> Function() onPressed;
+class _UnderlineSyncInfoBlock extends StatelessWidget {
+  const _UnderlineSyncInfoBlock();
 
   @override
-  State<_SyncSelectionActionRow> createState() => _SyncSelectionActionRowState();
-}
-
-class _SyncSelectionActionRowState extends State<_SyncSelectionActionRow> {
-  bool _isSelecting = false;
-
-  @override
-  Widget build(BuildContext context) => _SyncOptionBlock(
+  Widget build(BuildContext context) => const _SyncOptionBlock(
     child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Icon(CupertinoIcons.info_circle, color: CupertinoColors.systemGrey2, size: 18),
+        SizedBox(width: 10),
         Expanded(
-          child: SettingsRowText(title: widget.title, subtitle: widget.subtitle),
-        ),
-        CupertinoButton(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          minimumSize: const Size(64, 32),
-          onPressed: _isSelecting ? null : _select,
-          child: Text(_isSelecting ? 'Selecting...' : 'Select'),
+          child: Text(
+            'Underlines stay underlined in Marker. Margin does not have a separate underline style yet, so underlines sync to Margin as highlights.',
+            style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 11, height: 1.35),
+          ),
         ),
       ],
     ),
   );
-
-  Future<void> _select() async {
-    setState(() => _isSelecting = true);
-    try {
-      await widget.onPressed();
-    } finally {
-      if (mounted) setState(() => _isSelecting = false);
-    }
-  }
 }
 
 class _SyncSelectionSwitchRow extends StatelessWidget {
@@ -1126,6 +1147,9 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
     if (state is AtprotoBookmarkImportFailed) {
       return state.message;
     }
+    if (state is AtprotoBookmarkImportCanceled) {
+      return 'Sync canceled.';
+    }
     return 'Could not sync bookmarks. Check your connection and try again.';
   }
 
@@ -1136,7 +1160,11 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
         ? importState.progress
         : const SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 5, description: 'Starting sync');
 
-    final presentationState = _AtprotoImportPresentationState(result: _result, failureMessage: _failureMessage);
+    final presentationState = _AtprotoImportPresentationState(
+      result: _result,
+      failureMessage: _failureMessage,
+      isCanceled: importState is AtprotoBookmarkImportCanceled,
+    );
 
     return CupertinoPopupSurface(
       isSurfacePainted: true,
@@ -1193,8 +1221,10 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
                 ],
                 const SizedBox(height: 18),
                 CupertinoButton.filled(
-                  onPressed: presentationState.isRunning ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Done'),
+                  onPressed: presentationState.isRunning
+                      ? () => ref.read(atprotoBookmarkImportControllerProvider.notifier).cancelSync()
+                      : () => Navigator.of(context).pop(),
+                  child: Text(presentationState.isRunning ? 'Cancel sync' : 'Done'),
                 ),
               ],
             ),
@@ -1206,14 +1236,16 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
 }
 
 class _AtprotoImportPresentationState {
-  const _AtprotoImportPresentationState({required this.result, required this.failureMessage});
+  const _AtprotoImportPresentationState({required this.result, required this.failureMessage, required this.isCanceled});
 
   final AtprotoBookmarkSyncResult? result;
   final String? failureMessage;
+  final bool isCanceled;
 
-  bool get isRunning => result == null && failureMessage == null;
+  bool get isRunning => result == null && failureMessage == null && !isCanceled;
 
   String get title {
+    if (isCanceled) return 'Sync canceled';
     if (failureMessage != null) return 'Sync failed';
     if (result != null) return 'ATProto sync complete';
     return 'Syncing ATProto';
@@ -1284,7 +1316,7 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
                     ),
                     const SizedBox(height: 14),
                     const Text(
-                      'Use your Bluesky or Atmosphere account to import Semble/Cosmik bookmarks.',
+                      'Use your Bluesky or Atmosphere account to import Semble bookmarks.',
                       style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
@@ -1478,7 +1510,7 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
     context: context,
     builder: (dialogContext) => CupertinoAlertDialog(
       title: const Text('Import bookmarks now?'),
-      content: const Text('Marker can pull Semble/Cosmik bookmarks and collections from your ATProto repo.'),
+      content: const Text('Marker can pull Semble bookmarks and collections from your ATProto repo.'),
       actions: [
         CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Not now')),
         CupertinoDialogAction(

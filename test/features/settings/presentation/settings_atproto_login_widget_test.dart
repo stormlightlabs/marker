@@ -83,14 +83,16 @@ void main() {
     await tester.tap(find.text('Settings'));
     await pumpRouteTransition(tester);
 
-    expect(find.text('ATProto Sync'), findsOneWidget);
-    expect(find.text('Connect a Bluesky or Atmosphere account'), findsOneWidget);
+    expect(find.text('Sync'), findsWidgets);
+    expect(find.text('Connect an account and choose what syncs'), findsOneWidget);
 
+    await tester.tap(find.text('Connect an account and choose what syncs'));
+    await pumpRouteTransition(tester);
     await tester.tap(find.text('Connect'));
     await tester.pumpAndSettle();
 
     expect(find.text('Connect ATProto'), findsOneWidget);
-    expect(find.text('Use your Bluesky or Atmosphere account to import Semble/Cosmik bookmarks.'), findsOneWidget);
+    expect(find.text('Use your Bluesky or Atmosphere account to import Semble bookmarks.'), findsOneWidget);
 
     await tester.enterText(find.byType(EditableText), ' @alice.bsky.social ');
     await tester.pump(const Duration(milliseconds: 300));
@@ -196,6 +198,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Connected as @alice.bsky.social'), findsOneWidget);
+    await tester.tap(find.text('Connected as @alice.bsky.social'));
+    await pumpRouteTransition(tester);
+    await tester.pumpAndSettle();
     expect(find.text('Account info'), findsOneWidget);
     expect(find.text('Account DID'), findsNothing);
     await tester.tap(find.text('Account info'));
@@ -293,6 +298,9 @@ void main() {
     await pumpRouteTransition(tester);
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Connected as @alice.bsky.social'));
+    await pumpRouteTransition(tester);
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.widgetWithText(CupertinoButton, 'Sync now'),
       500,
@@ -352,6 +360,9 @@ void main() {
     await pumpRouteTransition(tester);
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Connected as @alice.bsky.social'));
+    await pumpRouteTransition(tester);
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.widgetWithText(CupertinoButton, 'Sync now'),
       500,
@@ -386,7 +397,11 @@ class FakeSembleBookmarkPushService implements SembleBookmarkPushService {
   String? accountDid;
 
   @override
-  Future<SembleBookmarkPushResult> pushPending(String accountDid, {int limit = 100}) async {
+  Future<SembleBookmarkPushResult> pushPending(
+    String accountDid, {
+    int limit = 100,
+    bool Function()? isCancelled,
+  }) async {
     this.accountDid = accountDid;
     return result;
   }
@@ -406,6 +421,7 @@ class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
     String accountDid, {
     SembleBookmarkPullProgressListener? onProgress,
     bool importAsLocalOnly = false,
+    bool Function()? isCancelled,
   }) async {
     this.accountDid = accountDid;
     onProgress?.call(

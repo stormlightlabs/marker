@@ -107,6 +107,7 @@ class SembleBookmarkPullService {
     String accountDid, {
     SembleBookmarkPullProgressListener? onProgress,
     bool importAsLocalOnly = false,
+    bool Function()? isCancelled,
   }) async {
     var result = const SembleBookmarkPullResult();
     var completedRequests = 0;
@@ -133,6 +134,7 @@ class SembleBookmarkPullService {
       onRequestCompleted: () => completedRequests += 1,
       onAdditionalRequestNeeded: () => totalRequests += 1,
       onRecordSeen: (uri) => (seenUrisByCollection[collection] ??= <String>{}).add(uri),
+      isCancelled: isCancelled,
     );
 
     result += await pullCollection(SembleSyncCollection.card.value, 'Fetching cards', _importCard);
@@ -152,6 +154,7 @@ class SembleBookmarkPullService {
       SembleSyncCollection.collection.value,
       SembleSyncCollection.collectionLink.value,
     ]) {
+      if (isCancelled?.call() ?? false) return result;
       result += await _verifyMissingMirrors(
         accountDid,
         collection,
@@ -179,10 +182,12 @@ class SembleBookmarkPullService {
     required void Function() onRequestCompleted,
     required void Function() onAdditionalRequestNeeded,
     required void Function(String uri) onRecordSeen,
+    bool Function()? isCancelled,
   }) async {
     var result = const SembleBookmarkPullResult();
     String? cursor;
     do {
+      if (isCancelled?.call() ?? false) return result;
       onProgress?.call(
         SembleBookmarkPullProgress(
           completedRequests: completedRequests(),
@@ -191,8 +196,10 @@ class SembleBookmarkPullService {
         ),
       );
       final page = await _repoClient.listRecords(did: accountDid, collection: collection, cursor: cursor, limit: 100);
+      if (isCancelled?.call() ?? false) return result;
       onRequestCompleted();
       for (final record in page.records) {
+        if (isCancelled?.call() ?? false) return result;
         onRecordSeen(record.uri);
         result += await importRecord(accountDid, record);
       }

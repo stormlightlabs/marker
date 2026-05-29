@@ -43,7 +43,11 @@ class SembleBookmarkPushService {
   final AppLogger? _logger;
   final DateTime Function() _now;
 
-  Future<SembleBookmarkPushResult> pushPending(String accountDid, {int limit = 100}) async {
+  Future<SembleBookmarkPushResult> pushPending(
+    String accountDid, {
+    int limit = 100,
+    bool Function()? isCancelled,
+  }) async {
     final pending = await _syncRepository.pendingOutbox(accountDid: accountDid, limit: limit);
     var result = const SembleBookmarkPushResult();
     for (final item in pending.where(
@@ -51,12 +55,14 @@ class SembleBookmarkPushService {
           _isSembleOutboxItem(item) &&
           (item.operation == AtprotoSyncOperation.create.value || item.operation == AtprotoSyncOperation.update.value),
     )) {
+      if (isCancelled?.call() ?? false) return result;
       if (!_isDue(item)) {
         result += const SembleBookmarkPushResult(deferred: 1);
         continue;
       }
       try {
         await _pushItem(item);
+        if (isCancelled?.call() ?? false) return result;
         await _syncRepository.deleteOutbox(item.id);
         result += SembleBookmarkPushResult(
           pushed: 1,

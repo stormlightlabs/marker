@@ -23,6 +23,7 @@ import 'package:marker/features/browser/presentation/widgets/browser_chrome_widg
 import 'package:marker/features/browser/presentation/widgets/history_overlay.dart';
 import 'package:marker/features/browser/webview/browser_webview.dart';
 import 'package:marker/features/browser/webview/reader_webview_bridge.dart';
+import 'package:marker/features/library/data/library_refresh.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
 
 class BrowserScreen extends ConsumerStatefulWidget {
@@ -368,7 +369,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     required String motivation,
     required List<AnnotationBodyInput> bodies,
   }) async {
-    await ref
+    final annotation = await ref
         .read(annotationRepositoryProvider)
         .createAnnotation(
           sourceUrl: capture.sourceUrl,
@@ -382,6 +383,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
           cssSelector: capture.cssSelector,
           bodies: bodies,
         );
+    invalidateLibraryWidgetData(ref, pageId: annotation.pageId);
     ref.invalidate(annotationsForPageProvider(capture.sourceUrl));
     await _renderSavedAnnotations(capture.sourceUrl);
     _dismissSelection();
@@ -407,6 +409,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
         .updateMarkdownBody(annotationId: annotation.annotation.id, value: note);
     final sourceUrl = Uri.tryParse(annotation.target.sourceUrl);
     if (sourceUrl != null) {
+      invalidateLibraryWidgetData(ref, pageId: annotation.annotation.pageId);
       ref.invalidate(annotationsForPageProvider(sourceUrl));
       await _renderSavedAnnotations(sourceUrl);
     }
@@ -443,6 +446,7 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     await ref.read(readerWebViewBridgeProvider).deleteRenderedAnnotation(_webViewController, annotation.annotation.id);
     final sourceUrl = Uri.tryParse(annotation.target.sourceUrl);
     if (sourceUrl != null) {
+      invalidateLibraryWidgetData(ref, pageId: annotation.annotation.pageId);
       ref.invalidate(annotationsForPageProvider(sourceUrl));
       await _renderSavedAnnotations(sourceUrl);
     }

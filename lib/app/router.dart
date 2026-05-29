@@ -78,6 +78,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => MarkerTabPage<void>(key: state.pageKey, child: const SettingsScreen()),
       ),
       GoRoute(
+        path: AppRoute.sync.path,
+        name: AppRoute.sync.routeName,
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const SyncScreen()),
+      ),
+      GoRoute(
         path: AppRoute.history.path,
         name: AppRoute.history.routeName,
         pageBuilder: (context, state) {
