@@ -1,10 +1,11 @@
 include: package:flutter_lints/flutter.yaml
 
+plugins:
+  riverpod_lint: 3.1.4-dev.1
+
 analyzer:
   exclude:
     - vendor/code_forge/**
-  plugins:
-    - custom_lint
   errors:
     invalid_annotation_target: ignore
 

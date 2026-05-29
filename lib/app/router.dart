@@ -20,22 +20,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoute.browser.path,
         name: AppRoute.browser.routeName,
-        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const BrowserScreen()),
+        pageBuilder: (context, state) => MarkerTabPage<void>(key: state.pageKey, child: const BrowserScreen()),
       ),
       GoRoute(
         path: AppRoute.feeds.path,
         name: AppRoute.feeds.routeName,
-        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const FeedsScreen()),
+        pageBuilder: (context, state) => MarkerTabPage<void>(key: state.pageKey, child: const FeedsScreen()),
       ),
       GoRoute(
         path: AppRoute.library.path,
         name: AppRoute.library.routeName,
-        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const LibraryScreen()),
+        pageBuilder: (context, state) => MarkerTabPage<void>(key: state.pageKey, child: const LibraryScreen()),
       ),
       GoRoute(
         path: AppRoute.bookmarks.path,
         name: AppRoute.bookmarks.routeName,
-        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const BookmarksScreen()),
+        pageBuilder: (context, state) => MarkerTabPage<void>(key: state.pageKey, child: const BookmarksScreen()),
       ),
       GoRoute(
         path: AppRoute.bookmarksExport.path,
@@ -51,46 +51,38 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoute.bookmarksFolder.path,
         name: AppRoute.bookmarksFolder.routeName,
-        pageBuilder: (context, state) {
-          final folderId = state.pathParameters['id'] ?? '';
-          return MarkerTransitionPage<void>(
-            key: state.pageKey,
-            child: BookmarksScreen(folderId: folderId),
-          );
-        },
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(
+          key: state.pageKey,
+          child: BookmarksScreen(folderId: state.pathParameters['id'] ?? ''),
+        ),
       ),
       GoRoute(
         path: AppRoute.bookmarkEdit.path,
         name: AppRoute.bookmarkEdit.routeName,
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['id'] ?? '';
-          return MarkerTransitionPage<void>(
-            key: state.pageKey,
-            child: BookmarkEditScreen(id: id),
-          );
-        },
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(
+          key: state.pageKey,
+          child: BookmarkEditScreen(id: state.pathParameters['id'] ?? ''),
+        ),
       ),
       GoRoute(
         path: AppRoute.bookmarkDetail.path,
         name: AppRoute.bookmarkDetail.routeName,
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['id'] ?? '';
-          return MarkerTransitionPage<void>(
-            key: state.pageKey,
-            child: BookmarkDetailScreen(id: id),
-          );
-        },
+        pageBuilder: (context, state) => MarkerTransitionPage<void>(
+          key: state.pageKey,
+          child: BookmarkDetailScreen(id: state.pathParameters['id'] ?? ''),
+        ),
       ),
       GoRoute(
         path: AppRoute.settings.path,
         name: AppRoute.settings.routeName,
-        pageBuilder: (context, state) => MarkerTransitionPage<void>(key: state.pageKey, child: const SettingsScreen()),
+        pageBuilder: (context, state) => MarkerTabPage<void>(key: state.pageKey, child: const SettingsScreen()),
       ),
       GoRoute(
         path: AppRoute.history.path,
         name: AppRoute.history.routeName,
-        pageBuilder: (context, state) =>
-            MarkerTransitionPage<void>(key: state.pageKey, child: const BrowserHistoryScreen()),
+        pageBuilder: (context, state) {
+          return MarkerTransitionPage<void>(key: state.pageKey, child: const BrowserHistoryScreen());
+        },
       ),
       GoRoute(
         path: AppRoute.logs.path,
@@ -105,8 +97,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoute.annotations.path,
         name: AppRoute.annotations.routeName,
-        pageBuilder: (context, state) =>
-            MarkerTransitionPage<void>(key: state.pageKey, child: const AllAnnotationsScreen()),
+        pageBuilder: (context, state) {
+          return MarkerTransitionPage<void>(key: state.pageKey, child: const AllAnnotationsScreen());
+        },
       ),
       GoRoute(
         path: AppRoute.libraryPage.path,

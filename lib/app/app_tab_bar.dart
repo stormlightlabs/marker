@@ -39,18 +39,18 @@ class MarkerTabBar extends StatelessWidget {
               ),
               Expanded(
                 child: _TabBarItem(
-                  icon: CupertinoIcons.bookmark_fill,
-                  label: 'Bookmarks',
-                  isActive: activeRoute == AppRoute.bookmarks,
-                  onPressed: () => context.goNamed(AppRoute.bookmarks.routeName),
-                ),
-              ),
-              Expanded(
-                child: _TabBarItem(
                   icon: CupertinoIcons.collections,
                   label: 'Library',
                   isActive: activeRoute == AppRoute.library,
                   onPressed: () => context.goNamed(AppRoute.library.routeName),
+                ),
+              ),
+              Expanded(
+                child: _TabBarItem(
+                  icon: CupertinoIcons.bookmark_fill,
+                  label: 'Bookmarks',
+                  isActive: activeRoute == AppRoute.bookmarks,
+                  onPressed: () => context.goNamed(AppRoute.bookmarks.routeName),
                 ),
               ),
               Expanded(

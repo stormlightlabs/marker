@@ -33,6 +33,46 @@ void main() {
     expect(entries.last.error, contains('broken'));
   });
 
+  test('rotates active log when it is older than the max age', () async {
+    final directory = await Directory.systemTemp.createTemp('marker_logs_');
+    addTearDown(() async {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+
+    final activeFile = File(p.join(directory.path, activeLogFileName));
+    await activeFile.writeAsString('{"time":"2026-05-16T12:00:00.000Z","level":"info","message":"yesterday"}\n');
+    await activeFile.setLastModified(DateTime.now().subtract(const Duration(hours: 25)));
+
+    final logger = await AppLogger.initialize(directory: directory, maxAge: const Duration(hours: 24));
+    addTearDown(logger.close);
+    logger.info('today');
+
+    final repository = AppLogRepository(directoryLoader: () async => directory);
+    final entries = await repository.listEntries();
+
+    expect(await File(p.join(directory.path, rotatedLogFileName(1))).exists(), isTrue);
+    expect(entries.map((entry) => entry.message), containsAll(['yesterday', 'today']));
+  });
+
+  test('clears log files', () async {
+    final directory = await Directory.systemTemp.createTemp('marker_logs_');
+    addTearDown(() async {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+
+    await File(p.join(directory.path, activeLogFileName)).writeAsString('active');
+    await File(p.join(directory.path, rotatedLogFileName(1))).writeAsString('rotated');
+
+    final repository = AppLogRepository(directoryLoader: () async => directory);
+    await repository.clearLogs();
+
+    expect(await repository.listLogFiles(), isEmpty);
+  });
+
   test('ignores malformed log lines when reading entries', () async {
     final directory = await Directory.systemTemp.createTemp('marker_logs_');
     addTearDown(() async {

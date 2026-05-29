@@ -32,10 +32,21 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       backgroundColor: CupertinoColors.black,
       navigationBar: CupertinoNavigationBar(
         middle: const Text('Logs'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () => unawaited(_shareLogs(context)),
-          child: const Text('Download'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => unawaited(_clearLogs(context)),
+              child: const Text('Clear', style: TextStyle(color: CupertinoColors.systemRed)),
+            ),
+            const SizedBox(width: 12),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => unawaited(_shareLogs(context)),
+              child: const Text('Download'),
+            ),
+          ],
         ),
       ),
       child: SafeArea(
@@ -135,6 +146,39 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('Copied log entry'),
         content: const Text('The selected log entry was copied to the clipboard.'),
+        actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+      ),
+    );
+  }
+
+  Future<void> _clearLogs(BuildContext context) async {
+    final shouldClear = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Clear logs?'),
+        content: const Text('This deletes all local diagnostic log files. This cannot be undone.'),
+        actions: [
+          CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Clear Logs'),
+          ),
+        ],
+      ),
+    );
+    if (shouldClear != true) {
+      return;
+    }
+
+    await ref.read(appLogRepositoryProvider).clearLogs();
+    ref.invalidate(appLogEntriesProvider);
+    if (!context.mounted) return;
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Logs cleared'),
+        content: const Text('Local diagnostic logs were deleted.'),
         actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
       ),
     );

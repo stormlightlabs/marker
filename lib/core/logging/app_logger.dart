@@ -16,14 +16,19 @@ class AppLogger {
     Logger(filter: _AlwaysLogFilter(), printer: _PassThroughPrinter(), output: _StdIoLogOutput(), level: Level.trace),
   );
 
-  static Future<AppLogger> initialize({Directory? directory, int maxBytes = 1024 * 1024, int maxFiles = 5}) async {
+  static Future<AppLogger> initialize({
+    Directory? directory,
+    int maxBytes = 1024 * 1024,
+    int maxFiles = 5,
+    Duration maxAge = const Duration(hours: 24),
+  }) async {
     final logDirectory = directory ?? await defaultLogDirectory();
     final logger = Logger(
       filter: _AlwaysLogFilter(),
       printer: _PassThroughPrinter(),
       output: MultiOutput([
         _StdIoLogOutput(),
-        RotatingJsonFileLogOutput(directory: logDirectory, maxBytes: maxBytes, maxFiles: maxFiles),
+        RotatingJsonFileLogOutput(directory: logDirectory, maxBytes: maxBytes, maxFiles: maxFiles, maxAge: maxAge),
       ]),
       level: Level.trace,
     );
@@ -63,11 +68,17 @@ class AppLogger {
 }
 
 class RotatingJsonFileLogOutput extends LogOutput {
-  RotatingJsonFileLogOutput({required this.directory, this.maxBytes = 1024 * 1024, this.maxFiles = 5});
+  RotatingJsonFileLogOutput({
+    required this.directory,
+    this.maxBytes = 1024 * 1024,
+    this.maxFiles = 5,
+    this.maxAge = const Duration(hours: 24),
+  });
 
   final Directory directory;
   final int maxBytes;
   final int maxFiles;
+  final Duration maxAge;
 
   late final File _activeFile;
 
@@ -75,7 +86,7 @@ class RotatingJsonFileLogOutput extends LogOutput {
   Future<void> init() async {
     await directory.create(recursive: true);
     _activeFile = File(p.join(directory.path, activeLogFileName));
-    if (await _activeFile.exists() && await _activeFile.length() >= maxBytes) {
+    if (await _activeFile.exists() && (await _activeFile.length() >= maxBytes || await _isActiveFileExpired())) {
       await _rotate();
     }
     if (!await _activeFile.exists()) {
@@ -88,7 +99,7 @@ class RotatingJsonFileLogOutput extends LogOutput {
     final line = '${jsonEncode(_jsonFor(event))}\n';
     final bytes = utf8.encode(line).length;
     try {
-      if (_activeFile.existsSync() && _activeFile.lengthSync() + bytes > maxBytes) {
+      if (_activeFile.existsSync() && (_activeFile.lengthSync() + bytes > maxBytes || _isActiveFileExpiredSync())) {
         _rotateSync();
       }
       _activeFile.writeAsStringSync(line, mode: FileMode.append, flush: true);
@@ -107,6 +118,16 @@ class RotatingJsonFileLogOutput extends LogOutput {
       if (origin.error != null) 'error': origin.error.toString(),
       if (origin.stackTrace != null) 'stackTrace': origin.stackTrace.toString(),
     };
+  }
+
+  Future<bool> _isActiveFileExpired() async {
+    final modified = await _activeFile.lastModified();
+    return DateTime.now().difference(modified) >= maxAge;
+  }
+
+  bool _isActiveFileExpiredSync() {
+    final modified = _activeFile.lastModifiedSync();
+    return DateTime.now().difference(modified) >= maxAge;
   }
 
   Future<void> _rotate() async {

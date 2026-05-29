@@ -7,6 +7,20 @@ class MarkerTransitionPage<T> extends CupertinoPage<T> {
   Route<T> createRoute(BuildContext context) => _MarkerPageRoute<T>(page: this);
 }
 
+class MarkerTabPage<T> extends Page<T> {
+  const MarkerTabPage({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Route<T> createRoute(BuildContext context) => PageRouteBuilder<T>(
+    settings: this,
+    pageBuilder: (context, animation, secondaryAnimation) => child,
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+  );
+}
+
 class _MarkerPageRoute<T> extends PageRoute<T> with CupertinoRouteTransitionMixin<T> {
   _MarkerPageRoute({required MarkerTransitionPage<T> page}) : super(settings: page) {
     assert(opaque);

@@ -46,6 +46,15 @@ class AppLogRepository {
     files.sort((left, right) => logFileSortIndex(left).compareTo(logFileSortIndex(right)));
     return files;
   }
+
+  Future<void> clearLogs() async {
+    final files = await listLogFiles();
+    for (final file in files) {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+  }
 }
 
 enum AppLogLevel {

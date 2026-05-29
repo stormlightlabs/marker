@@ -901,13 +901,18 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
     final state = ref.read(atprotoBookmarkImportControllerProvider);
     setState(() {
       _result = result;
-      // TODO: no nested ternaries!
-      _failureMessage = result == null && state is AtprotoBookmarkImportFailed
-          ? state.message
-          : result == null
-          ? 'Could not sync bookmarks. Check your connection and try again.'
-          : null;
+      _failureMessage = _importFailMsg(result: result, state: state);
     });
+  }
+
+  String? _importFailMsg({required AtprotoBookmarkSyncResult? result, required AtprotoBookmarkImportState state}) {
+    if (result != null) {
+      return null;
+    }
+    if (state is AtprotoBookmarkImportFailed) {
+      return state.message;
+    }
+    return 'Could not sync bookmarks. Check your connection and try again.';
   }
 
   @override
@@ -916,6 +921,7 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
     final progress = importState is AtprotoBookmarkImportRunning
         ? importState.progress
         : const SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 5, description: 'Starting sync');
+
     final presentationState = _AtprotoImportPresentationState(result: _result, failureMessage: _failureMessage);
 
     return CupertinoPopupSurface(

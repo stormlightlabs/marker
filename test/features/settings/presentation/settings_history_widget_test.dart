@@ -1,12 +1,16 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/features/settings/application/log_share_controller.dart';
 import 'package:marker/features/settings/data/app_log_repository.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
+import 'package:marker/features/settings/presentation/logs_screen.dart';
 import 'package:rough_notation/rough_notation.dart';
 
 import '../../../helpers/harness.dart';
@@ -146,6 +150,48 @@ void main() {
     expect(find.textContaining('Stormlight Labs makes high quality'), findsOneWidget);
   });
 
+  testWidgets('clears logs from the logs screen', (tester) async {
+    final now = DateTime(2026, 5, 16, 12);
+    var entries = [
+      AppLogEntry(time: now, level: AppLogLevel.info, message: 'temporary diagnostic', sourceFile: 'marker.log'),
+    ];
+    var cleared = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appLogEntriesProvider.overrideWith((ref) async => entries),
+          appLogRepositoryProvider.overrideWithValue(
+            _ClearingAppLogRepository(() {
+              cleared = true;
+              entries = const [];
+            }),
+          ),
+        ],
+        child: const CupertinoApp(home: LogsScreen()),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('temporary diagnostic'), findsOneWidget);
+
+    await tester.tap(find.text('Clear'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.widgetWithText(CupertinoDialogAction, 'Clear Logs'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(cleared, isTrue);
+    expect(find.text('Logs cleared'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('No matching logs'), findsOneWidget);
+  });
+
   testWidgets('opens logs screen and filters logs', (tester) async {
     final now = DateTime(2026, 5, 16, 12);
     var shared = false;
@@ -207,3 +253,16 @@ void main() {
     expect(shared, isTrue);
   });
 }
+
+class _ClearingAppLogRepository extends AppLogRepository {
+  _ClearingAppLogRepository(this._onClear) : super(directoryLoader: _unusedDirectoryLoader);
+
+  final VoidCallback _onClear;
+
+  @override
+  Future<void> clearLogs() async {
+    _onClear();
+  }
+}
+
+Future<Directory> _unusedDirectoryLoader() async => Directory.systemTemp;
