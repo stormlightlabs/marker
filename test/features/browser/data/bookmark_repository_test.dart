@@ -41,12 +41,21 @@ void main() {
     expect(bookmarks.single.title, 'Second');
   });
 
-  test('enqueues bookmark changes for connected ATProto accounts', () async {
+  test('only enqueues bookmark changes for selected ATProto sync rows', () async {
     final syncRepository = AtprotoSyncRepository(database, now: () => DateTime.utc(2026, 5, 13, 12));
     await syncRepository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
     repository = BookmarkRepository(database, syncRepository: syncRepository, now: () => DateTime.utc(2026, 5, 13, 12));
 
     await repository.addBookmark(url: Uri.parse('https://news.ycombinator.com'), title: 'Hacker News');
+    expect(await syncRepository.pendingOutbox(accountDid: 'did:plc:alice'), isEmpty);
+
+    final bookmark = (await database.select(database.bookmarks).get()).single;
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: bookmark.id,
+      collection: SembleSyncCollection.card.value,
+    );
 
     final outbox = await syncRepository.pendingOutbox(accountDid: 'did:plc:alice');
     expect(outbox.single.localTable, AtprotoSyncLocalTable.bookmarks.value);

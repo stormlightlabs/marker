@@ -14,9 +14,10 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
   @override
   AtprotoBookmarkImportState build() => const AtprotoBookmarkImportIdle();
 
-  Future<AtprotoBookmarkSyncResult?> importBookmarks(String accountDid) => syncBookmarks(accountDid);
+  Future<AtprotoBookmarkSyncResult?> importBookmarks(String accountDid, {bool importAsLocalOnly = false}) =>
+      syncBookmarks(accountDid, importAsLocalOnly: importAsLocalOnly);
 
-  Future<AtprotoBookmarkSyncResult?> syncBookmarks(String accountDid) async {
+  Future<AtprotoBookmarkSyncResult?> syncBookmarks(String accountDid, {bool importAsLocalOnly = false}) async {
     final syncAnnotations = await ref.read(settingsRepositoryProvider).isAnnotationSyncEnabled();
     final totalRequests = syncAnnotations ? 8 : 6;
     state = AtprotoBookmarkImportRunning(
@@ -59,6 +60,7 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
           .read(sembleBookmarkPullServiceProvider)
           .pull(
             accountDid,
+            importAsLocalOnly: importAsLocalOnly,
             onProgress: (progress) => state = AtprotoBookmarkImportRunning(
               SembleBookmarkPullProgress(
                 completedRequests: progress.completedRequests + pullOffset,
@@ -76,7 +78,9 @@ class AtprotoBookmarkImportController extends Notifier<AtprotoBookmarkImportStat
             description: 'Fetching remote annotation changes',
           ),
         );
-        marginPullResult = await ref.read(marginNoteSyncServiceProvider).pull(accountDid);
+        marginPullResult = await ref
+            .read(marginNoteSyncServiceProvider)
+            .pull(accountDid, importAsLocalOnly: importAsLocalOnly);
       }
       final result = AtprotoBookmarkSyncResult(
         push: pushResult,

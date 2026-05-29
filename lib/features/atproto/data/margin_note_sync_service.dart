@@ -100,25 +100,25 @@ class MarginNoteSyncService {
   final Uuid _uuid;
   final DateTime Function() _now;
 
-  Future<MarginNoteSyncResult> pull(String accountDid) async {
+  Future<MarginNoteSyncResult> pull(String accountDid, {bool importAsLocalOnly = false}) async {
     var result = const MarginNoteSyncResult();
     final seenUrisByCollection = <MarginSyncCollection, Set<String>>{};
     result += await _pullCollection(
       accountDid,
       MarginSyncCollection.collection,
-      _importCollection,
+      (accountDid, record) => _importCollection(accountDid, record, importAsLocalOnly: importAsLocalOnly),
       onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.collection] ??= <String>{}).add(uri),
     );
     result += await _pullCollection(
       accountDid,
       MarginSyncCollection.note,
-      _importNote,
+      (accountDid, record) => _importNote(accountDid, record, importAsLocalOnly: importAsLocalOnly),
       onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.note] ??= <String>{}).add(uri),
     );
     result += await _pullCollection(
       accountDid,
       MarginSyncCollection.collectionItem,
-      _importCollectionItem,
+      (accountDid, record) => _importCollectionItem(accountDid, record, importAsLocalOnly: importAsLocalOnly),
       onRecordSeen: (uri) => (seenUrisByCollection[MarginSyncCollection.collectionItem] ??= <String>{}).add(uri),
     );
     for (final collection in MarginSyncCollection.values) {
@@ -212,7 +212,11 @@ class MarginNoteSyncService {
     return false;
   }
 
-  Future<MarginNoteSyncResult> _importCollection(String accountDid, AtprotoRepoRecord remote) async {
+  Future<MarginNoteSyncResult> _importCollection(
+    String accountDid,
+    AtprotoRepoRecord remote, {
+    required bool importAsLocalOnly,
+  }) async {
     try {
       final record = const margin_collection.CollectionRecordConverter().fromJson(remote.value);
       final mirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: remote.uri);
@@ -262,13 +266,26 @@ class MarginNoteSyncService {
         lastSyncedHash: hash,
         lastSyncedAt: _now(),
       );
+      if (!importAsLocalOnly) {
+        await _syncRepository.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.annotationCollections.value,
+          localId: localId,
+          collection: MarginSyncCollection.collection.value,
+          enqueueCurrent: false,
+        );
+      }
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
     } on Object catch (error, stackTrace) {
       return _malformed(remote, 'Ignoring malformed Margin collection record.', error: error, stackTrace: stackTrace);
     }
   }
 
-  Future<MarginNoteSyncResult> _importCollectionItem(String accountDid, AtprotoRepoRecord remote) async {
+  Future<MarginNoteSyncResult> _importCollectionItem(
+    String accountDid,
+    AtprotoRepoRecord remote, {
+    required bool importAsLocalOnly,
+  }) async {
     try {
       final record = const margin_collection_item.CollectionItemRecordConverter().fromJson(remote.value);
       final collectionMirror = await _syncRepository.mirrorForUri(
@@ -330,6 +347,15 @@ class MarginNoteSyncService {
         lastSyncedHash: hash,
         lastSyncedAt: _now(),
       );
+      if (!importAsLocalOnly) {
+        await _syncRepository.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.annotationCollectionItems.value,
+          localId: localId,
+          collection: MarginSyncCollection.collectionItem.value,
+          enqueueCurrent: false,
+        );
+      }
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
     } on Object catch (error, stackTrace) {
       return _malformed(
@@ -341,7 +367,11 @@ class MarginNoteSyncService {
     }
   }
 
-  Future<MarginNoteSyncResult> _importNote(String accountDid, AtprotoRepoRecord remote) async {
+  Future<MarginNoteSyncResult> _importNote(
+    String accountDid,
+    AtprotoRepoRecord remote, {
+    required bool importAsLocalOnly,
+  }) async {
     try {
       final note = const margin_note.NoteRecordConverter().fromJson(remote.value);
       final source = emptyToNull(note.target.source);
@@ -478,6 +508,15 @@ class MarginNoteSyncService {
         lastSyncedHash: hash,
         lastSyncedAt: _now(),
       );
+      if (!importAsLocalOnly) {
+        await _syncRepository.selectForSync(
+          accountDid: accountDid,
+          localTable: AtprotoSyncLocalTable.annotations.value,
+          localId: annotationId,
+          collection: MarginSyncCollection.note.value,
+          enqueueCurrent: false,
+        );
+      }
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
     } on Object catch (error, stackTrace) {
       return _malformed(remote, 'Ignoring malformed Margin note record.', error: error, stackTrace: stackTrace);
@@ -519,6 +558,15 @@ class MarginNoteSyncService {
   }
 
   Future<void> _pushItem(AtprotoSyncOutboxData item) async {
+    if (item.operation != AtprotoSyncOperation.delete.value) {
+      final selection = await _syncRepository.selectionForLocal(
+        accountDid: item.accountDid,
+        localTable: item.localTable,
+        localId: item.localId,
+        collection: item.collection,
+      );
+      if (selection?.deselectedAt != null || selection == null) return;
+    }
     final mirror = await _syncRepository.mirrorForLocal(
       accountDid: item.accountDid,
       localTable: item.localTable,

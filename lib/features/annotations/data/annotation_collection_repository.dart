@@ -120,8 +120,23 @@ class AnnotationCollectionRepository {
   }) async {
     final syncRepository = _syncRepository;
     if (syncRepository == null || !await _isAnnotationSyncEnabled()) return;
+    if (operation == AtprotoSyncOperation.update) {
+      await syncRepository.enqueueLocalChangeForAllAccounts(
+        localTable: table.value,
+        localId: localId,
+        collection: collection.value,
+      );
+      return;
+    }
     final accounts = await syncRepository.accounts();
     for (final account in accounts) {
+      final selection = await syncRepository.selectionForLocal(
+        accountDid: account.did,
+        localTable: table.value,
+        localId: localId,
+        collection: collection.value,
+      );
+      if (selection?.deselectedAt != null || selection == null) continue;
       await syncRepository.enqueueOutbox(
         accountDid: account.did,
         operation: operation.value,

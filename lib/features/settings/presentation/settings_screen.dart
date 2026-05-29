@@ -22,6 +22,7 @@ import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/domain/atproto_account_session.dart';
 import 'package:marker/features/settings/data/settings_repository.dart';
+import 'package:marker/shared/widgets/settings_rows.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -53,7 +54,7 @@ class SettingsScreen extends ConsumerWidget {
                       padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                       child: Column(
                         children: [
-                          _SettingsSwitchRow(
+                          SettingsSwitchRow(
                             icon: CupertinoIcons.shield_lefthalf_fill,
                             title: 'Ad Blocker',
                             subtitle: 'Block EasyList ads while browsing',
@@ -63,7 +64,7 @@ class SettingsScreen extends ConsumerWidget {
                             },
                           ),
                           const SizedBox(height: 12),
-                          _SettingsSwitchRow(
+                          SettingsSwitchRow(
                             icon: funEnabled ? CupertinoIcons.scribble : CupertinoIcons.wand_rays,
                             title: 'Fun',
                             titleWidget: const Funnotation(
@@ -81,14 +82,14 @@ class SettingsScreen extends ConsumerWidget {
                             },
                           ),
                           const SizedBox(height: 12),
-                          _SettingsLinkRow(
+                          SettingsLinkRow(
                             icon: CupertinoIcons.clock,
                             title: 'Browser History',
                             subtitle: 'Recent page visits and clear history',
                             onPressed: () => context.pushNamed(AppRoute.history.routeName),
                           ),
                           const SizedBox(height: 22),
-                          _SettingsSectionHeader(
+                          SettingsSectionHeader(
                             label: 'Sync',
                             trailing: _AtprotoInfoLink(
                               onPressed: () => _openExternalUrl('https://atmosphereaccount.com/'),
@@ -97,16 +98,16 @@ class SettingsScreen extends ConsumerWidget {
                           const SizedBox(height: 8),
                           _AtprotoAccountRow(state: atprotoAuthState),
                           const SizedBox(height: 22),
-                          const _SettingsSectionLabel('Advanced'),
+                          const SettingsSectionLabel('Advanced'),
                           const SizedBox(height: 8),
-                          _SettingsLinkRow(
+                          SettingsLinkRow(
                             icon: CupertinoIcons.doc_text_search,
                             title: 'Logs',
                             subtitle: 'View, filter, and download diagnostic logs',
                             onPressed: () => context.pushNamed(AppRoute.logs.routeName),
                           ),
                           const SizedBox(height: 12),
-                          _SettingsLinkRow(
+                          SettingsLinkRow(
                             icon: CupertinoIcons.info_circle,
                             title: 'About',
                             subtitle: 'Stormlight Labs',
@@ -131,33 +132,6 @@ Future<void> _openExternalUrl(String value) async {
   await launchUrl(Uri.parse(value), mode: LaunchMode.externalApplication);
 }
 
-class _SettingsSectionLabel extends StatelessWidget {
-  const _SettingsSectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: const TextStyle(
-      color: CupertinoColors.systemGrey,
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0,
-    ),
-  );
-}
-
-class _SettingsSectionHeader extends StatelessWidget {
-  const _SettingsSectionHeader({required this.label, this.trailing});
-
-  final String label;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) => Row(children: [_SettingsSectionLabel(label), const Spacer(), ?trailing]);
-}
-
 class _AtprotoInfoLink extends StatelessWidget {
   const _AtprotoInfoLink({required this.onPressed});
 
@@ -176,105 +150,6 @@ class _AtprotoInfoLink extends StatelessWidget {
         Text('What is AT Proto?', style: TextStyle(fontSize: 12, letterSpacing: 0)),
       ],
     ),
-  );
-}
-
-class _SettingsLinkRow extends StatelessWidget {
-  const _SettingsLinkRow({required this.icon, required this.title, required this.subtitle, required this.onPressed});
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => _SettingsRowFrame(
-    child: CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: onPressed,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        child: Row(
-          children: [
-            Icon(icon, color: CupertinoColors.activeBlue, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _SettingsRowText(title: title, subtitle: subtitle),
-            ),
-            const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey, size: 17),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _SettingsSwitchRow extends StatelessWidget {
-  const _SettingsSwitchRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    this.titleWidget,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool value;
-  final Widget? titleWidget;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) => _SettingsRowFrame(
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-      child: Row(
-        children: [
-          Icon(icon, color: CupertinoColors.activeBlue, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SettingsRowText(title: title, subtitle: subtitle, titleWidget: titleWidget),
-          ),
-          CupertinoSwitch(value: value, onChanged: onChanged),
-        ],
-      ),
-    ),
-  );
-}
-
-class _SettingsRowText extends StatelessWidget {
-  const _SettingsRowText({required this.title, required this.subtitle, this.titleWidget});
-
-  final String title;
-  final String subtitle;
-  final Widget? titleWidget;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      titleWidget ?? Text(title, style: const TextStyle(color: CupertinoColors.white, fontSize: 16, letterSpacing: 0)),
-      const SizedBox(height: 3),
-      Text(subtitle, style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, letterSpacing: 0)),
-    ],
-  );
-}
-
-class _SettingsRowFrame extends StatelessWidget {
-  const _SettingsRowFrame({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: const Color(0xFF151519),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-    ),
-    child: child,
   );
 }
 
@@ -298,6 +173,18 @@ final _atprotoPendingOutboxProvider = FutureProvider.family<List<AtprotoSyncOutb
   return ref.watch(atprotoSyncRepositoryProvider).pendingOutbox(accountDid: accountDid);
 });
 
+final _atprotoSelectionDiagnosticsProvider = FutureProvider.family<Map<String, int>, String>((ref, accountDid) {
+  return ref.watch(atprotoSyncRepositoryProvider).selectionDiagnosticsForAccount(accountDid);
+});
+
+final _atprotoAutoSelectBookmarksProvider = FutureProvider.family<bool, String>((ref, accountDid) {
+  return ref.watch(atprotoSyncRepositoryProvider).autoSelectBookmarksEnabled(accountDid);
+});
+
+final _atprotoAutoSelectAnnotationsProvider = FutureProvider.family<bool, String>((ref, accountDid) {
+  return ref.watch(atprotoSyncRepositoryProvider).autoSelectAnnotationsEnabled(accountDid);
+});
+
 final _atprotoLatestMirrorSyncProvider = FutureProvider.family<DateTime?, String>((ref, accountDid) {
   return ref.watch(atprotoSyncRepositoryProvider).latestMirrorSyncAtForAccount(accountDid);
 });
@@ -314,10 +201,16 @@ class _AtprotoAccountRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (state case AtprotoAuthConnected(:final account)) {
-      return _ConnectedAtprotoAccountCard(account: account);
+      return Column(
+        children: [
+          _ConnectedAtprotoAccountCard(account: account),
+          const SizedBox(height: 12),
+          _AtprotoSyncOptionsCard(accountDid: account.did),
+        ],
+      );
     }
 
-    return _SettingsRowFrame(
+    return SettingsRowFrame(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
         child: Row(
@@ -325,7 +218,7 @@ class _AtprotoAccountRow extends ConsumerWidget {
             const Icon(CupertinoIcons.cloud, color: CupertinoColors.activeBlue, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: _SettingsRowText(title: 'ATProto Sync', subtitle: _subtitle),
+              child: SettingsRowText(title: 'ATProto Sync', subtitle: _subtitle),
             ),
             CupertinoButton(
               padding: EdgeInsets.zero,
@@ -362,7 +255,7 @@ class _AnnotationSyncOptInRow extends StatelessWidget {
     child: Row(
       children: [
         const Expanded(
-          child: _SettingsRowText(
+          child: SettingsRowText(
             title: 'Annotation sync',
             subtitle: 'Sync highlights, notes, tags, and annotation collections with Margin.',
           ),
@@ -389,15 +282,15 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
 
     final pendingOutbox =
         ref.watch(_atprotoPendingOutboxProvider(account.did)).value ?? const <AtprotoSyncOutboxData>[];
-
+    final selectionDiagnostics =
+        ref.watch(_atprotoSelectionDiagnosticsProvider(account.did)).value ?? const <String, int>{};
     final lastPush = ref.watch(_atprotoLatestMirrorSyncProvider(account.did)).value;
     final importState = ref.watch(atprotoBookmarkImportControllerProvider);
     final lastImport = _latestSuccessfulSync(syncStates);
     final lastError = _latestError(syncStates);
     final isImporting = importState.isImporting;
-    final annotationSyncEnabled = ref.watch(_annotationSyncEnabledProvider).value ?? false;
 
-    return _SettingsRowFrame(
+    return SettingsRowFrame(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 12, 14),
         child: Column(
@@ -412,13 +305,13 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _SettingsRowText(title: 'ATProto Sync', subtitle: 'Connected as ${_accountLabel(account)}'),
+                  child: SettingsRowText(title: 'ATProto Sync', subtitle: 'Connected as ${_accountLabel(account)}'),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             const Text(
-              'Bookmark sync publishes Semble/Cosmik bookmark records. Annotation sync publishes Margin notes with quote selectors, note text, tags, color, style, and source URLs. Browser history stays local.',
+              'Connected accounts do not publish local data until you select items for sync. Bookmark sync can publish Semble/Cosmik bookmark records. Annotation sync can publish Margin notes with quote selectors, note text, tags, color, style, and source URLs. Browser history stays local.',
               style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 12, height: 1.35),
             ),
             const SizedBox(height: 12),
@@ -438,20 +331,12 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _AnnotationSyncOptInRow(
-              enabled: annotationSyncEnabled,
-              onChanged: (enabled) async {
-                await ref.read(annotationSyncOptInServiceProvider).setEnabled(enabled);
-                ref.invalidate(_annotationSyncEnabledProvider);
-                ref.invalidate(_atprotoPendingOutboxProvider(account.did));
-              },
-            ),
-            const SizedBox(height: 8),
             _AtprotoDiagnosticsSection(
               syncStates: syncStates,
               syncedRecordCounts: syncedRecordCounts,
               deletedRecordCounts: deletedRecordCounts,
               pendingOutbox: pendingOutbox,
+              selectionDiagnostics: selectionDiagnostics,
               lastPush: lastPush,
               formatDateTime: _formatDateTime,
             ),
@@ -535,11 +420,33 @@ class _ConnectedAtprotoAccountCard extends ConsumerWidget {
     await ref.read(atprotoAuthRepositoryProvider).disconnect(account.did);
   }
 
-  Future<void> _showImportSheet(BuildContext context) async => showCupertinoModalPopup<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (sheetContext) => _AtprotoImportSheet(accountDid: account.did),
-  );
+  Future<void> _showImportSheet(BuildContext context) async {
+    final importAsLocalOnly = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Import remote records'),
+        content: const Text(
+          'Keep imported records linked to this account for future sync, or import them as local-only so future edits stay private.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Local-only'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep linked'),
+          ),
+        ],
+      ),
+    );
+    if (importAsLocalOnly == null || !context.mounted) return;
+    await showCupertinoModalPopup<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (sheetContext) => _AtprotoImportSheet(accountDid: account.did, importAsLocalOnly: importAsLocalOnly),
+    );
+  }
 }
 
 class _ExpandableSettingsSection extends StatefulWidget {
@@ -591,12 +498,218 @@ class _ExpandableSettingsSectionState extends State<_ExpandableSettingsSection> 
   );
 }
 
+void _invalidateAtprotoSyncUi(WidgetRef ref, String accountDid) {
+  ref.invalidate(_atprotoSyncStatesProvider(accountDid));
+  ref.invalidate(_atprotoPendingOutboxProvider(accountDid));
+  ref.invalidate(_atprotoSelectionDiagnosticsProvider(accountDid));
+  ref.invalidate(_atprotoSyncedRecordCountsProvider(accountDid));
+  ref.invalidate(_atprotoLatestMirrorSyncProvider(accountDid));
+}
+
+class _AtprotoSyncOptionsCard extends ConsumerWidget {
+  const _AtprotoSyncOptionsCard({required this.accountDid});
+
+  final String accountDid;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final annotationSyncEnabled = ref.watch(_annotationSyncEnabledProvider).value ?? false;
+    final autoSelectBookmarks = ref.watch(_atprotoAutoSelectBookmarksProvider(accountDid)).value ?? false;
+    final autoSelectAnnotations = ref.watch(_atprotoAutoSelectAnnotationsProvider(accountDid)).value ?? false;
+
+    return SettingsRowFrame(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 12, 14),
+        child: _AtprotoSelectionControls(
+          accountDid: accountDid,
+          annotationSyncEnabled: annotationSyncEnabled,
+          autoSelectBookmarks: autoSelectBookmarks,
+          autoSelectAnnotations: autoSelectAnnotations,
+        ),
+      ),
+    );
+  }
+}
+
+class _AtprotoSelectionControls extends ConsumerWidget {
+  const _AtprotoSelectionControls({
+    required this.accountDid,
+    required this.annotationSyncEnabled,
+    required this.autoSelectBookmarks,
+    required this.autoSelectAnnotations,
+  });
+
+  final String accountDid;
+  final bool annotationSyncEnabled;
+  final bool autoSelectBookmarks;
+  final bool autoSelectAnnotations;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _SyncOptionsHeader(),
+      const SizedBox(height: 8),
+      _AnnotationSyncOptInRow(
+        enabled: annotationSyncEnabled,
+        onChanged: (enabled) async {
+          await ref.read(annotationSyncOptInServiceProvider).setEnabled(enabled);
+          ref.invalidate(_annotationSyncEnabledProvider);
+          _invalidateAtprotoSyncUi(ref, accountDid);
+        },
+      ),
+      const SizedBox(height: 8),
+      _SyncSelectionActionRow(
+        title: 'Sync all bookmarks',
+        subtitle: 'Select existing bookmarks, folders, and folder memberships.',
+        onPressed: () async {
+          await ref.read(atprotoSyncRepositoryProvider).selectAllBookmarksForSync(accountDid);
+          _invalidateAtprotoSyncUi(ref, accountDid);
+        },
+      ),
+      const SizedBox(height: 8),
+      _SyncSelectionSwitchRow(
+        title: 'Sync local new bookmarks',
+        subtitle: 'Automatically select new bookmarks, folders, and memberships for this account.',
+        value: autoSelectBookmarks,
+        onChanged: (value) async {
+          await ref.read(atprotoSyncRepositoryProvider).setAutoSelectBookmarksEnabled(accountDid, value);
+          ref.invalidate(_atprotoAutoSelectBookmarksProvider(accountDid));
+        },
+      ),
+      const SizedBox(height: 8),
+      _SyncSelectionActionRow(
+        title: 'Sync all annotations',
+        subtitle: 'Select existing notes, highlights, and annotation collections.',
+        onPressed: () async {
+          await ref.read(atprotoSyncRepositoryProvider).selectAllAnnotationsForSync(accountDid);
+          _invalidateAtprotoSyncUi(ref, accountDid);
+        },
+      ),
+      const SizedBox(height: 8),
+      _SyncSelectionSwitchRow(
+        title: 'Sync local new annotations',
+        subtitle: 'Automatically select new annotations and curated annotation collections for this account.',
+        value: autoSelectAnnotations,
+        onChanged: (value) async {
+          await ref.read(atprotoSyncRepositoryProvider).setAutoSelectAnnotationsEnabled(accountDid, value);
+          ref.invalidate(_atprotoAutoSelectAnnotationsProvider(accountDid));
+        },
+      ),
+    ],
+  );
+}
+
+class _SyncOptionsHeader extends StatelessWidget {
+  const _SyncOptionsHeader();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.only(left: 2),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sync options',
+          style: TextStyle(color: CupertinoColors.white, fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        SizedBox(height: 3),
+        Text(
+          'Choose what Marker is allowed to publish. Existing local items stay private until selected.',
+          style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 11, height: 1.35),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SyncOptionBlock extends StatelessWidget {
+  const _SyncOptionBlock({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+    decoration: BoxDecoration(color: const Color(0xFF151519), borderRadius: BorderRadius.circular(14)),
+    child: child,
+  );
+}
+
+class _SyncSelectionActionRow extends StatefulWidget {
+  const _SyncSelectionActionRow({required this.title, required this.subtitle, required this.onPressed});
+
+  final String title;
+  final String subtitle;
+  final Future<void> Function() onPressed;
+
+  @override
+  State<_SyncSelectionActionRow> createState() => _SyncSelectionActionRowState();
+}
+
+class _SyncSelectionActionRowState extends State<_SyncSelectionActionRow> {
+  bool _isSelecting = false;
+
+  @override
+  Widget build(BuildContext context) => _SyncOptionBlock(
+    child: Row(
+      children: [
+        Expanded(
+          child: SettingsRowText(title: widget.title, subtitle: widget.subtitle),
+        ),
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          minimumSize: const Size(64, 32),
+          onPressed: _isSelecting ? null : _select,
+          child: Text(_isSelecting ? 'Selecting...' : 'Select'),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _select() async {
+    setState(() => _isSelecting = true);
+    try {
+      await widget.onPressed();
+    } finally {
+      if (mounted) setState(() => _isSelecting = false);
+    }
+  }
+}
+
+class _SyncSelectionSwitchRow extends StatelessWidget {
+  const _SyncSelectionSwitchRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => _SyncOptionBlock(
+    child: Row(
+      children: [
+        Expanded(
+          child: SettingsRowText(title: title, subtitle: subtitle),
+        ),
+        CupertinoSwitch(value: value, onChanged: onChanged),
+      ],
+    ),
+  );
+}
+
 class _AtprotoDiagnosticsSection extends StatelessWidget {
   const _AtprotoDiagnosticsSection({
     required this.syncStates,
     required this.syncedRecordCounts,
     required this.deletedRecordCounts,
     required this.pendingOutbox,
+    required this.selectionDiagnostics,
     required this.lastPush,
     required this.formatDateTime,
   });
@@ -605,6 +718,7 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
   final Map<String, int> syncedRecordCounts;
   final Map<String, int> deletedRecordCounts;
   final List<AtprotoSyncOutboxData> pendingOutbox;
+  final Map<String, int> selectionDiagnostics;
   final DateTime? lastPush;
   final String Function(DateTime? value) formatDateTime;
 
@@ -638,6 +752,8 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
             confirmedDeleteCount: confirmedDeletes,
           ),
           const SizedBox(height: 8),
+          _AtprotoSelectionDiagnosticsStatus(selectionDiagnostics: selectionDiagnostics),
+          const SizedBox(height: 8),
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             color: const Color(0xFF2A2A30),
@@ -648,6 +764,7 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
                   syncedRecordCounts: syncedRecordCounts,
                   deletedRecordCounts: deletedRecordCounts,
                   pendingOutbox: pendingOutbox,
+                  selectionDiagnostics: selectionDiagnostics,
                   lastPush: lastPush,
                 ),
               ),
@@ -677,6 +794,7 @@ String _diagnosticsExportJson({
   required Map<String, int> syncedRecordCounts,
   required Map<String, int> deletedRecordCounts,
   required List<AtprotoSyncOutboxData> pendingOutbox,
+  required Map<String, int> selectionDiagnostics,
   required DateTime? lastPush,
 }) {
   return const JsonEncoder.withIndent('  ').convert({
@@ -693,6 +811,7 @@ String _diagnosticsExportJson({
     ],
     'syncedRecordCounts': syncedRecordCounts,
     'deletedRecordCounts': deletedRecordCounts,
+    'selectionDiagnostics': selectionDiagnostics,
     'outbox': [
       for (final item in pendingOutbox)
         {
@@ -706,6 +825,44 @@ String _diagnosticsExportJson({
         },
     ],
   });
+}
+
+class _AtprotoSelectionDiagnosticsStatus extends StatelessWidget {
+  const _AtprotoSelectionDiagnosticsStatus({required this.selectionDiagnostics});
+
+  final Map<String, int> selectionDiagnostics;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = selectionDiagnostics.entries
+        .where((entry) => entry.key.startsWith('selected:'))
+        .fold<int>(0, (total, entry) => total + entry.value);
+    final unselected = selectionDiagnostics.entries
+        .where((entry) => entry.key.startsWith('unselected:'))
+        .fold<int>(0, (total, entry) => total + entry.value);
+    final blocked = selectionDiagnostics.entries
+        .where((entry) => entry.key.startsWith('dependencyBlocked:'))
+        .fold<int>(0, (total, entry) => total + entry.value);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Selection', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
+        const SizedBox(height: 2),
+        Text('Selected records: $selected', style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11)),
+        Text(
+          'Unselected local records: $unselected',
+          style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 11),
+        ),
+        Text(
+          'Dependency-blocked selections: $blocked',
+          style: TextStyle(
+            color: blocked == 0 ? CupertinoColors.systemGrey : CupertinoColors.systemOrange,
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _AtprotoPushSyncStatus extends StatelessWidget {
@@ -925,9 +1082,10 @@ class _AtprotoDetailRow extends StatelessWidget {
 }
 
 class _AtprotoImportSheet extends ConsumerStatefulWidget {
-  const _AtprotoImportSheet({required this.accountDid});
+  const _AtprotoImportSheet({required this.accountDid, required this.importAsLocalOnly});
 
   final String accountDid;
+  final bool importAsLocalOnly;
 
   @override
   ConsumerState<_AtprotoImportSheet> createState() => _AtprotoImportSheetState();
@@ -945,13 +1103,14 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
 
   Future<void> _startImport() async {
     final notifier = ref.read(atprotoBookmarkImportControllerProvider.notifier);
-    final result = await notifier.syncBookmarks(widget.accountDid);
+    final result = await notifier.syncBookmarks(widget.accountDid, importAsLocalOnly: widget.importAsLocalOnly);
     if (!mounted) return;
     ref
       ..invalidate(_atprotoSyncStatesProvider(widget.accountDid))
       ..invalidate(_atprotoSyncedRecordCountsProvider(widget.accountDid))
       ..invalidate(_atprotoDeletedRecordCountsProvider(widget.accountDid))
       ..invalidate(_atprotoPendingOutboxProvider(widget.accountDid))
+      ..invalidate(_atprotoSelectionDiagnosticsProvider(widget.accountDid))
       ..invalidate(_atprotoLatestMirrorSyncProvider(widget.accountDid));
     final state = ref.read(atprotoBookmarkImportControllerProvider);
     setState(() {
@@ -1130,7 +1289,7 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Bookmark sync publishes bookmark records to your ATProto repo. Browser history stays local.',
+                      'Connecting an account does not publish local data. Select bookmarks or annotations for sync when you are ready. Browser history stays local.',
                       style: TextStyle(color: CupertinoColors.systemGrey, fontSize: 14),
                     ),
                     const SizedBox(height: 16),
@@ -1328,7 +1487,7 @@ class _AtprotoConnectSheetState extends ConsumerState<_AtprotoConnectSheet> {
             await showCupertinoModalPopup<void>(
               context: context,
               barrierDismissible: false,
-              builder: (sheetContext) => _AtprotoImportSheet(accountDid: accountDid),
+              builder: (sheetContext) => _AtprotoImportSheet(accountDid: accountDid, importAsLocalOnly: false),
             );
           },
           child: const Text('Import bookmarks'),

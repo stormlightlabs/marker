@@ -28,12 +28,26 @@ void main() {
     await database.close();
   });
 
-  test('creates curated annotation collections and enqueues collection/item sync', () async {
+  test('creates curated annotation collections and only enqueues selected collection/item sync', () async {
     final collection = await repository.createCollection(name: 'Research', description: 'Papers', icon: '📚');
     final item = await repository.addAnnotation(
       collectionId: collection.id,
       annotationId: 'annotation-1',
       position: 10,
+    );
+
+    expect(await syncRepository.pendingOutbox(accountDid: 'did:plc:alice'), isEmpty);
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotationCollections.value,
+      localId: collection.id,
+      collection: MarginSyncCollection.collection.value,
+    );
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotationCollectionItems.value,
+      localId: item.id,
+      collection: MarginSyncCollection.collectionItem.value,
     );
 
     final outbox = await syncRepository.pendingOutbox(accountDid: 'did:plc:alice');

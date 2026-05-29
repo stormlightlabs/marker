@@ -47,27 +47,24 @@ class AnnotationSyncOptInService {
 
     for (final account in accounts) {
       for (final annotation in annotations) {
-        await _syncRepository.enqueueOutbox(
+        await _syncRepository.selectForSync(
           accountDid: account.did,
-          operation: AtprotoSyncOperation.update.value,
           localTable: AtprotoSyncLocalTable.annotations.value,
           localId: annotation.id,
           collection: MarginSyncCollection.note.value,
         );
       }
       for (final collection in collections) {
-        await _syncRepository.enqueueOutbox(
+        await _syncRepository.selectForSync(
           accountDid: account.did,
-          operation: AtprotoSyncOperation.update.value,
           localTable: AtprotoSyncLocalTable.annotationCollections.value,
           localId: collection.id,
           collection: MarginSyncCollection.collection.value,
         );
       }
       for (final item in items) {
-        await _syncRepository.enqueueOutbox(
+        await _syncRepository.selectForSync(
           accountDid: account.did,
-          operation: AtprotoSyncOperation.update.value,
           localTable: AtprotoSyncLocalTable.annotationCollectionItems.value,
           localId: item.id,
           collection: MarginSyncCollection.collectionItem.value,

@@ -82,6 +82,13 @@ void main() {
       (AtprotoSyncLocalTable.annotationCollections.value, 'collection-1', MarginSyncCollection.collection.value),
       (AtprotoSyncLocalTable.annotationCollectionItems.value, 'item-1', MarginSyncCollection.collectionItem.value),
     ]) {
+      await syncRepository.selectForSync(
+        accountDid: 'did:plc:alice',
+        localTable: outbox.$1,
+        localId: outbox.$2,
+        collection: outbox.$3,
+        enqueueCurrent: false,
+      );
       await syncRepository.enqueueOutbox(
         accountDid: 'did:plc:alice',
         operation: AtprotoSyncOperation.create.value,
@@ -396,6 +403,13 @@ void main() {
       motivation: 'commenting',
       note: '[Marker](https://marker.stormlightlabs.org) note',
       styleJson: {'style': 'underline', 'color': '#64D2FF'},
+    );
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.annotations.value,
+      localId: 'annotation-1',
+      collection: MarginSyncCollection.note.value,
+      enqueueCurrent: false,
     );
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',

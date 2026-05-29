@@ -214,6 +214,27 @@ class AtprotoSyncState extends Table {
   ];
 }
 
+class AtprotoSyncSelections extends Table {
+  TextColumn get id => text()();
+  TextColumn get accountDid => text().references(AtprotoAccounts, #did)();
+  TextColumn get localTable => text()();
+  TextColumn get localId => text()();
+  TextColumn get collection => text()();
+  DateTimeColumn get selectedAt => dateTime()();
+  DateTimeColumn get deselectedAt => dateTime().nullable()();
+  BoolColumn get deleteRemoteOnLocalDelete => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<Set<Column<Object>>> get uniqueKeys => [
+    {accountDid, localTable, localId, collection},
+  ];
+}
+
 class AtprotoSyncOutbox extends Table {
   TextColumn get id => text()();
   TextColumn get accountDid => text().references(AtprotoAccounts, #did)();
@@ -256,6 +277,7 @@ class AppSettings extends Table {
     AtprotoAccounts,
     AtprotoRecordMirrors,
     AtprotoSyncState,
+    AtprotoSyncSelections,
     AtprotoSyncOutbox,
     AppSettings,
   ],
@@ -264,7 +286,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -325,6 +347,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 15) {
         await createPerformanceIndexes();
       }
+      if (from < 16) {
+        await m.createTable(atprotoSyncSelections);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -368,6 +393,7 @@ WHERE folder_id IS NOT NULL
     await m.createTable(atprotoAccounts);
     await m.createTable(atprotoRecordMirrors);
     await m.createTable(atprotoSyncState);
+    await m.createTable(atprotoSyncSelections);
     await m.createTable(atprotoSyncOutbox);
   }
 
@@ -416,6 +442,10 @@ ON bookmark_collection_links(bookmark_id, deleted_at, sort_order, created_at)
     await customStatement('''
 CREATE INDEX IF NOT EXISTS idx_atproto_mirrors_annotation_lookup
 ON atproto_record_mirrors(local_id, local_table, collection, deleted_at, last_synced_at)
+''');
+    await customStatement('''
+CREATE INDEX IF NOT EXISTS idx_atproto_selections_active_lookup
+ON atproto_sync_selections(account_did, local_table, local_id, collection, deselected_at)
 ''');
   }
 }

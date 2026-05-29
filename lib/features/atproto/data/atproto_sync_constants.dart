@@ -49,6 +49,9 @@ enum MarginSyncCollection {
   };
 }
 
+const atprotoAutoSelectBookmarksSettingPrefix = 'atproto.auto_select_bookmarks.';
+const atprotoAutoSelectAnnotationsSettingPrefix = 'atproto.auto_select_annotations.';
+
 class AtprotoSyncCollections {
   const AtprotoSyncCollections._();
 

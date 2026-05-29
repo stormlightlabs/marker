@@ -79,7 +79,9 @@ void main() {
     );
     oauthClient.authorizeError = StateError('client metadata was not accepted');
 
-    final account = await localContainer.read(atprotoLoginControllerProvider.notifier).connect(handle: 'alice.bsky.social');
+    final account = await localContainer
+        .read(atprotoLoginControllerProvider.notifier)
+        .connect(handle: 'alice.bsky.social');
 
     expect(account, isNull);
     final state = localContainer.read(atprotoLoginControllerProvider);

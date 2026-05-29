@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show SelectableText;
@@ -12,11 +11,18 @@ import 'package:marker/app/routes.dart';
 import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
+import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
+import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/atproto/domain/atproto_account_session.dart';
 import 'package:marker/features/atproto/presentation/atproto_sync_status_row.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
 import 'package:marker/features/browser/presentation/note_editor_sheet.dart';
 import 'package:marker/features/library/data/library_repository.dart';
 import 'package:marker/features/library/data/library_search_repository.dart';
+import 'package:marker/shared/widgets/marker_list_widgets.dart';
+
+enum LibraryTab { library, bookmarks, annotations }
 
 enum LibraryAnnotationFilter {
   all('All'),
@@ -54,6 +60,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   late final TextEditingController _searchController = TextEditingController();
   String _query = '';
+  LibraryTab _activeTab = LibraryTab.library;
 
   @override
   void dispose() {
@@ -79,6 +86,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   query: _query,
                   searchController: _searchController,
                   searchResults: searchResults,
+                  activeTab: _activeTab,
+                  onTabChanged: (value) => setState(() => _activeTab = value),
                   onSearchChanged: (value) => setState(() => _query = value),
                   onOpenPage: (id) => context.pushNamed(AppRoute.libraryPage.routeName, pathParameters: {'pageId': id}),
                   onOpenUrl: (url) => _openInBrowser(context, ref, url),
@@ -114,6 +123,8 @@ class _LibraryContent extends StatelessWidget {
     required this.query,
     required this.searchController,
     required this.searchResults,
+    required this.activeTab,
+    required this.onTabChanged,
     required this.onSearchChanged,
     required this.onOpenPage,
     required this.onOpenUrl,
@@ -126,6 +137,8 @@ class _LibraryContent extends StatelessWidget {
   final String query;
   final TextEditingController searchController;
   final AsyncValue<List<LibrarySearchResult>>? searchResults;
+  final LibraryTab activeTab;
+  final ValueChanged<LibraryTab> onTabChanged;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onOpenPage;
   final ValueChanged<Uri> onOpenUrl;
@@ -143,12 +156,15 @@ class _LibraryContent extends StatelessWidget {
       ),
       const SliverToBoxAdapter(child: AtprotoSyncStatusRow()),
       SliverToBoxAdapter(
+        child: _LibraryTabBar(activeTab: activeTab, onChanged: onTabChanged),
+      ),
+      SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
           child: CupertinoSearchTextField(
             controller: searchController,
             onChanged: onSearchChanged,
-            placeholder: 'Search pages & annotations',
+            placeholder: 'Search bookmarks & annotations',
             backgroundColor: const Color(0xFF1C1C20),
             style: const TextStyle(color: CupertinoColors.white, letterSpacing: 0),
             placeholderStyle: const TextStyle(color: CupertinoColors.systemGrey, letterSpacing: 0),
@@ -159,32 +175,64 @@ class _LibraryContent extends StatelessWidget {
         ..._searchSlivers()
       else if (snapshot.isEmpty)
         const SliverFillRemaining(hasScrollBody: false, child: _EmptyLibrary())
-      else ...[
-        _LibraryPageSection(
-          title: 'Bookmarks',
-          pages: snapshot.bookmarkedPages,
-          icon: CupertinoIcons.bookmark_fill,
-          accentColor: CupertinoColors.activeBlue,
-          onOpenPage: onOpenPage,
-          onShowAll: onOpenBookmarks,
-        ),
-        _AnnotationSection(
-          annotations: snapshot.recentAnnotations,
-          onOpenAnnotation: onOpenAnnotation,
-          onOpenAnnotations: onOpenAnnotations,
-        ),
-        _LibraryPageSection(
-          title: 'Recently Annotated',
-          pages: snapshot.recentPages,
-          icon: CupertinoIcons.globe,
-          accentColor: CupertinoColors.systemTeal,
-          onOpenPage: onOpenPage,
-          onShowAll: snapshot.recentPages.length > _librarySectionPreviewLimit ? onOpenAnnotations : null,
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 18)),
-      ],
+      else
+        ..._tabSlivers(),
     ],
   );
+
+  List<Widget> _tabSlivers() => switch (activeTab) {
+    LibraryTab.library => [
+      _LibraryPageSection(
+        title: 'Bookmarks',
+        pages: snapshot.bookmarkedPages,
+        icon: CupertinoIcons.bookmark_fill,
+        accentColor: CupertinoColors.activeBlue,
+        onOpenPage: onOpenPage,
+        onShowAll: onOpenBookmarks,
+      ),
+      _AnnotationSection(
+        annotations: snapshot.recentAnnotations,
+        onOpenAnnotation: onOpenAnnotation,
+        onOpenAnnotations: onOpenAnnotations,
+      ),
+      _LibraryPageSection(
+        title: 'Recently Annotated',
+        pages: snapshot.recentPages,
+        icon: CupertinoIcons.globe,
+        accentColor: CupertinoColors.systemTeal,
+        onOpenPage: onOpenPage,
+        onShowAll: snapshot.recentPages.length > _librarySectionPreviewLimit ? onOpenAnnotations : null,
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 18)),
+    ],
+    LibraryTab.bookmarks => [
+      _LibraryPageSection(
+        title: 'Bookmarks',
+        pages: snapshot.bookmarkedPages,
+        icon: CupertinoIcons.bookmark_fill,
+        accentColor: CupertinoColors.activeBlue,
+        onOpenPage: onOpenPage,
+        onShowAll: onOpenBookmarks,
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 18)),
+    ],
+    LibraryTab.annotations => [
+      _AnnotationSection(
+        annotations: snapshot.recentAnnotations,
+        onOpenAnnotation: onOpenAnnotation,
+        onOpenAnnotations: onOpenAnnotations,
+      ),
+      _LibraryPageSection(
+        title: 'Recently Annotated',
+        pages: snapshot.recentPages,
+        icon: CupertinoIcons.globe,
+        accentColor: CupertinoColors.systemTeal,
+        onOpenPage: onOpenPage,
+        onShowAll: snapshot.recentPages.length > _librarySectionPreviewLimit ? onOpenAnnotations : null,
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 18)),
+    ],
+  };
 
   List<Widget> _searchSlivers() {
     final results = searchResults;
@@ -198,7 +246,7 @@ class _LibraryContent extends StatelessWidget {
         }
         return [
           SliverToBoxAdapter(
-            child: _SectionFrame(
+            child: MarkerSectionFrame(
               title: 'Search Results',
               children: [
                 for (final result in items)
@@ -229,6 +277,40 @@ class _LibraryContent extends StatelessWidget {
 
 const int _librarySectionPreviewLimit = 5;
 
+class _LibraryTabBar extends StatelessWidget {
+  const _LibraryTabBar({required this.activeTab, required this.onChanged});
+
+  final LibraryTab activeTab;
+  final ValueChanged<LibraryTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+    child: CupertinoSlidingSegmentedControl<LibraryTab>(
+      groupValue: activeTab,
+      backgroundColor: const Color(0xFF1C1C20),
+      thumbColor: const Color(0xFF2A2A30),
+      onValueChanged: (value) {
+        if (value != null) onChanged(value);
+      },
+      children: const {
+        LibraryTab.library: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Text('Library', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
+        ),
+        LibraryTab.bookmarks: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Text('Bookmarks', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
+        ),
+        LibraryTab.annotations: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Text('Annotations', style: TextStyle(color: CupertinoColors.white, fontSize: 12)),
+        ),
+      },
+    ),
+  );
+}
+
 class _LibraryPageSection extends StatelessWidget {
   const _LibraryPageSection({
     required this.title,
@@ -250,7 +332,7 @@ class _LibraryPageSection extends StatelessWidget {
   Widget build(BuildContext context) => pages.isEmpty
       ? const SliverToBoxAdapter(child: SizedBox.shrink())
       : SliverToBoxAdapter(
-          child: _SectionFrame(
+          child: MarkerSectionFrame(
             title: title,
             children: [
               for (final page in pages.take(_librarySectionPreviewLimit))
@@ -276,7 +358,7 @@ class _AnnotationSection extends StatelessWidget {
   Widget build(BuildContext context) => annotations.isEmpty
       ? const SliverToBoxAdapter(child: SizedBox.shrink())
       : SliverToBoxAdapter(
-          child: _SectionFrame(
+          child: MarkerSectionFrame(
             title: 'Recent Annotations',
             children: [
               for (final annotation in annotations.take(_librarySectionPreviewLimit))
@@ -328,6 +410,7 @@ class _AllAnnotationsScreenState extends ConsumerState<AllAnnotationsScreen> {
                 onEdit: _selectedIds.length == 1 ? () => _editSelectedNote(_selectedIds.single) : null,
                 onExportMarkdown: _selectedIds.isEmpty ? null : () => _openExport(context, _selectedIds, 'markdown'),
                 onExportJson: _selectedIds.isEmpty ? null : () => _openExport(context, _selectedIds, 'json'),
+                onSync: _selectedIds.isEmpty ? null : () => _syncSelected(context),
                 onDelete: _selectedIds.isEmpty ? null : () => _deleteSelected(),
               )
             else
@@ -520,6 +603,31 @@ class _AllAnnotationsScreenState extends ConsumerState<AllAnnotationsScreen> {
     context.goNamed(AppRoute.annotation.routeName, pathParameters: {'annotationId': annotationId});
   }
 
+  Future<void> _syncSelected(BuildContext context) async {
+    final state = ref.read(atprotoAuthRepositoryProvider).state;
+    if (state is! AtprotoAuthConnected) {
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: const Text('Connect ATProto'),
+          content: const Text('Connect an ATProto account before selecting annotations for sync.'),
+          actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+        ),
+      );
+      return;
+    }
+    final sync = ref.read(atprotoSyncRepositoryProvider);
+    for (final annotationId in _selectedIds) {
+      await sync.selectForSync(
+        accountDid: state.account.did,
+        localTable: AtprotoSyncLocalTable.annotations.value,
+        localId: annotationId,
+        collection: MarginSyncCollection.note.value,
+      );
+    }
+    if (mounted) setState(_selectedIds.clear);
+  }
+
   void _openExport(BuildContext context, Iterable<String>? selectedIds, String format) {
     context.pushNamed(
       AppRoute.annotationExport.routeName,
@@ -648,7 +756,7 @@ class _AllAnnotationsContent extends StatelessWidget {
         else ...[
           for (final group in groups)
             SliverToBoxAdapter(
-              child: _LibraryGroupFrame(
+              child: MarkerGroupFrame(
                 children: [
                   _AnnotationPageRow(group: group, onPressed: () => onOpenPage(group.id)),
                   for (final entry in _annotationSectionEntries(group.annotations))
@@ -711,67 +819,6 @@ class _AnnotationSectionEntry {
   final String? label;
 }
 
-class _LibraryGroupFrame extends StatelessWidget {
-  const _LibraryGroupFrame({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF151519),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-      ),
-      child: Column(children: children),
-    ),
-  );
-}
-
-class _SectionFrame extends StatelessWidget {
-  const _SectionFrame({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 2, bottom: 7),
-          child: Funnotation(
-            color: CupertinoColors.systemYellow,
-            strokeWidth: 1.4,
-            padding: 2,
-            child: Text(
-              title.toUpperCase(),
-              style: const TextStyle(
-                color: CupertinoColors.systemGrey,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-              ),
-            ),
-          ),
-        ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: const Color(0xFF151519),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF2A2A30), width: 0.5),
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    ),
-  );
-}
-
 class _PageRow extends StatelessWidget {
   const _PageRow({required this.page, required this.icon, required this.accentColor, required this.onPressed});
 
@@ -784,9 +831,14 @@ class _PageRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final annotationText = page.annotationCount == 1 ? '1 annotation' : '${page.annotationCount} annotations';
     final preview = page.annotationPreview;
-    return _LibraryRowButton(
+    return MarkerRowButton(
       onPressed: onPressed,
-      leading: _PageFavicon(page: page, fallbackIcon: icon, fallbackColor: accentColor),
+      leading: MarkerFileFavicon(
+        filePath: page.faviconFilePath,
+        fallbackHost: page.subtitle,
+        fallbackIcon: icon,
+        fallbackColor: accentColor,
+      ),
       title: _titleWithBookmarkFolder(page.title, page.bookmarkFolderPath),
       subtitle: preview == null
           ? '${page.subtitle} · $annotationText'
@@ -801,9 +853,9 @@ class _ShowAllRow extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => _LibraryRowButton(
+  Widget build(BuildContext context) => MarkerRowButton(
     onPressed: onPressed,
-    leading: const _LibraryIcon(icon: CupertinoIcons.ellipsis, color: CupertinoColors.systemPurple),
+    leading: const MarkerIconTile(icon: CupertinoIcons.ellipsis_vertical, color: CupertinoColors.systemPurple),
     title: 'Show All',
     subtitle: 'Open the full section',
   );
@@ -821,9 +873,14 @@ class _AnnotationPageRow extends StatelessWidget {
     final annotationText = annotationCount == 1 ? '1 annotation' : '$annotationCount annotations';
     final bookmarkFolderPath = group.bookmarkFolderPath;
 
-    return _LibraryRowButton(
+    return MarkerRowButton(
       onPressed: onPressed,
-      leading: _AnnotationGroupFavicon(group: group),
+      leading: MarkerFileFavicon(
+        filePath: group.faviconFilePath,
+        fallbackHost: group.subtitle,
+        fallbackIcon: CupertinoIcons.globe,
+        fallbackColor: CupertinoColors.systemTeal,
+      ),
       title: _titleWithBookmarkFolder(group.title, bookmarkFolderPath),
       subtitle: '${group.subtitle} · $annotationText',
     );
@@ -844,7 +901,7 @@ class _AnnotationRow extends StatelessWidget {
   final bool isSelected;
 
   @override
-  Widget build(BuildContext context) => _LibraryRowButton(
+  Widget build(BuildContext context) => MarkerRowButton(
     onPressed: onPressed,
     leading: isEditing ? _SelectionDot(isSelected: isSelected) : _AnnotationSourceIcon(annotation: annotation),
     title: annotation.excerpt,
@@ -859,9 +916,9 @@ class _SearchResultRow extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => _LibraryRowButton(
+  Widget build(BuildContext context) => MarkerRowButton(
     onPressed: onPressed,
-    leading: _LibraryIcon(
+    leading: MarkerIconTile(
       icon: result.type == LibrarySearchResultType.annotation ? CupertinoIcons.pencil : CupertinoIcons.doc_text,
       color: result.type == LibrarySearchResultType.annotation
           ? CupertinoColors.systemYellow
@@ -925,18 +982,14 @@ class _AnnotationSourceIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (annotation.isMarginBacked) {
-      return Container(
-        width: 36,
-        height: 36,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: CupertinoColors.activeBlue.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: SvgPicture.asset('assets/icons/margin.svg'),
+      return MarkerIconTile(
+        icon: CupertinoIcons.doc_text,
+        color: CupertinoColors.activeBlue,
+        opacity: 0.18,
+        child: Padding(padding: const EdgeInsets.all(8), child: SvgPicture.asset('assets/icons/margin.svg')),
       );
     }
-    return _LibraryIcon(
+    return MarkerIconTile(
       icon: annotation.isNote ? CupertinoIcons.chat_bubble_text : CupertinoIcons.pencil,
       color: annotation.isNote ? CupertinoColors.activeBlue : CupertinoColors.systemYellow,
     );
@@ -959,182 +1012,6 @@ class _SelectionDot extends StatelessWidget {
     ),
     child: isSelected ? const Icon(CupertinoIcons.check_mark, color: CupertinoColors.white, size: 16) : null,
   );
-}
-
-class _AnnotationGroupFavicon extends StatelessWidget {
-  const _AnnotationGroupFavicon({required this.group});
-
-  final LibraryAnnotationGroup group;
-
-  @override
-  Widget build(BuildContext context) {
-    final faviconFilePath = group.faviconFilePath;
-    if (faviconFilePath != null) {
-      return _FaviconFrame(
-        child: Image.file(
-          File(faviconFilePath),
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) =>
-              _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal),
-        ),
-      );
-    }
-    return _DomainPlaceholder(host: group.subtitle, icon: CupertinoIcons.globe, color: CupertinoColors.systemTeal);
-  }
-}
-
-class _LibraryRowButton extends StatelessWidget {
-  const _LibraryRowButton({
-    required this.onPressed,
-    required this.leading,
-    required this.title,
-    required this.subtitle,
-    this.titleWidget,
-  });
-
-  final VoidCallback onPressed;
-  final Widget leading;
-  final String title;
-  final String subtitle;
-  final Widget? titleWidget;
-
-  @override
-  Widget build(BuildContext context) => CupertinoButton(
-    padding: EdgeInsets.zero,
-    onPressed: onPressed,
-    child: Container(
-      constraints: const BoxConstraints(minHeight: 66),
-      padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF26262C), width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          leading,
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                titleWidget ??
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: CupertinoColors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 13, letterSpacing: 0),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(CupertinoIcons.chevron_forward, color: CupertinoColors.systemGrey2, size: 17),
-        ],
-      ),
-    ),
-  );
-}
-
-class _LibraryIcon extends StatelessWidget {
-  const _LibraryIcon({required this.icon, required this.color});
-
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 36,
-    height: 36,
-    decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
-    alignment: Alignment.center,
-    child: Icon(icon, color: color, size: 19),
-  );
-}
-
-class _PageFavicon extends StatelessWidget {
-  const _PageFavicon({required this.page, required this.fallbackIcon, required this.fallbackColor});
-
-  final LibraryPageItem page;
-  final IconData fallbackIcon;
-  final Color fallbackColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final faviconFilePath = page.faviconFilePath;
-    if (faviconFilePath != null) {
-      return _FaviconFrame(
-        child: Image.file(
-          File(faviconFilePath),
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) =>
-              _DomainPlaceholder(host: page.subtitle, icon: fallbackIcon, color: fallbackColor),
-        ),
-      );
-    }
-
-    return _DomainPlaceholder(host: page.subtitle, icon: fallbackIcon, color: fallbackColor);
-  }
-}
-
-class _FaviconFrame extends StatelessWidget {
-  const _FaviconFrame({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 36,
-    height: 36,
-    padding: const EdgeInsets.all(6),
-    decoration: BoxDecoration(color: const Color(0xFF24242A), borderRadius: BorderRadius.circular(8)),
-    child: child,
-  );
-}
-
-class _DomainPlaceholder extends StatelessWidget {
-  const _DomainPlaceholder({required this.host, required this.icon, required this.color});
-
-  final String host;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final initial = _domainInitial(host);
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
-      alignment: Alignment.center,
-      child: initial == null
-          ? Icon(icon, color: color, size: 19)
-          : Text(
-              initial,
-              style: TextStyle(color: color, fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0),
-            ),
-    );
-  }
-}
-
-String? _domainInitial(String host) {
-  final normalizedHost = host.trim();
-  if (normalizedHost.isEmpty) {
-    return null;
-  }
-  final domain = normalizedHost.startsWith('www.') ? normalizedHost.substring(4) : normalizedHost;
-  return domain.substring(0, 1).toUpperCase();
 }
 
 String _titleWithBookmarkFolder(String title, String? bookmarkFolderPath) {
@@ -1219,6 +1096,7 @@ class _LibraryPageDetailScreenState extends ConsumerState<LibraryPageDetailScree
                 onEdit: _selectedIds.length == 1 ? () => _editSelectedNote(_selectedIds.single) : null,
                 onExportMarkdown: _selectedIds.isEmpty ? null : () => _openExport(_selectedIds, 'markdown'),
                 onExportJson: _selectedIds.isEmpty ? null : () => _openExport(_selectedIds, 'json'),
+                onSync: _selectedIds.isEmpty ? null : _syncSelected,
                 onDelete: _selectedIds.isEmpty ? null : _deleteSelected,
               ),
           ],
@@ -1236,6 +1114,31 @@ class _LibraryPageDetailScreenState extends ConsumerState<LibraryPageDetailScree
   void _openInBrowser(Uri url) {
     ref.read(readerControllerProvider.notifier).setUrlText(url.toString());
     context.goNamed(AppRoute.browser.routeName);
+  }
+
+  Future<void> _syncSelected() async {
+    final state = ref.read(atprotoAuthRepositoryProvider).state;
+    if (state is! AtprotoAuthConnected) {
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: const Text('Connect ATProto'),
+          content: const Text('Connect an ATProto account before selecting annotations for sync.'),
+          actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+        ),
+      );
+      return;
+    }
+    final sync = ref.read(atprotoSyncRepositoryProvider);
+    for (final annotationId in _selectedIds) {
+      await sync.selectForSync(
+        accountDid: state.account.did,
+        localTable: AtprotoSyncLocalTable.annotations.value,
+        localId: annotationId,
+        collection: MarginSyncCollection.note.value,
+      );
+    }
+    if (mounted) setState(_selectedIds.clear);
   }
 
   void _openExport(Iterable<String>? selectedIds, String format) => context.pushNamed(
@@ -1404,7 +1307,7 @@ class _PageDetailContent extends StatelessWidget {
         if (annotations.isEmpty)
           const Padding(padding: EdgeInsets.only(top: 52), child: _EmptyAnnotations())
         else
-          _LibraryGroupFrame(
+          MarkerGroupFrame(
             children: [
               for (final annotation in annotations)
                 _AnnotationRow(
@@ -1508,6 +1411,7 @@ class _AnnotationEditBar extends StatelessWidget {
     required this.onEdit,
     required this.onExportMarkdown,
     required this.onExportJson,
+    required this.onSync,
     required this.onDelete,
   });
 
@@ -1515,6 +1419,7 @@ class _AnnotationEditBar extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onExportMarkdown;
   final VoidCallback? onExportJson;
+  final VoidCallback? onSync;
   final VoidCallback? onDelete;
 
   @override
@@ -1552,6 +1457,11 @@ class _AnnotationEditBar extends StatelessWidget {
             ),
             CupertinoButton(
               padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: onSync,
+              child: const Text('Sync'),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               onPressed: onDelete,
               child: const Text('Delete', style: TextStyle(color: CupertinoColors.systemRed)),
             ),
@@ -1568,19 +1478,9 @@ class _PageDetailFavicon extends StatelessWidget {
   final LibraryPageDetail detail;
 
   @override
-  Widget build(BuildContext context) => _PageFavicon(
-    page: LibraryPageItem(
-      id: detail.id,
-      url: detail.url,
-      title: detail.title,
-      subtitle: detail.subtitle,
-      faviconUrl: detail.faviconUrl,
-      faviconFilePath: detail.faviconFilePath,
-      bookmarkFolderPath: detail.bookmarkFolderPath,
-      annotationPreview: null,
-      annotationCount: detail.annotations.length,
-      timestamp: DateTime.now(),
-    ),
+  Widget build(BuildContext context) => MarkerFileFavicon(
+    filePath: detail.faviconFilePath,
+    fallbackHost: detail.subtitle,
     fallbackIcon: CupertinoIcons.globe,
     fallbackColor: CupertinoColors.systemTeal,
   );

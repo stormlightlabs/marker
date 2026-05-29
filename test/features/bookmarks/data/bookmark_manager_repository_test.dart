@@ -153,7 +153,7 @@ void main() {
     expect(html, contains('<DT><A HREF="https://example.com/article" ADD_DATE="1778673600">Example Article</A>'));
   });
 
-  test('enqueues synced folder bookmark and membership changes for connected accounts', () async {
+  test('enqueues selected folder bookmark and membership changes for connected accounts', () async {
     final syncRepository = AtprotoSyncRepository(database, now: () => DateTime.utc(2026, 5, 13, 12));
     await syncRepository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
     repository = BookmarkManagerRepository(
@@ -164,8 +164,29 @@ void main() {
 
     final folder = await repository.createFolder(title: 'Research');
     await _insertBookmark(database, id: 'bookmark', url: 'https://example.com', title: 'Example');
-    await repository.updateBookmark(id: 'bookmark', title: 'Updated');
     await repository.addBookmarkToFolder(bookmarkId: 'bookmark', folderId: folder.id);
+    final link = (await database.select(database.bookmarkCollectionLinks).get()).single;
+
+    expect(await syncRepository.pendingOutbox(accountDid: 'did:plc:alice'), isEmpty);
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+      localId: folder.id,
+      collection: SembleSyncCollection.collection.value,
+    );
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: 'bookmark',
+      collection: SembleSyncCollection.card.value,
+    );
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+      localId: link.id,
+      collection: SembleSyncCollection.collectionLink.value,
+    );
+    await repository.updateBookmark(id: 'bookmark', title: 'Updated');
 
     final outbox = await syncRepository.pendingOutbox(accountDid: 'did:plc:alice');
     expect(

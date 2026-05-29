@@ -107,30 +107,30 @@ See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth
 
 ## Phase 10: explicit sync selection
 
-- [ ] Add `AtprotoSyncSelections` Drift table with per-account, per-local-row selection
+- [x] Add `AtprotoSyncSelections` Drift table with per-account, per-local-row selection
   state and migration.
-- [ ] Add repository APIs to select, deselect, list, and watch sync-selected local
+- [x] Add repository APIs to select, deselect, list, and watch sync-selected local
   records.
-- [ ] Change bookmark, folder, membership, annotation, tag, body, style, and collection
+- [x] Change bookmark, folder, membership, annotation, tag, body, style, and collection
   mutations so they enqueue outbox rows only for active selections.
-- [ ] Add "select for sync" actions for individual bookmarks, bookmark folders,
+- [x] Add "select for sync" actions for individual bookmarks, bookmark folders,
   annotations, and annotation collections.
-- [ ] Add bulk controls for "sync all bookmarks" and "sync all annotations", with
+- [x] Add bulk controls for "sync all bookmarks" and "sync all annotations", with
   separate choices for future new items.
-- [ ] Add dependency handling in UI: collection links require selected/mirrored folders
+- [x] Add dependency handling in UI: collection links require selected/mirrored folders
   and bookmarks; annotation collection items require selected/mirrored collections and
   annotations.
-- [ ] Update `Sync now` to push only selected outbound records while preserving separate
+- [x] Update `Sync now` to push only selected outbound records while preserving separate
   bookmark and annotation result summaries.
-- [ ] Add remote import choices for each domain: keep linked to the source account, or
+- [x] Add remote import choices for each domain: keep linked to the source account, or
   import as local-only.
-- [ ] Define and implement deselect behavior: stop future sync by default, with a
+- [x] Define and implement deselect behavior: stop future sync by default, with a
   separate destructive option to delete already-published remote records.
-- [ ] Update privacy copy to state that connected accounts do not publish local data
+- [x] Update privacy copy to state that connected accounts do not publish local data
   until items are selected.
-- [ ] Add diagnostics for selected counts, unselected local counts, and
+- [x] Add diagnostics for selected counts, unselected local counts, and
   dependency-blocked selected records without exposing secrets.
-- [ ] Add tests for unselected local creates/updates/deletes, selecting existing rows,
+- [x] Add tests for unselected local creates/updates/deletes, selecting existing rows,
   deselecting rows, bulk selection, dependency blocking, and linked vs local-only
   imports.
 

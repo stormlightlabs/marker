@@ -104,6 +104,15 @@ class SembleBookmarkPushService {
   }
 
   Future<void> _pushItem(AtprotoSyncOutboxData item) async {
+    if (item.operation != AtprotoSyncOperation.delete.value) {
+      final selection = await _syncRepository.selectionForLocal(
+        accountDid: item.accountDid,
+        localTable: item.localTable,
+        localId: item.localId,
+        collection: item.collection,
+      );
+      if (selection?.deselectedAt != null || selection == null) return;
+    }
     final mirror = await _syncRepository.mirrorForLocal(
       accountDid: item.accountDid,
       localTable: item.localTable,

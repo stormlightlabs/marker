@@ -54,6 +54,15 @@ class AtprotoDeletionSyncService {
     final now = _now();
     await _database.transaction(() async {
       await markLocalRowDeleted(localTable: localTable, localId: localId, deletedAt: now);
+      final selection = await _syncRepository.selectionForLocal(
+        accountDid: accountDid,
+        localTable: localTable,
+        localId: localId,
+        collection: collection,
+      );
+      if (selection?.deselectedAt != null || selection == null || !selection.deleteRemoteOnLocalDelete) {
+        return;
+      }
       final mirror = await _syncRepository.mirrorForLocal(
         accountDid: accountDid,
         localTable: localTable,

@@ -8,6 +8,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:marker/app/app_tab_bar.dart';
 import 'package:marker/app/navigation.dart';
 import 'package:marker/app/routes.dart';
+import 'package:marker/features/atproto/data/atproto_auth_repository.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
+import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
+import 'package:marker/features/atproto/domain/atproto_account_session.dart';
 import 'package:marker/features/atproto/presentation/atproto_sync_status_row.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
@@ -280,6 +284,7 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
           _BookmarkEditBar(
             selectedCount: _selectedKeys.length,
             onMove: _selectedKeys.isEmpty ? null : () => _moveSelected(context, ref),
+            onSync: _selectedKeys.isEmpty ? null : () => _syncSelected(context, ref),
             onDelete: _selectedKeys.isEmpty ? null : () => _deleteSelected(context, ref),
           ),
       ],
@@ -377,6 +382,43 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
     });
     ref.invalidate(bookmarkFolderContentsProvider(widget.folderId));
     ref.invalidate(bookmarkFolderContentsProvider(targetFolderId));
+  }
+
+  Future<void> _syncSelected(BuildContext context, WidgetRef ref) async {
+    final state = ref.read(atprotoAuthRepositoryProvider).state;
+    if (state is! AtprotoAuthConnected) {
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: const Text('Connect ATProto'),
+          content: const Text('Connect an ATProto account before selecting bookmarks for sync.'),
+          actions: [CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('OK'))],
+        ),
+      );
+      return;
+    }
+    final sync = ref.read(atprotoSyncRepositoryProvider);
+    for (final entry in _selectedRefs()) {
+      switch (entry.type) {
+        case BookmarkEntryType.folder:
+          await sync.selectForSync(
+            accountDid: state.account.did,
+            localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+            localId: entry.id,
+            collection: SembleSyncCollection.collection.value,
+          );
+        case BookmarkEntryType.bookmark:
+          await sync.selectForSync(
+            accountDid: state.account.did,
+            localTable: AtprotoSyncLocalTable.bookmarks.value,
+            localId: entry.id,
+            collection: SembleSyncCollection.card.value,
+          );
+      }
+    }
+    if (mounted) {
+      setState(() => _selectedKeys.clear());
+    }
   }
 
   Future<void> _deleteSelected(BuildContext context, WidgetRef ref) async {
@@ -758,9 +800,8 @@ class _BookmarkRow extends StatelessWidget {
             LongPressDraggable<BookmarkEntryRef>(
               data: item.ref,
               feedback: _DragFeedback(title: item.title),
-              // FIXME: this icon choice is awful
-              childWhenDragging: const Icon(CupertinoIcons.arrow_right_arrow_left, color: CupertinoColors.systemGrey3),
-              child: const Icon(CupertinoIcons.arrow_right_arrow_left, color: CupertinoColors.systemGrey2, size: 20),
+              childWhenDragging: const _MoveToFolderDragIcon(color: CupertinoColors.systemGrey3),
+              child: const _MoveToFolderDragIcon(color: CupertinoColors.systemGrey2),
             ),
             ReorderableDragStartListener(
               index: index,
@@ -828,6 +869,25 @@ class _BookmarkSourceIcon extends StatelessWidget {
   }
 }
 
+class _MoveToFolderDragIcon extends StatelessWidget {
+  const _MoveToFolderDragIcon({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 24,
+    height: 22,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Positioned(left: 1, bottom: 1, child: Icon(CupertinoIcons.folder_fill, color: color, size: 18)),
+        Positioned(right: 0, top: 0, child: Icon(CupertinoIcons.arrow_down_circle_fill, color: color, size: 13)),
+      ],
+    ),
+  );
+}
+
 class _DragFeedback extends StatelessWidget {
   const _DragFeedback({required this.title});
 
@@ -847,10 +907,16 @@ class _DragFeedback extends StatelessWidget {
 }
 
 class _BookmarkEditBar extends StatelessWidget {
-  const _BookmarkEditBar({required this.selectedCount, required this.onMove, required this.onDelete});
+  const _BookmarkEditBar({
+    required this.selectedCount,
+    required this.onMove,
+    required this.onSync,
+    required this.onDelete,
+  });
 
   final int selectedCount;
   final VoidCallback? onMove;
+  final VoidCallback? onSync;
   final VoidCallback? onDelete;
 
   @override
@@ -875,6 +941,7 @@ class _BookmarkEditBar extends StatelessWidget {
               ),
             ),
             CupertinoButton(onPressed: onMove, child: const Text('Move')),
+            CupertinoButton(onPressed: onSync, child: const Text('Sync')),
             CupertinoButton(
               onPressed: onDelete,
               child: Text(

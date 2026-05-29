@@ -386,6 +386,13 @@ void main() {
       uri: 'at://did:plc:alice/${SembleSyncCollection.card.value}/card-1',
       cid: 'cid-card-1',
     );
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: 'local-bookmark',
+      collection: SembleSyncCollection.card.value,
+      enqueueCurrent: false,
+    );
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
@@ -468,6 +475,13 @@ void main() {
           cardCid: 'cid-card-1',
         ),
       ),
+    );
+    await syncRepository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+      localId: 'local-link',
+      collection: SembleSyncCollection.collectionLink.value,
+      enqueueCurrent: false,
     );
 
     await deletionService.softDeleteLocal(

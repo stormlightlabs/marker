@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 
 void main() {
@@ -132,6 +133,43 @@ void main() {
       uri: 'at://did:plc:alice/network.cosmik.card/card-1',
     );
     expect(bobMirror.accountDid, 'did:plc:bob');
+  });
+
+  test('selects deselects lists watches and gates local change enqueue', () async {
+    await repository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
+
+    await repository.enqueueLocalChangeForAllAccounts(
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: 'bookmark-1',
+      collection: SembleSyncCollection.card.value,
+    );
+    expect(await repository.pendingOutbox(accountDid: 'did:plc:alice'), isEmpty);
+
+    final selected = await repository.selectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: 'bookmark-1',
+      collection: SembleSyncCollection.card.value,
+    );
+    expect(selected.deselectedAt, isNull);
+    expect(await repository.activeSelections(accountDid: 'did:plc:alice'), hasLength(1));
+    expect(await repository.watchActiveSelections(accountDid: 'did:plc:alice').first, hasLength(1));
+    expect((await repository.pendingOutbox(accountDid: 'did:plc:alice')).single.operation, 'create');
+
+    await repository.deselectForSync(
+      accountDid: 'did:plc:alice',
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: 'bookmark-1',
+      collection: SembleSyncCollection.card.value,
+    );
+    expect(await repository.activeSelections(accountDid: 'did:plc:alice'), isEmpty);
+
+    await repository.enqueueLocalChangeForAllAccounts(
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
+      localId: 'bookmark-1',
+      collection: SembleSyncCollection.card.value,
+    );
+    expect(await repository.pendingOutbox(accountDid: 'did:plc:alice'), hasLength(1));
   });
 
   test('enqueues outbox records in the same transaction as local writes', () async {

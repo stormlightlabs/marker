@@ -163,7 +163,7 @@ class FakeMarginNoteSyncService implements MarginNoteSyncService {
   }
 
   @override
-  Future<MarginNoteSyncResult> pull(String accountDid) async {
+  Future<MarginNoteSyncResult> pull(String accountDid, {bool importAsLocalOnly = false}) async {
     pulledAccountDid = accountDid;
     return const MarginNoteSyncResult(imported: 1);
   }
@@ -196,7 +196,11 @@ class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
   String? accountDid;
 
   @override
-  Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
+  Future<SembleBookmarkPullResult> pull(
+    String accountDid, {
+    SembleBookmarkPullProgressListener? onProgress,
+    bool importAsLocalOnly = false,
+  }) async {
     this.accountDid = accountDid;
     onProgress?.call(
       const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 4, description: 'Fetching cards'),

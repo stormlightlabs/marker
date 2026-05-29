@@ -36,6 +36,19 @@ void main() {
 
   test('maps bookmarks folders and memberships to Semble records and stores mirrors', () async {
     await _seedBookmarkFolderAndLink(database);
+    await _selectSemble(syncRepository, AtprotoSyncLocalTable.bookmarks, 'bookmark-1', SembleSyncCollection.card);
+    await _selectSemble(
+      syncRepository,
+      AtprotoSyncLocalTable.bookmarkFolders,
+      'folder-1',
+      SembleSyncCollection.collection,
+    );
+    await _selectSemble(
+      syncRepository,
+      AtprotoSyncLocalTable.bookmarkCollectionLinks,
+      'link-1',
+      SembleSyncCollection.collectionLink,
+    );
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
@@ -111,6 +124,7 @@ void main() {
             updatedAt: DateTime.utc(2026, 5, 27, 11),
           ),
         );
+    await _selectSemble(syncRepository, AtprotoSyncLocalTable.bookmarks, 'bookmark-1', SembleSyncCollection.card);
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
       localTable: AtprotoSyncLocalTable.bookmarks.value,
@@ -209,6 +223,12 @@ void main() {
             updatedAt: DateTime.utc(2026, 5, 26, 10),
           ),
         );
+    await _selectSemble(
+      syncRepository,
+      AtprotoSyncLocalTable.bookmarkCollectionLinks,
+      'link-1',
+      SembleSyncCollection.collectionLink,
+    );
     final outbox = await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
@@ -245,6 +265,7 @@ void main() {
             updatedAt: DateTime.utc(2026, 5, 26, 10),
           ),
         );
+    await _selectSemble(syncRepository, AtprotoSyncLocalTable.bookmarks, 'bookmark-1', SembleSyncCollection.card);
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
@@ -283,6 +304,21 @@ void main() {
     );
     expect(mirror?.dirtyAt, isNull);
   });
+}
+
+Future<void> _selectSemble(
+  AtprotoSyncRepository syncRepository,
+  AtprotoSyncLocalTable localTable,
+  String localId,
+  SembleSyncCollection collection,
+) {
+  return syncRepository.selectForSync(
+    accountDid: 'did:plc:alice',
+    localTable: localTable.value,
+    localId: localId,
+    collection: collection.value,
+    enqueueCurrent: false,
+  );
 }
 
 Future<void> _seedBookmarkFolderAndLink(AppDatabase database) async {

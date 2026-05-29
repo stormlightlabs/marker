@@ -293,9 +293,15 @@ void main() {
     await pumpRouteTransition(tester);
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+    await tester.scrollUntilVisible(
+      find.widgetWithText(CupertinoButton, 'Sync now'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(CupertinoButton, 'Sync now'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Keep linked'));
     await tester.pump();
     await tester.pump();
     expect(find.text('Syncing...'), findsOneWidget);
@@ -346,9 +352,15 @@ void main() {
     await pumpRouteTransition(tester);
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+    await tester.scrollUntilVisible(
+      find.widgetWithText(CupertinoButton, 'Sync now'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(CupertinoButton, 'Sync now'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Keep linked'));
     await tester.pumpAndSettle();
 
     expect(find.text('Sync failed'), findsOneWidget);
@@ -390,7 +402,11 @@ class FakeSembleBookmarkPullService implements SembleBookmarkPullService {
   String? accountDid;
 
   @override
-  Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
+  Future<SembleBookmarkPullResult> pull(
+    String accountDid, {
+    SembleBookmarkPullProgressListener? onProgress,
+    bool importAsLocalOnly = false,
+  }) async {
     this.accountDid = accountDid;
     onProgress?.call(
       const SembleBookmarkPullProgress(completedRequests: 1, totalRequests: 4, description: 'Fetching cards'),

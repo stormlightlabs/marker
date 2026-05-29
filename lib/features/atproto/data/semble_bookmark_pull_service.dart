@@ -103,7 +103,11 @@ class SembleBookmarkPullService {
   final Uuid _uuid;
   final DateTime Function() _now;
 
-  Future<SembleBookmarkPullResult> pull(String accountDid, {SembleBookmarkPullProgressListener? onProgress}) async {
+  Future<SembleBookmarkPullResult> pull(
+    String accountDid, {
+    SembleBookmarkPullProgressListener? onProgress,
+    bool importAsLocalOnly = false,
+  }) async {
     var result = const SembleBookmarkPullResult();
     var completedRequests = 0;
     var totalRequests = 4;
@@ -112,12 +116,17 @@ class SembleBookmarkPullService {
     Future<SembleBookmarkPullResult> pullCollection(
       String collection,
       String description,
-      Future<SembleBookmarkPullResult> Function(String accountDid, AtprotoRepoRecord record) importRecord,
+      Future<SembleBookmarkPullResult> Function(
+        String accountDid,
+        AtprotoRepoRecord record, {
+        required bool importAsLocalOnly,
+      })
+      importRecord,
     ) async => _pullCollection(
       accountDid,
       collection,
       description,
-      importRecord,
+      (accountDid, record) => importRecord(accountDid, record, importAsLocalOnly: importAsLocalOnly),
       onProgress: onProgress,
       completedRequests: () => completedRequests,
       totalRequests: () => totalRequests,
@@ -202,7 +211,11 @@ class SembleBookmarkPullService {
     return result;
   }
 
-  Future<SembleBookmarkPullResult> _importCard(String accountDid, AtprotoRepoRecord remote) async {
+  Future<SembleBookmarkPullResult> _importCard(
+    String accountDid,
+    AtprotoRepoRecord remote, {
+    required bool importAsLocalOnly,
+  }) async {
     try {
       final record = const cosmik_card.CardRecordConverter().fromJson(remote.value);
       final content = record.content.urlContent;
@@ -266,6 +279,15 @@ class SembleBookmarkPullService {
           lastSyncedHash: stableJenkinsOneAtATimeHash(json),
           lastSyncedAt: _now(),
         );
+        if (!importAsLocalOnly) {
+          await _syncRepository.selectForSync(
+            accountDid: accountDid,
+            localTable: AtprotoSyncLocalTable.bookmarks.value,
+            localId: localId,
+            collection: SembleSyncCollection.card.value,
+            enqueueCurrent: false,
+          );
+        }
       }
       return SembleBookmarkPullResult(cardsImported: duplicates == 0 ? 1 : 0, duplicates: duplicates);
     } on Object catch (error, stackTrace) {
@@ -273,7 +295,11 @@ class SembleBookmarkPullService {
     }
   }
 
-  Future<SembleBookmarkPullResult> _importCollection(String accountDid, AtprotoRepoRecord remote) async {
+  Future<SembleBookmarkPullResult> _importCollection(
+    String accountDid,
+    AtprotoRepoRecord remote, {
+    required bool importAsLocalOnly,
+  }) async {
     try {
       final record = const cosmik_collection.CollectionRecordConverter().fromJson(remote.value);
       final title = emptyToNull(record.name) ?? 'Untitled Collection';
@@ -329,6 +355,15 @@ class SembleBookmarkPullService {
           lastSyncedHash: stableJenkinsOneAtATimeHash(json),
           lastSyncedAt: _now(),
         );
+        if (!importAsLocalOnly) {
+          await _syncRepository.selectForSync(
+            accountDid: accountDid,
+            localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
+            localId: localId,
+            collection: SembleSyncCollection.collection.value,
+            enqueueCurrent: false,
+          );
+        }
       }
       return SembleBookmarkPullResult(collectionsImported: duplicates == 0 ? 1 : 0, duplicates: duplicates);
     } on Object catch (error, stackTrace) {
@@ -336,7 +371,11 @@ class SembleBookmarkPullService {
     }
   }
 
-  Future<SembleBookmarkPullResult> _importCollectionLink(String accountDid, AtprotoRepoRecord remote) async {
+  Future<SembleBookmarkPullResult> _importCollectionLink(
+    String accountDid,
+    AtprotoRepoRecord remote, {
+    required bool importAsLocalOnly,
+  }) async {
     try {
       final record = const cosmik_link.CollectionLinkRecordConverter().fromJson(remote.value);
       final collectionMirror = await _syncRepository.mirrorForUri(
@@ -402,6 +441,15 @@ class SembleBookmarkPullService {
           lastSyncedHash: stableJenkinsOneAtATimeHash(json),
           lastSyncedAt: _now(),
         );
+        if (!importAsLocalOnly) {
+          await _syncRepository.selectForSync(
+            accountDid: accountDid,
+            localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
+            localId: localId,
+            collection: SembleSyncCollection.collectionLink.value,
+            enqueueCurrent: false,
+          );
+        }
       }
       return SembleBookmarkPullResult(linksImported: duplicates == 0 ? 1 : 0, duplicates: duplicates);
     } on Object catch (error, stackTrace) {
@@ -414,7 +462,11 @@ class SembleBookmarkPullService {
     }
   }
 
-  Future<SembleBookmarkPullResult> _importCollectionLinkRemoval(String accountDid, AtprotoRepoRecord remote) async {
+  Future<SembleBookmarkPullResult> _importCollectionLinkRemoval(
+    String accountDid,
+    AtprotoRepoRecord remote, {
+    required bool importAsLocalOnly,
+  }) async {
     try {
       final record = const cosmik_removal.CollectionLinkRemovalRecordConverter().fromJson(remote.value);
       final removedLinkMirror = await _syncRepository.mirrorForUri(

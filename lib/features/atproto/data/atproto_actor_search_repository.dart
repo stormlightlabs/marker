@@ -8,9 +8,7 @@ const markerAtprotoActorSearchService = String.fromEnvironment(
 );
 
 final atprotoActorSearchRepositoryProvider = Provider<AtprotoActorSearchRepository>((ref) {
-  return PoptartAtprotoActorSearchRepository(
-    PoptartClient.anonymous(service: markerAtprotoActorSearchService),
-  );
+  return PoptartAtprotoActorSearchRepository(PoptartClient.anonymous(service: markerAtprotoActorSearchService));
 });
 
 abstract interface class AtprotoActorSearchRepository {
