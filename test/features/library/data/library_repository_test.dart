@@ -59,7 +59,7 @@ void main() {
     await syncRepository.upsertAccount(did: 'did:plc:alice', authMethod: 'oauth');
     await syncRepository.upsertMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.annotations.value,
+      localTable: AtprotoSyncLocalTable.annotations.value,
       localId: 'saved-annotation',
       collection: MarginSyncCollection.note.value,
       rkey: 'saved-annotation',

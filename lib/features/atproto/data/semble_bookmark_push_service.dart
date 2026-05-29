@@ -126,7 +126,8 @@ class SembleBookmarkPushService {
   }
 
   Future<Map<String, dynamic>> _recordForItem(AtprotoSyncOutboxData item) async {
-    if (item.localTable == SembleSyncLocalTable.bookmarks.value && item.collection == SembleSyncCollection.card.value) {
+    if (item.localTable == AtprotoSyncLocalTable.bookmarks.value &&
+        item.collection == SembleSyncCollection.card.value) {
       final bookmark = await (_database.select(
         _database.bookmarks,
       )..where((row) => row.id.equals(item.localId) & row.deletedAt.isNull())).getSingleOrNull();
@@ -134,7 +135,7 @@ class SembleBookmarkPushService {
       return mapBookmarkToSembleCard(bookmark);
     }
 
-    if (item.localTable == SembleSyncLocalTable.bookmarkFolders.value &&
+    if (item.localTable == AtprotoSyncLocalTable.bookmarkFolders.value &&
         item.collection == SembleSyncCollection.collection.value) {
       final folder = await (_database.select(
         _database.bookmarkFolders,
@@ -143,7 +144,7 @@ class SembleBookmarkPushService {
       return mapFolderToSembleCollection(folder);
     }
 
-    if (item.localTable == SembleSyncLocalTable.bookmarkCollectionLinks.value &&
+    if (item.localTable == AtprotoSyncLocalTable.bookmarkCollectionLinks.value &&
         item.collection == SembleSyncCollection.collectionLink.value) {
       final link = await (_database.select(
         _database.bookmarkCollectionLinks,
@@ -194,13 +195,13 @@ class SembleBookmarkPushService {
   }) async {
     final collectionMirror = await _syncRepository.mirrorForLocal(
       accountDid: accountDid,
-      localTable: SembleSyncLocalTable.bookmarkFolders.value,
+      localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
       localId: link.folderId,
       collection: SembleSyncCollection.collection.value,
     );
     final cardMirror = await _syncRepository.mirrorForLocal(
       accountDid: accountDid,
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: link.bookmarkId,
       collection: SembleSyncCollection.card.value,
     );

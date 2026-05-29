@@ -49,7 +49,7 @@ void main() {
     await repository.addBookmark(url: Uri.parse('https://news.ycombinator.com'), title: 'Hacker News');
 
     final outbox = await syncRepository.pendingOutbox(accountDid: 'did:plc:alice');
-    expect(outbox.single.localTable, SembleSyncLocalTable.bookmarks.value);
+    expect(outbox.single.localTable, AtprotoSyncLocalTable.bookmarks.value);
     expect(outbox.single.collection, SembleSyncCollection.card.value);
     expect(outbox.single.operation, 'create');
   });

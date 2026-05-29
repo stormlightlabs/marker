@@ -34,9 +34,9 @@ void main() {
     expect(
       outbox.map((row) => (row.localTable, row.localId, row.collection)),
       containsAll([
-        (SembleSyncLocalTable.annotations.value, 'annotation-1', MarginSyncCollection.note.value),
-        (SembleSyncLocalTable.annotationCollections.value, 'collection-1', MarginSyncCollection.collection.value),
-        (SembleSyncLocalTable.annotationCollectionItems.value, 'item-1', MarginSyncCollection.collectionItem.value),
+        (AtprotoSyncLocalTable.annotations.value, 'annotation-1', MarginSyncCollection.note.value),
+        (AtprotoSyncLocalTable.annotationCollections.value, 'collection-1', MarginSyncCollection.collection.value),
+        (AtprotoSyncLocalTable.annotationCollectionItems.value, 'item-1', MarginSyncCollection.collectionItem.value),
       ]),
     );
     expect(await SettingsRepository(database).isAnnotationSyncEnabled(), isTrue);

@@ -133,7 +133,7 @@ void main() {
     );
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'deleted-bookmark',
       collection: SembleSyncCollection.card.value,
       rkey: 'deleted-card',
@@ -142,7 +142,7 @@ void main() {
     );
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarkFolders.value,
+      localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
       localId: 'synced-folder',
       collection: SembleSyncCollection.collection.value,
       rkey: 'synced-folder',
@@ -152,7 +152,7 @@ void main() {
     final pushOutbox = await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'pending-create',
       collection: SembleSyncCollection.card.value,
     );
@@ -160,7 +160,7 @@ void main() {
     final deleteOutbox = await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.delete.value,
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'pending-delete',
       collection: SembleSyncCollection.card.value,
     );

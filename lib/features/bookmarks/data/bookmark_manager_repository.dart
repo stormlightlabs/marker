@@ -92,7 +92,7 @@ class BookmarkManagerRepository {
       folders.add(
         BookmarkFolderItem.fromRow(
           row,
-          isSembleBacked: await _isSembleBacked(row.id, SembleSyncLocalTable.bookmarkFolders),
+          isSembleBacked: await _isSembleBacked(row.id, AtprotoSyncLocalTable.bookmarkFolders),
         ),
       );
     }
@@ -103,7 +103,7 @@ class BookmarkManagerRepository {
           entry.bookmark,
           folderId: folderId,
           sortOrder: entry.sortOrder,
-          isSembleBacked: await _isSembleBacked(entry.bookmark.id, SembleSyncLocalTable.bookmarks),
+          isSembleBacked: await _isSembleBacked(entry.bookmark.id, AtprotoSyncLocalTable.bookmarks),
         ),
       );
     }
@@ -117,7 +117,7 @@ class BookmarkManagerRepository {
           ? null
           : BookmarkFolderItem.fromRow(
               folder,
-              isSembleBacked: await _isSembleBacked(folder.id, SembleSyncLocalTable.bookmarkFolders),
+              isSembleBacked: await _isSembleBacked(folder.id, AtprotoSyncLocalTable.bookmarkFolders),
             ),
       folders: folders,
       bookmarks: bookmarks,
@@ -131,7 +131,7 @@ class BookmarkManagerRepository {
       return BookmarkDetail.folder(
         BookmarkFolderItem.fromRow(
           folder,
-          isSembleBacked: await _isSembleBacked(folder.id, SembleSyncLocalTable.bookmarkFolders),
+          isSembleBacked: await _isSembleBacked(folder.id, AtprotoSyncLocalTable.bookmarkFolders),
         ),
       );
     }
@@ -144,7 +144,7 @@ class BookmarkManagerRepository {
         BookmarkItem.fromRow(
           bookmark,
           folderId: await _bookmarkFolderId(bookmark.id),
-          isSembleBacked: await _isSembleBacked(bookmark.id, SembleSyncLocalTable.bookmarks),
+          isSembleBacked: await _isSembleBacked(bookmark.id, AtprotoSyncLocalTable.bookmarks),
         ),
       );
     }
@@ -161,7 +161,7 @@ class BookmarkManagerRepository {
       folders.add(
         BookmarkFolderItem.fromRow(
           row,
-          isSembleBacked: await _isSembleBacked(row.id, SembleSyncLocalTable.bookmarkFolders),
+          isSembleBacked: await _isSembleBacked(row.id, AtprotoSyncLocalTable.bookmarkFolders),
         ),
       );
     }
@@ -524,20 +524,20 @@ class BookmarkManagerRepository {
 
   Future<void> _enqueueBookmarkChange(String bookmarkId) async {
     await _syncRepository?.enqueueLocalChangeForAllAccounts(
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: bookmarkId,
       collection: SembleSyncCollection.card.value,
     );
   }
 
   Future<void> _enqueueFolderChange(String folderId) async => await _syncRepository?.enqueueLocalChangeForAllAccounts(
-    localTable: SembleSyncLocalTable.bookmarkFolders.value,
+    localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
     localId: folderId,
     collection: SembleSyncCollection.collection.value,
   );
 
   Future<void> _enqueueLinkChange(String linkId) async => await _syncRepository?.enqueueLocalChangeForAllAccounts(
-    localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+    localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
     localId: linkId,
     collection: SembleSyncCollection.collectionLink.value,
   );
@@ -567,7 +567,7 @@ class BookmarkManagerRepository {
     return (_database.select(_database.bookmarkFolders)..where((folder) => folder.id.equals(id))).getSingleOrNull();
   }
 
-  Future<bool> _isSembleBacked(String localId, SembleSyncLocalTable table) async {
+  Future<bool> _isSembleBacked(String localId, AtprotoSyncLocalTable table) async {
     final row =
         await (_database.select(_database.atprotoRecordMirrors)
               ..where(

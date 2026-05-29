@@ -488,7 +488,7 @@ class AnnotationRepository {
       await syncRepository.enqueueOutbox(
         accountDid: account.did,
         operation: operation.value,
-        localTable: SembleSyncLocalTable.annotations.value,
+        localTable: AtprotoSyncLocalTable.annotations.value,
         localId: annotationId,
         collection: MarginSyncCollection.note.value,
       );

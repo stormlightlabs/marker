@@ -38,8 +38,8 @@ void main() {
 
     final outbox = await syncRepository.pendingOutbox(accountDid: 'did:plc:alice');
     expect(outbox.map((row) => (row.localTable, row.localId, row.collection)), [
-      (SembleSyncLocalTable.annotationCollections.value, collection.id, MarginSyncCollection.collection.value),
-      (SembleSyncLocalTable.annotationCollectionItems.value, item.id, MarginSyncCollection.collectionItem.value),
+      (AtprotoSyncLocalTable.annotationCollections.value, collection.id, MarginSyncCollection.collection.value),
+      (AtprotoSyncLocalTable.annotationCollectionItems.value, item.id, MarginSyncCollection.collectionItem.value),
     ]);
   });
 

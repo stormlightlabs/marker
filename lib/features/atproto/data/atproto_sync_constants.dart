@@ -28,7 +28,6 @@ enum SembleSyncCollection {
     SembleSyncCollection.collection.value: 'Collections / folders',
     SembleSyncCollection.collectionLink.value: 'Collection links',
     SembleSyncCollection.collectionLinkRemoval.value: 'Collection link removals',
-    ...MarginSyncCollection.trackedCollections,
   };
 }
 
@@ -50,7 +49,16 @@ enum MarginSyncCollection {
   };
 }
 
-enum SembleSyncLocalTable {
+class AtprotoSyncCollections {
+  const AtprotoSyncCollections._();
+
+  static Map<String, String> get trackedCollections => {
+    ...SembleSyncCollection.trackedCollections,
+    ...MarginSyncCollection.trackedCollections,
+  };
+}
+
+enum AtprotoSyncLocalTable {
   bookmarks('bookmarks'),
   bookmarkFolders('bookmark_folders'),
   bookmarkCollectionLinks('bookmark_collection_links'),
@@ -58,11 +66,11 @@ enum SembleSyncLocalTable {
   annotationCollections('annotation_collections'),
   annotationCollectionItems('annotation_collection_items');
 
-  const SembleSyncLocalTable(this.value);
+  const AtprotoSyncLocalTable(this.value);
 
-  factory SembleSyncLocalTable.fromValue(String value) => SembleSyncLocalTable.values.firstWhere(
+  factory AtprotoSyncLocalTable.fromValue(String value) => AtprotoSyncLocalTable.values.firstWhere(
     (table) => table.value == value,
-    orElse: () => throw ArgumentError.value(value, 'value', 'Unknown Semble sync local table.'),
+    orElse: () => throw ArgumentError.value(value, 'value', 'Unknown ATProto sync local table.'),
   );
 
   final String value;

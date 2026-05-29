@@ -162,15 +162,15 @@ class MarginNoteSyncService {
   }
 
   bool _isMarginOutboxItem(AtprotoSyncOutboxData item) {
-    if (item.localTable == SembleSyncLocalTable.annotations.value &&
+    if (item.localTable == AtprotoSyncLocalTable.annotations.value &&
         item.collection == MarginSyncCollection.note.value) {
       return true;
     }
-    if (item.localTable == SembleSyncLocalTable.annotationCollections.value &&
+    if (item.localTable == AtprotoSyncLocalTable.annotationCollections.value &&
         item.collection == MarginSyncCollection.collection.value) {
       return true;
     }
-    if (item.localTable == SembleSyncLocalTable.annotationCollectionItems.value &&
+    if (item.localTable == AtprotoSyncLocalTable.annotationCollectionItems.value &&
         item.collection == MarginSyncCollection.collectionItem.value) {
       return true;
     }
@@ -217,7 +217,7 @@ class MarginNoteSyncService {
       });
       await _syncRepository.upsertMirror(
         accountDid: accountDid,
-        localTable: SembleSyncLocalTable.annotationCollections.value,
+        localTable: AtprotoSyncLocalTable.annotationCollections.value,
         localId: localId,
         collection: MarginSyncCollection.collection.value,
         rkey: rkeyFromUri(remote.uri),
@@ -228,9 +228,8 @@ class MarginNoteSyncService {
         lastSyncedAt: _now(),
       );
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
-    } on Object catch (error) {
-      _logger?.debug('Ignoring malformed Margin collection record', error: error);
-      return const MarginNoteSyncResult(malformed: 1);
+    } on Object catch (error, stackTrace) {
+      return _malformed(remote, 'Ignoring malformed Margin collection record.', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -245,7 +244,9 @@ class MarginNoteSyncService {
         accountDid: accountDid,
         uri: record.annotation.toString(),
       );
-      if (collectionMirror == null || annotationMirror == null) return const MarginNoteSyncResult(malformed: 1);
+      if (collectionMirror == null || annotationMirror == null) {
+        return _malformed(remote, 'Margin collection item references records that are not mirrored locally.');
+      }
       final mirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: remote.uri);
       if (mirror?.dirtyAt != null) return const MarginNoteSyncResult(conflicts: 1);
       final json = canonicalJson(remote.value);
@@ -284,7 +285,7 @@ class MarginNoteSyncService {
       });
       await _syncRepository.upsertMirror(
         accountDid: accountDid,
-        localTable: SembleSyncLocalTable.annotationCollectionItems.value,
+        localTable: AtprotoSyncLocalTable.annotationCollectionItems.value,
         localId: localId,
         collection: MarginSyncCollection.collectionItem.value,
         rkey: rkeyFromUri(remote.uri),
@@ -295,9 +296,13 @@ class MarginNoteSyncService {
         lastSyncedAt: _now(),
       );
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
-    } on Object catch (error) {
-      _logger?.debug('Ignoring malformed Margin collection item record', error: error);
-      return const MarginNoteSyncResult(malformed: 1);
+    } on Object catch (error, stackTrace) {
+      return _malformed(
+        remote,
+        'Ignoring malformed Margin collection item record.',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -305,9 +310,11 @@ class MarginNoteSyncService {
     try {
       final note = const margin_note.NoteRecordConverter().fromJson(remote.value);
       final source = emptyToNull(note.target.source);
-      if (source == null) return const MarginNoteSyncResult(malformed: 1);
+      if (source == null) return _malformed(remote, 'Margin note record is missing a source URL.');
       final sourceUri = Uri.tryParse(source);
-      if (sourceUri == null || !sourceUri.hasScheme) return const MarginNoteSyncResult(malformed: 1);
+      if (sourceUri == null || !sourceUri.hasScheme) {
+        return _malformed(remote, 'Margin note record has an invalid source URL.');
+      }
 
       final mirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: remote.uri);
       if (mirror?.dirtyAt != null) return const MarginNoteSyncResult(conflicts: 1);
@@ -426,7 +433,7 @@ class MarginNoteSyncService {
 
       await _syncRepository.upsertMirror(
         accountDid: accountDid,
-        localTable: SembleSyncLocalTable.annotations.value,
+        localTable: AtprotoSyncLocalTable.annotations.value,
         localId: annotationId,
         collection: MarginSyncCollection.note.value,
         rkey: rkeyFromUri(remote.uri),
@@ -437,10 +444,14 @@ class MarginNoteSyncService {
         lastSyncedAt: _now(),
       );
       return MarginNoteSyncResult(imported: mirror == null ? 1 : 0, updated: mirror == null ? 0 : 1);
-    } on Object catch (error) {
-      _logger?.debug('Ignoring malformed Margin note record', error: error);
-      return const MarginNoteSyncResult(malformed: 1);
+    } on Object catch (error, stackTrace) {
+      return _malformed(remote, 'Ignoring malformed Margin note record.', error: error, stackTrace: stackTrace);
     }
+  }
+
+  MarginNoteSyncResult _malformed(AtprotoRepoRecord remote, String message, {Object? error, StackTrace? stackTrace}) {
+    _logger?.debug('$message uri=${remote.uri} cid=${remote.cid ?? 'unknown'}', error: error, stackTrace: stackTrace);
+    return const MarginNoteSyncResult(malformed: 1);
   }
 
   Future<void> _pushItem(AtprotoSyncOutboxData item) async {
@@ -478,15 +489,15 @@ class MarginNoteSyncService {
   }
 
   Future<Map<String, dynamic>> _recordForItem(AtprotoSyncOutboxData item) async {
-    if (item.localTable == SembleSyncLocalTable.annotations.value &&
+    if (item.localTable == AtprotoSyncLocalTable.annotations.value &&
         item.collection == MarginSyncCollection.note.value) {
       return mapLocalAnnotationToMarginNote(item.localId);
     }
-    if (item.localTable == SembleSyncLocalTable.annotationCollections.value &&
+    if (item.localTable == AtprotoSyncLocalTable.annotationCollections.value &&
         item.collection == MarginSyncCollection.collection.value) {
       return mapLocalAnnotationCollectionToMargin(item.localId);
     }
-    if (item.localTable == SembleSyncLocalTable.annotationCollectionItems.value &&
+    if (item.localTable == AtprotoSyncLocalTable.annotationCollectionItems.value &&
         item.collection == MarginSyncCollection.collectionItem.value) {
       return _mapLocalAnnotationCollectionItemToMargin(accountDid: item.accountDid, itemId: item.localId);
     }
@@ -518,13 +529,13 @@ class MarginNoteSyncService {
     if (item == null) throw StateError('Annotation collection item no longer exists locally.');
     final collectionMirror = await _syncRepository.mirrorForLocal(
       accountDid: accountDid,
-      localTable: SembleSyncLocalTable.annotationCollections.value,
+      localTable: AtprotoSyncLocalTable.annotationCollections.value,
       localId: item.collectionId,
       collection: MarginSyncCollection.collection.value,
     );
     final annotationMirror = await _syncRepository.mirrorForLocal(
       accountDid: accountDid,
-      localTable: SembleSyncLocalTable.annotations.value,
+      localTable: AtprotoSyncLocalTable.annotations.value,
       localId: item.annotationId,
       collection: MarginSyncCollection.note.value,
     );

@@ -636,7 +636,7 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
             confirmedDeleteCount: confirmedDeletes,
           ),
           const SizedBox(height: 8),
-          for (final entry in SembleSyncCollection.trackedCollections.entries) ...[
+          for (final entry in AtprotoSyncCollections.trackedCollections.entries) ...[
             _AtprotoDiagnosticCollectionRow(
               collectionLabel: entry.value,
               collection: entry.key,
@@ -645,7 +645,7 @@ class _AtprotoDiagnosticsSection extends StatelessWidget {
               deletedRecordCount: deletedRecordCounts[entry.key] ?? 0,
               formatDateTime: formatDateTime,
             ),
-            if (entry.key != SembleSyncCollection.trackedCollections.keys.last) const SizedBox(height: 8),
+            if (entry.key != AtprotoSyncCollections.trackedCollections.keys.last) const SizedBox(height: 8),
           ],
         ],
       ),

@@ -46,7 +46,7 @@ class AnnotationCollectionRepository {
               updatedAt: now,
             ),
           );
-      await _enqueue(id, SembleSyncLocalTable.annotationCollections, MarginSyncCollection.collection);
+      await _enqueue(id, AtprotoSyncLocalTable.annotationCollections, MarginSyncCollection.collection);
     });
     return (_database.select(_database.annotationCollections)..where((row) => row.id.equals(id))).getSingle();
   }
@@ -75,7 +75,7 @@ class AnnotationCollectionRepository {
       final item = await (_database.select(
         _database.annotationCollectionItems,
       )..where((row) => row.collectionId.equals(collectionId) & row.annotationId.equals(annotationId))).getSingle();
-      await _enqueue(item.id, SembleSyncLocalTable.annotationCollectionItems, MarginSyncCollection.collectionItem);
+      await _enqueue(item.id, AtprotoSyncLocalTable.annotationCollectionItems, MarginSyncCollection.collectionItem);
     });
     return (_database.select(
       _database.annotationCollectionItems,
@@ -90,7 +90,7 @@ class AnnotationCollectionRepository {
       );
       await _enqueue(
         collectionId,
-        SembleSyncLocalTable.annotationCollections,
+        AtprotoSyncLocalTable.annotationCollections,
         MarginSyncCollection.collection,
         operation: AtprotoSyncOperation.delete,
       );
@@ -105,7 +105,7 @@ class AnnotationCollectionRepository {
       );
       await _enqueue(
         itemId,
-        SembleSyncLocalTable.annotationCollectionItems,
+        AtprotoSyncLocalTable.annotationCollectionItems,
         MarginSyncCollection.collectionItem,
         operation: AtprotoSyncOperation.delete,
       );
@@ -114,7 +114,7 @@ class AnnotationCollectionRepository {
 
   Future<void> _enqueue(
     String localId,
-    SembleSyncLocalTable table,
+    AtprotoSyncLocalTable table,
     MarginSyncCollection collection, {
     AtprotoSyncOperation operation = AtprotoSyncOperation.update,
   }) async {

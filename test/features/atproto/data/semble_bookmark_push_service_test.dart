@@ -35,21 +35,21 @@ void main() {
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'bookmark-1',
       collection: SembleSyncCollection.card.value,
     );
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
-      localTable: SembleSyncLocalTable.bookmarkFolders.value,
+      localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
       localId: 'folder-1',
       collection: SembleSyncCollection.collection.value,
     );
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
-      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
       localId: 'link-1',
       collection: SembleSyncCollection.collectionLink.value,
     );
@@ -60,19 +60,19 @@ void main() {
     expect(await syncRepository.pendingOutbox(accountDid: 'did:plc:alice'), isEmpty);
     final bookmarkMirror = await syncRepository.mirrorForLocal(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'bookmark-1',
       collection: SembleSyncCollection.card.value,
     );
     final folderMirror = await syncRepository.mirrorForLocal(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarkFolders.value,
+      localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
       localId: 'folder-1',
       collection: SembleSyncCollection.collection.value,
     );
     final linkMirror = await syncRepository.mirrorForLocal(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
       localId: 'link-1',
       collection: SembleSyncCollection.collectionLink.value,
     );
@@ -109,7 +109,7 @@ void main() {
         );
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'bookmark-1',
       collection: SembleSyncCollection.card.value,
       rkey: 'bookmark-1',
@@ -120,7 +120,7 @@ void main() {
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.update.value,
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'bookmark-1',
       collection: SembleSyncCollection.card.value,
     );
@@ -130,7 +130,7 @@ void main() {
     expect(repoClient.calls.single, isA<Record>());
     final mirror = await syncRepository.mirrorForLocal(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'bookmark-1',
       collection: SembleSyncCollection.card.value,
     );
@@ -174,7 +174,7 @@ void main() {
     final outbox = await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
-      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
       localId: 'link-1',
       collection: SembleSyncCollection.collectionLink.value,
     );
@@ -206,7 +206,7 @@ void main() {
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'bookmark-1',
       collection: SembleSyncCollection.card.value,
     );
@@ -214,7 +214,7 @@ void main() {
     await syncRepository.markMirrorDirty(
       id: (await syncRepository.mirrorForLocal(
         accountDid: 'did:plc:alice',
-        localTable: SembleSyncLocalTable.bookmarks.value,
+        localTable: AtprotoSyncLocalTable.bookmarks.value,
         localId: 'bookmark-1',
         collection: SembleSyncCollection.card.value,
       ))!.id,
@@ -223,7 +223,7 @@ void main() {
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'bookmark-1',
       collection: SembleSyncCollection.card.value,
     );
@@ -235,7 +235,7 @@ void main() {
     expect(await syncRepository.pendingOutbox(accountDid: 'did:plc:alice'), isEmpty);
     final mirror = await syncRepository.mirrorForLocal(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'bookmark-1',
       collection: SembleSyncCollection.card.value,
     );

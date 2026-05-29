@@ -6,6 +6,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:marker/core/database/app_database.dart';
 import 'package:marker/core/database/database_provider.dart';
+import 'package:marker/core/logging/app_logger.dart';
 import 'package:marker/core/shared/utils/atproto_utils.dart';
 import 'package:marker/core/shared/utils/json_utils.dart';
 import 'package:marker/core/shared/utils/text_utils.dart';
@@ -24,6 +25,7 @@ final sembleBookmarkPullServiceProvider = Provider<SembleBookmarkPullService>((r
     database: database,
     syncRepository: ref.watch(atprotoSyncRepositoryProvider),
     repoClient: ref.watch(atprotoRepoClientProvider),
+    logger: ref.watch(appLoggerProvider),
   );
 });
 
@@ -84,17 +86,20 @@ class SembleBookmarkPullService {
     required AppDatabase database,
     required AtprotoSyncRepository syncRepository,
     required AtprotoRepoClient repoClient,
+    AppLogger? logger,
     Uuid? uuid,
     DateTime Function()? now,
   }) : _database = database,
        _syncRepository = syncRepository,
        _repoClient = repoClient,
+       _logger = logger,
        _uuid = uuid ?? const Uuid(),
        _now = now ?? (() => DateTime.now().toUtc());
 
   final AppDatabase _database;
   final AtprotoSyncRepository _syncRepository;
   final AtprotoRepoClient _repoClient;
+  final AppLogger? _logger;
   final Uuid _uuid;
   final DateTime Function() _now;
 
@@ -203,7 +208,7 @@ class SembleBookmarkPullService {
       final content = record.content.urlContent;
       final url = content?.url ?? record.url;
       if (url == null || Uri.tryParse(url) == null) {
-        return const SembleBookmarkPullResult(malformed: 1);
+        return _malformed(remote, 'Semble card record is missing a valid URL.');
       }
 
       final json = canonicalJson(remote.value);
@@ -251,7 +256,7 @@ class SembleBookmarkPullService {
       if (duplicates == 0 || mirror != null) {
         await _syncRepository.upsertMirror(
           accountDid: accountDid,
-          localTable: SembleSyncLocalTable.bookmarks.value,
+          localTable: AtprotoSyncLocalTable.bookmarks.value,
           localId: localId,
           collection: SembleSyncCollection.card.value,
           rkey: rkeyFromUri(remote.uri),
@@ -263,8 +268,8 @@ class SembleBookmarkPullService {
         );
       }
       return SembleBookmarkPullResult(cardsImported: duplicates == 0 ? 1 : 0, duplicates: duplicates);
-    } catch (_) {
-      return const SembleBookmarkPullResult(malformed: 1);
+    } on Object catch (error, stackTrace) {
+      return _malformed(remote, 'Ignoring malformed Semble card record.', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -314,7 +319,7 @@ class SembleBookmarkPullService {
       if (duplicates == 0 || mirror != null) {
         await _syncRepository.upsertMirror(
           accountDid: accountDid,
-          localTable: SembleSyncLocalTable.bookmarkFolders.value,
+          localTable: AtprotoSyncLocalTable.bookmarkFolders.value,
           localId: localId,
           collection: SembleSyncCollection.collection.value,
           rkey: rkeyFromUri(remote.uri),
@@ -326,8 +331,8 @@ class SembleBookmarkPullService {
         );
       }
       return SembleBookmarkPullResult(collectionsImported: duplicates == 0 ? 1 : 0, duplicates: duplicates);
-    } catch (_) {
-      return const SembleBookmarkPullResult(malformed: 1);
+    } on Object catch (error, stackTrace) {
+      return _malformed(remote, 'Ignoring malformed Semble collection record.', error: error, stackTrace: stackTrace);
     }
   }
 
@@ -340,11 +345,11 @@ class SembleBookmarkPullService {
       );
       final cardMirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: record.card.uri.toString());
       if (collectionMirror == null || cardMirror == null) {
-        return const SembleBookmarkPullResult(malformed: 1);
+        return _malformed(remote, 'Semble collection link references records that are not mirrored locally.');
       }
-      if (collectionMirror.localTable != SembleSyncLocalTable.bookmarkFolders.value ||
-          cardMirror.localTable != SembleSyncLocalTable.bookmarks.value) {
-        return const SembleBookmarkPullResult(malformed: 1);
+      if (collectionMirror.localTable != AtprotoSyncLocalTable.bookmarkFolders.value ||
+          cardMirror.localTable != AtprotoSyncLocalTable.bookmarks.value) {
+        return _malformed(remote, 'Semble collection link references incompatible mirrored record types.');
       }
 
       final mirror = await _syncRepository.mirrorForUri(accountDid: accountDid, uri: remote.uri);
@@ -387,7 +392,7 @@ class SembleBookmarkPullService {
       if (duplicates == 0 || mirror != null) {
         await _syncRepository.upsertMirror(
           accountDid: accountDid,
-          localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+          localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
           localId: localId,
           collection: SembleSyncCollection.collectionLink.value,
           rkey: rkeyFromUri(remote.uri),
@@ -399,8 +404,13 @@ class SembleBookmarkPullService {
         );
       }
       return SembleBookmarkPullResult(linksImported: duplicates == 0 ? 1 : 0, duplicates: duplicates);
-    } catch (_) {
-      return const SembleBookmarkPullResult(malformed: 1);
+    } on Object catch (error, stackTrace) {
+      return _malformed(
+        remote,
+        'Ignoring malformed Semble collection link record.',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -412,8 +422,8 @@ class SembleBookmarkPullService {
         uri: record.removedLink.uri.toString(),
       );
       if (removedLinkMirror == null ||
-          removedLinkMirror.localTable != SembleSyncLocalTable.bookmarkCollectionLinks.value) {
-        return const SembleBookmarkPullResult(malformed: 1);
+          removedLinkMirror.localTable != AtprotoSyncLocalTable.bookmarkCollectionLinks.value) {
+        return _malformed(remote, 'Semble collection link removal references a link that is not mirrored locally.');
       }
       if (removedLinkMirror.dirtyAt != null) {
         return const SembleBookmarkPullResult(conflicts: 1);
@@ -426,14 +436,14 @@ class SembleBookmarkPullService {
         now: _now,
       );
       await deletionSync.markLocalRowDeleted(
-        localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+        localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
         localId: removedLinkMirror.localId,
         deletedAt: record.removedAt,
       );
       await _syncRepository.markMirrorDeleted(id: removedLinkMirror.id, deletedAt: record.removedAt);
       await _syncRepository.upsertMirror(
         accountDid: accountDid,
-        localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+        localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
         localId: removedLinkMirror.localId,
         collection: SembleSyncCollection.collectionLinkRemoval.value,
         rkey: rkeyFromUri(remote.uri),
@@ -444,9 +454,24 @@ class SembleBookmarkPullService {
         lastSyncedAt: _now(),
       );
       return const SembleBookmarkPullResult(deleted: 1);
-    } catch (_) {
-      return const SembleBookmarkPullResult(malformed: 1);
+    } on Object catch (error, stackTrace) {
+      return _malformed(
+        remote,
+        'Ignoring malformed Semble collection link removal record.',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
+  }
+
+  SembleBookmarkPullResult _malformed(
+    AtprotoRepoRecord remote,
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    _logger?.debug('$message uri=${remote.uri} cid=${remote.cid ?? 'unknown'}', error: error, stackTrace: stackTrace);
+    return const SembleBookmarkPullResult(malformed: 1);
   }
 
   Future<SembleBookmarkPullResult> _verifyMissingMirrors(

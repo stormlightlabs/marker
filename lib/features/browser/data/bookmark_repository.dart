@@ -83,7 +83,7 @@ class BookmarkRepository {
 
   Future<void> _enqueueBookmarkChange(String bookmarkId) async {
     await _syncRepository?.enqueueLocalChangeForAllAccounts(
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: bookmarkId,
       collection: SembleSyncCollection.card.value,
     );

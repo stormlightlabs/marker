@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
@@ -13,6 +14,8 @@ import 'package:margin_poptart/at/margin/note/selector_type.dart' as margin_sele
 import 'package:margin_poptart/at/margin/note/target.dart' as margin_target;
 import 'package:margin_poptart/at/margin/note/time_state.dart' as margin_time_state;
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/core/logging/app_logger.dart';
+import 'package:marker/core/logging/log_files.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_constants.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -75,9 +78,9 @@ void main() {
           ),
         );
     for (final outbox in [
-      (SembleSyncLocalTable.annotations.value, 'annotation-1', MarginSyncCollection.note.value),
-      (SembleSyncLocalTable.annotationCollections.value, 'collection-1', MarginSyncCollection.collection.value),
-      (SembleSyncLocalTable.annotationCollectionItems.value, 'item-1', MarginSyncCollection.collectionItem.value),
+      (AtprotoSyncLocalTable.annotations.value, 'annotation-1', MarginSyncCollection.note.value),
+      (AtprotoSyncLocalTable.annotationCollections.value, 'collection-1', MarginSyncCollection.collection.value),
+      (AtprotoSyncLocalTable.annotationCollectionItems.value, 'item-1', MarginSyncCollection.collectionItem.value),
     ]) {
       await syncRepository.enqueueOutbox(
         accountDid: 'did:plc:alice',
@@ -261,7 +264,20 @@ void main() {
     expect(await database.select(database.annotations).get(), hasLength(2));
   });
 
-  test('pull counts malformed selector records without importing', () async {
+  test('pull counts and logs malformed selector records without importing', () async {
+    final logDirectory = await Directory.systemTemp.createTemp('marker_margin_malformed_logs_');
+    addTearDown(() async {
+      if (await logDirectory.exists()) await logDirectory.delete(recursive: true);
+    });
+    final logger = await AppLogger.initialize(directory: logDirectory);
+    addTearDown(logger.close);
+    service = MarginNoteSyncService(
+      database: database,
+      syncRepository: syncRepository,
+      repoClient: repoClient,
+      logger: logger,
+      now: () => DateTime.utc(2026, 5, 28, 12),
+    );
     repoClient.records['at://did:plc:alice/at.margin.note/bad'] = const AtprotoRepoRecord(
       uri: 'at://did:plc:alice/at.margin.note/bad',
       cid: 'cid-bad',
@@ -276,6 +292,8 @@ void main() {
     final result = await service.pull('did:plc:alice');
 
     expect(result.malformed, 1);
+    final logText = await File('${logDirectory.path}/$activeLogFileName').readAsString();
+    expect(logText, contains('Margin note record has an invalid source URL'));
     expect(await database.select(database.annotations).get(), isEmpty);
   });
 
@@ -290,7 +308,7 @@ void main() {
     await syncRepository.enqueueOutbox(
       accountDid: 'did:plc:alice',
       operation: AtprotoSyncOperation.create.value,
-      localTable: SembleSyncLocalTable.annotations.value,
+      localTable: AtprotoSyncLocalTable.annotations.value,
       localId: 'annotation-1',
       collection: MarginSyncCollection.note.value,
     );

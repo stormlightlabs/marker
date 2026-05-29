@@ -373,7 +373,7 @@ class LibraryRepository {
               ..where(
                 (mirror) =>
                     mirror.localId.equals(annotationId) &
-                    mirror.localTable.equals(SembleSyncLocalTable.annotations.value) &
+                    mirror.localTable.equals(AtprotoSyncLocalTable.annotations.value) &
                     mirror.collection.equals(MarginSyncCollection.note.value) &
                     mirror.deletedAt.isNull() &
                     mirror.lastSyncedAt.isNotNull(),

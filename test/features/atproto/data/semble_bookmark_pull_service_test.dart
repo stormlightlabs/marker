@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cosmik_poptart/network/cosmik/card.dart' as card;
 import 'package:cosmik_poptart/network/cosmik/collection.dart' as collection;
@@ -8,6 +9,8 @@ import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marker/core/database/app_database.dart';
+import 'package:marker/core/logging/app_logger.dart';
+import 'package:marker/core/logging/log_files.dart';
 import 'package:marker/features/atproto/data/atproto_deletion_sync_service.dart';
 import 'package:marker/features/atproto/data/atproto_repo_client.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
@@ -289,7 +292,7 @@ void main() {
         );
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
       localId: 'local-link',
       collection: SembleSyncCollection.collectionLink.value,
       rkey: 'link-1',
@@ -336,7 +339,7 @@ void main() {
         );
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'local-bookmark',
       collection: SembleSyncCollection.card.value,
       rkey: 'card-missing',
@@ -377,7 +380,7 @@ void main() {
         );
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'local-bookmark',
       collection: SembleSyncCollection.card.value,
       rkey: 'card-1',
@@ -395,7 +398,7 @@ void main() {
 
     await deletionService.softDeleteLocal(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'local-bookmark',
       collection: SembleSyncCollection.card.value,
     );
@@ -452,7 +455,7 @@ void main() {
         );
     await syncRepository.createMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
       localId: 'local-link',
       collection: SembleSyncCollection.collectionLink.value,
       rkey: 'link-1',
@@ -470,7 +473,7 @@ void main() {
 
     await deletionService.softDeleteLocal(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
       localId: 'local-link',
       collection: SembleSyncCollection.collectionLink.value,
     );
@@ -491,7 +494,20 @@ void main() {
     );
   });
 
-  test('counts malformed records and links with missing refs', () async {
+  test('counts and logs malformed records and links with missing refs', () async {
+    final logDirectory = await Directory.systemTemp.createTemp('marker_semble_malformed_logs_');
+    addTearDown(() async {
+      if (await logDirectory.exists()) await logDirectory.delete(recursive: true);
+    });
+    final logger = await AppLogger.initialize(directory: logDirectory);
+    addTearDown(logger.close);
+    service = SembleBookmarkPullService(
+      database: database,
+      syncRepository: syncRepository,
+      repoClient: repoClient,
+      logger: logger,
+      now: () => DateTime.utc(2026, 5, 26, 12),
+    );
     _putRemote(
       repoClient,
       did: 'did:plc:alice',
@@ -521,6 +537,9 @@ void main() {
     final result = await service.pull('did:plc:alice');
 
     expect(result.malformed, 2);
+    final logText = await File('${logDirectory.path}/$activeLogFileName').readAsString();
+    expect(logText, contains('Semble card record is missing a valid URL'));
+    expect(logText, contains('Semble collection link references records that are not mirrored locally'));
     expect(await database.select(database.bookmarks).get(), isEmpty);
     expect(await database.select(database.bookmarkCollectionLinks).get(), isEmpty);
   });

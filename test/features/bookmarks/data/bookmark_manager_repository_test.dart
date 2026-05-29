@@ -93,7 +93,7 @@ void main() {
     await _insertBookmark(database, id: 'remote', url: 'https://remote.example', title: 'Remote');
     await syncRepository.upsertMirror(
       accountDid: 'did:plc:alice',
-      localTable: SembleSyncLocalTable.bookmarks.value,
+      localTable: AtprotoSyncLocalTable.bookmarks.value,
       localId: 'remote',
       collection: SembleSyncCollection.card.value,
       rkey: 'remote',
@@ -171,9 +171,9 @@ void main() {
     expect(
       outbox.map((item) => (item.localTable, item.collection)),
       containsAll([
-        (SembleSyncLocalTable.bookmarkFolders.value, SembleSyncCollection.collection.value),
-        (SembleSyncLocalTable.bookmarks.value, SembleSyncCollection.card.value),
-        (SembleSyncLocalTable.bookmarkCollectionLinks.value, SembleSyncCollection.collectionLink.value),
+        (AtprotoSyncLocalTable.bookmarkFolders.value, SembleSyncCollection.collection.value),
+        (AtprotoSyncLocalTable.bookmarks.value, SembleSyncCollection.card.value),
+        (AtprotoSyncLocalTable.bookmarkCollectionLinks.value, SembleSyncCollection.collectionLink.value),
       ]),
     );
   });

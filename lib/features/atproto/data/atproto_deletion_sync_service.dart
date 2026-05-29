@@ -88,7 +88,8 @@ class AtprotoDeletionSyncService {
         continue;
       }
 
-      if (item.localTable == SembleSyncLocalTable.bookmarkCollectionLinks.value && _repoDid(mirror.uri) != accountDid) {
+      if (item.localTable == AtprotoSyncLocalTable.bookmarkCollectionLinks.value &&
+          _repoDid(mirror.uri) != accountDid) {
         await _publishCollectionLinkRemoval(accountDid: accountDid, removedLink: mirror);
       } else {
         await _repoClient.deleteRecord(
@@ -105,28 +106,28 @@ class AtprotoDeletionSyncService {
 
   Future<void> markLocalRowDeleted({required String localTable, required String localId, DateTime? deletedAt}) async {
     final timestamp = deletedAt ?? _now();
-    switch (SembleSyncLocalTable.fromValue(localTable)) {
-      case SembleSyncLocalTable.bookmarks:
+    switch (AtprotoSyncLocalTable.fromValue(localTable)) {
+      case AtprotoSyncLocalTable.bookmarks:
         await (_database.update(_database.bookmarks)..where((row) => row.id.equals(localId))).write(
           BookmarksCompanion(deletedAt: Value(timestamp), updatedAt: Value(timestamp)),
         );
-      case SembleSyncLocalTable.bookmarkFolders:
+      case AtprotoSyncLocalTable.bookmarkFolders:
         await (_database.update(_database.bookmarkFolders)..where((row) => row.id.equals(localId))).write(
           BookmarkFoldersCompanion(deletedAt: Value(timestamp), updatedAt: Value(timestamp)),
         );
-      case SembleSyncLocalTable.bookmarkCollectionLinks:
+      case AtprotoSyncLocalTable.bookmarkCollectionLinks:
         await (_database.update(_database.bookmarkCollectionLinks)..where((row) => row.id.equals(localId))).write(
           BookmarkCollectionLinksCompanion(deletedAt: Value(timestamp), updatedAt: Value(timestamp)),
         );
-      case SembleSyncLocalTable.annotations:
+      case AtprotoSyncLocalTable.annotations:
         await (_database.update(_database.annotations)..where((row) => row.id.equals(localId))).write(
           AnnotationsCompanion(deletedAt: Value(timestamp), modifiedAt: Value(timestamp)),
         );
-      case SembleSyncLocalTable.annotationCollections:
+      case AtprotoSyncLocalTable.annotationCollections:
         await (_database.update(_database.annotationCollections)..where((row) => row.id.equals(localId))).write(
           AnnotationCollectionsCompanion(deletedAt: Value(timestamp), updatedAt: Value(timestamp)),
         );
-      case SembleSyncLocalTable.annotationCollectionItems:
+      case AtprotoSyncLocalTable.annotationCollectionItems:
         await (_database.update(_database.annotationCollectionItems)..where((row) => row.id.equals(localId))).write(
           AnnotationCollectionItemsCompanion(deletedAt: Value(timestamp), updatedAt: Value(timestamp)),
         );
@@ -152,7 +153,7 @@ class AtprotoDeletionSyncService {
     );
     await _syncRepository.upsertMirror(
       accountDid: accountDid,
-      localTable: SembleSyncLocalTable.bookmarkCollectionLinks.value,
+      localTable: AtprotoSyncLocalTable.bookmarkCollectionLinks.value,
       localId: removedLink.localId,
       collection: SembleSyncCollection.collectionLinkRemoval.value,
       rkey: rkeyFromUri(result.uri),

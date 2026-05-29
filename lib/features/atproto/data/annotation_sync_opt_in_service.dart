@@ -50,7 +50,7 @@ class AnnotationSyncOptInService {
         await _syncRepository.enqueueOutbox(
           accountDid: account.did,
           operation: AtprotoSyncOperation.update.value,
-          localTable: SembleSyncLocalTable.annotations.value,
+          localTable: AtprotoSyncLocalTable.annotations.value,
           localId: annotation.id,
           collection: MarginSyncCollection.note.value,
         );
@@ -59,7 +59,7 @@ class AnnotationSyncOptInService {
         await _syncRepository.enqueueOutbox(
           accountDid: account.did,
           operation: AtprotoSyncOperation.update.value,
-          localTable: SembleSyncLocalTable.annotationCollections.value,
+          localTable: AtprotoSyncLocalTable.annotationCollections.value,
           localId: collection.id,
           collection: MarginSyncCollection.collection.value,
         );
@@ -68,7 +68,7 @@ class AnnotationSyncOptInService {
         await _syncRepository.enqueueOutbox(
           accountDid: account.did,
           operation: AtprotoSyncOperation.update.value,
-          localTable: SembleSyncLocalTable.annotationCollectionItems.value,
+          localTable: AtprotoSyncLocalTable.annotationCollectionItems.value,
           localId: item.id,
           collection: MarginSyncCollection.collectionItem.value,
         );
