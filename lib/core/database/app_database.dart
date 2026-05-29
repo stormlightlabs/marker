@@ -286,7 +286,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 1;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -295,107 +295,12 @@ class AppDatabase extends _$AppDatabase {
       await createLibrarySearchIndex();
       await createPerformanceIndexes();
     },
-    onUpgrade: (Migrator m, int from, int to) async {
-      if (from < 2) {
-        await m.createTable(bookmarks);
-      }
-      if (from < 3) {
-        await m.createTable(browserHistoryEntries);
-      }
-      if (from < 4) {
-        await m.createTable(appSettings);
-      }
-      if (from < 5) {
-        await m.createTable(bookmarkFolders);
-        await m.addColumn(bookmarks, bookmarks.folderId);
-      }
-      if (from < 6) {
-        await m.addColumn(bookmarks, bookmarks.sortOrder);
-        await m.addColumn(bookmarkFolders, bookmarkFolders.sortOrder);
-      }
-      if (from < 7) {
-        await m.addColumn(pages, pages.faviconUrl);
-        await m.addColumn(pages, pages.faviconFilePath);
-      }
-      if (from < 8) {
-        await m.addColumn(pages, pages.description);
-        await m.addColumn(browserHistoryEntries, browserHistoryEntries.description);
-      }
-      if (from < 9) {
-        await createLibrarySearchIndex();
-      }
-      if (from < 10) {
-        await _upgradeToV10(m);
-      }
-      if (from < 11) {
-        await _upgradeToV11(m);
-      }
-      if (from < 12) {
-        await m.addColumn(bookmarks, bookmarks.description);
-      }
-      if (from < 13) {
-        await m.addColumn(annotations, annotations.marginMetadataJson);
-        await m.addColumn(annotationTargets, annotationTargets.sourceHash);
-        await m.addColumn(annotationTargets, annotationTargets.stateJson);
-        await m.addColumn(annotationBodies, annotationBodies.uri);
-      }
-      if (from < 14) {
-        await m.createTable(annotationTags);
-        await m.createTable(annotationCollections);
-        await m.createTable(annotationCollectionItems);
-      }
-      if (from < 15) {
-        await createPerformanceIndexes();
-      }
-      if (from < 16) {
-        await m.createTable(atprotoSyncSelections);
-      }
-    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await createLibrarySearchIndex();
       await createPerformanceIndexes();
     },
   );
-
-  Future<void> _upgradeToV10(Migrator m) async {
-    await customStatement('ALTER TABLE bookmarks ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0');
-    await m.addColumn(bookmarks, bookmarks.deletedAt);
-    await m.addColumn(bookmarkFolders, bookmarkFolders.description);
-    await m.addColumn(bookmarkFolders, bookmarkFolders.accessType);
-    await m.addColumn(bookmarkFolders, bookmarkFolders.deletedAt);
-    await m.createTable(bookmarkCollectionLinks);
-    await customStatement('UPDATE bookmarks SET updated_at = created_at WHERE updated_at = 0');
-    await customStatement('''
-INSERT OR IGNORE INTO bookmark_collection_links (
-  id,
-  bookmark_id,
-  folder_id,
-  sort_order,
-  created_at,
-  updated_at,
-  deleted_at
-)
-SELECT
-  'backfill-' || id,
-  id,
-  folder_id,
-  sort_order,
-  created_at,
-  created_at,
-  NULL
-FROM bookmarks
-WHERE folder_id IS NOT NULL
-''');
-  }
-
-  Future<void> _upgradeToV11(Migrator m) async {
-    await m.createTable(atprotoAccounts);
-    await m.createTable(atprotoRecordMirrors);
-    await m.createTable(atprotoSyncState);
-    await m.createTable(atprotoSyncSelections);
-    await m.createTable(atprotoSyncOutbox);
-  }
 
   Future<void> createLibrarySearchIndex() {
     return customStatement('''
