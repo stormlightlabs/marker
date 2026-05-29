@@ -1,28 +1,42 @@
 import 'package:flutter/cupertino.dart';
-import 'package:go_router/go_router.dart';
 
-class MarkerTransitionPage<T> extends CustomTransitionPage<T> {
-  const MarkerTransitionPage({required super.child, super.key})
-    : super(
-        transitionDuration: const Duration(milliseconds: 260),
-        reverseTransitionDuration: const Duration(milliseconds: 210),
-        transitionsBuilder: _buildTransition,
-      );
+class MarkerTransitionPage<T> extends CupertinoPage<T> {
+  const MarkerTransitionPage({required super.child, super.key});
 
-  static Widget _buildTransition(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
-    final offset = Tween<Offset>(begin: const Offset(0.035, 0), end: Offset.zero).animate(curved);
+  @override
+  Route<T> createRoute(BuildContext context) => _MarkerPageRoute<T>(page: this);
+}
 
-    return FadeTransition(
-      opacity: curved,
-      child: SlideTransition(position: offset, child: child),
-    );
+class _MarkerPageRoute<T> extends PageRoute<T> with CupertinoRouteTransitionMixin<T> {
+  _MarkerPageRoute({required MarkerTransitionPage<T> page}) : super(settings: page) {
+    assert(opaque);
   }
+
+  static const _transitionDuration = Duration(milliseconds: 260);
+  static const _reverseTransitionDuration = Duration(milliseconds: 210);
+
+  MarkerTransitionPage<T> get _page => settings as MarkerTransitionPage<T>;
+
+  @override
+  Duration get transitionDuration => _transitionDuration;
+
+  @override
+  Duration get reverseTransitionDuration => _reverseTransitionDuration;
+
+  @override
+  DelegatedTransitionBuilder? get delegatedTransition => CupertinoPageTransition.delegatedTransition;
+
+  @override
+  Widget buildContent(BuildContext context) => _page.child;
+
+  @override
+  String? get title => _page.title;
+
+  @override
+  bool get maintainState => _page.maintainState;
+
+  @override
+  bool get fullscreenDialog => _page.fullscreenDialog;
 }
 
 class MarkerAnimatedContent extends StatelessWidget {
@@ -32,20 +46,18 @@ class MarkerAnimatedContent extends StatelessWidget {
   final Duration duration;
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: duration,
-      reverseDuration: const Duration(milliseconds: 160),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) {
-        final offset = Tween<Offset>(begin: const Offset(0, 0.02), end: Offset.zero).animate(animation);
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(position: offset, child: child),
-        );
-      },
-      child: child,
-    );
-  }
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: duration,
+    reverseDuration: const Duration(milliseconds: 160),
+    switchInCurve: Curves.easeOutCubic,
+    switchOutCurve: Curves.easeInCubic,
+    transitionBuilder: (child, animation) {
+      final offset = Tween<Offset>(begin: const Offset(0, 0.02), end: Offset.zero).animate(animation);
+      return FadeTransition(
+        opacity: animation,
+        child: SlideTransition(position: offset, child: child),
+      );
+    },
+    child: child,
+  );
 }

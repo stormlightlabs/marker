@@ -41,13 +41,11 @@ void main() {
     expect(find.text('highlighting'), findsNothing);
 
     await tester.tap(find.text('Recent Article').first);
-    await tester.pump();
-    await tester.pump();
+    await pumpRouteTransition(tester);
 
     expect(find.text('Open source page'), findsOneWidget);
     await tester.tap(find.text('Open source page'));
-    await tester.pump();
-    await tester.pump();
+    await pumpRouteTransition(tester);
 
     expect(find.text('Fake WebView'), findsOneWidget);
     expect(platform.controller.loadedUri, Uri.parse('https://example.com/recent'));

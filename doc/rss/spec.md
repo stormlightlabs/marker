@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add RSS/Atom/JSON Feed support to Marker as a calm reading inbox for the open web.
+Add RSS/Atom/JSON Feed support to Marker as a reading inbox for the open web.
 Feeds help users discover new pages from sources they trust, then open, save, and
 annotate those pages in the existing Marker browser and library.
 

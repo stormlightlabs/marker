@@ -876,9 +876,7 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
     final progress = importState is AtprotoBookmarkImportRunning
         ? importState.progress
         : const SembleBookmarkPullProgress(completedRequests: 0, totalRequests: 5, description: 'Starting sync');
-    // TODO: why do we do this?
-    final failureMessage = _failureMessage;
-    final result = _result;
+    final presentationState = _AtprotoImportPresentationState(result: _result, failureMessage: _failureMessage);
 
     return CupertinoPopupSurface(
       isSurfacePainted: true,
@@ -892,18 +890,13 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // TODO: remove the nested ternary
                 Text(
-                  failureMessage != null
-                      ? 'Sync failed'
-                      : result != null
-                      ? 'Bookmark sync complete'
-                      : 'Syncing bookmarks',
+                  presentationState.title,
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: CupertinoColors.white, fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
-                if (result == null && failureMessage == null) ...[
+                if (presentationState.isRunning) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: LinearProgressIndicator(
@@ -925,22 +918,22 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: CupertinoColors.white, fontSize: 14),
                   ),
-                ] else if (failureMessage != null) ...[
+                ] else if (presentationState.failureMessage != null) ...[
                   Text(
-                    failureMessage,
+                    presentationState.failureMessage!,
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: CupertinoColors.systemRed, fontSize: 14),
                   ),
                 ] else ...[
                   Text(
-                    atprotoBookmarkSyncSummary(result!),
+                    atprotoBookmarkSyncSummary(presentationState.result!),
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: CupertinoColors.systemGrey, fontSize: 14, height: 1.35),
                   ),
                 ],
                 const SizedBox(height: 18),
                 CupertinoButton.filled(
-                  onPressed: result == null && failureMessage == null ? null : () => Navigator.of(context).pop(),
+                  onPressed: presentationState.isRunning ? null : () => Navigator.of(context).pop(),
                   child: const Text('Done'),
                 ),
               ],
@@ -949,6 +942,21 @@ class _AtprotoImportSheetState extends ConsumerState<_AtprotoImportSheet> {
         ),
       ),
     );
+  }
+}
+
+class _AtprotoImportPresentationState {
+  const _AtprotoImportPresentationState({required this.result, required this.failureMessage});
+
+  final AtprotoBookmarkSyncResult? result;
+  final String? failureMessage;
+
+  bool get isRunning => result == null && failureMessage == null;
+
+  String get title {
+    if (failureMessage != null) return 'Sync failed';
+    if (result != null) return 'Bookmark sync complete';
+    return 'Syncing bookmarks';
   }
 }
 

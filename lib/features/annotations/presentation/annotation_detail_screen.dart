@@ -4,6 +4,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:marker/app/app_transitions.dart';
+import 'package:marker/app/navigation.dart';
 import 'package:marker/app/routes.dart';
 import 'package:marker/features/annotations/data/annotation_repository.dart';
 import 'package:marker/features/browser/application/reader_controller.dart';
@@ -69,7 +70,7 @@ class _AnnotationDetailScreenState extends ConsumerState<AnnotationDetailScreen>
     ref.invalidate(annotationsForPageProvider(detail.sourceUrl));
     ref.invalidate(librarySnapshotProvider);
     if (mounted) {
-      context.goNamed(AppRoute.library.routeName);
+      popOrGoNamed(context, AppRoute.library);
     }
   }
 
@@ -90,7 +91,7 @@ class _AnnotationDetailScreenState extends ConsumerState<AnnotationDetailScreen>
         middle: const Text('Annotation'),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
-          onPressed: () => context.goNamed(AppRoute.library.routeName),
+          onPressed: () => popOrGoNamed(context, AppRoute.library),
           child: const Text('Back'),
         ),
         trailing: detail.maybeWhen(

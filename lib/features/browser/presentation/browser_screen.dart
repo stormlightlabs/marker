@@ -706,111 +706,140 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     });
 
     final capture = selection.capture;
-    return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.black,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _BrowserAddressBar(
-              controller: _urlController,
-              focusNode: _addressFocusNode,
-              canGoBack: session.canGoBack,
-              canGoForward: session.canGoForward,
-              isBookmarked: session.isCurrentPageBookmarked,
-              isLoading: session.isLoading,
-              isTypingAddress: _addressFocusNode.hasFocus && _addressSearchQuery.isNotEmpty,
-              tabCount: session.tabs.length,
-              onBackPressed: _goBack,
-              onForwardPressed: _goForward,
-              onRefreshPressed: _reloadCurrentPage,
-              onStopLoadingPressed: _stopLoadingCurrentPage,
-              onClearAddressPressed: _clearAddressInput,
-              onBookmarkPressed: _toggleBookmark,
-              onTabsPressed: () => _showTabs(context, session),
-              onMenuPressed: () => unawaited(_showBrowserMenu(context, session)),
-              onChanged: _handleAddressChanged,
-              onSubmitted: (_) => _loadFromAddressBar(),
-              onGoPressed: _loadFromAddressBar,
-            ),
-            Expanded(
-              child: EdgeSwipeNavigator(
+    return BrowserRouteBackHandler(
+      canGoBack: session.canGoBack,
+      onBack: _goBack,
+      child: CupertinoPageScaffold(
+        backgroundColor: CupertinoColors.black,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _BrowserAddressBar(
+                controller: _urlController,
+                focusNode: _addressFocusNode,
                 canGoBack: session.canGoBack,
                 canGoForward: session.canGoForward,
-                onBack: _goBack,
-                onForward: _goForward,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: ColoredBox(
-                        color: CupertinoColors.black,
-                        child: webViewBuilder(context, _webViewController),
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: AnnotationSidebarWidget(
-                        sourceUrl: session.currentUrl,
-                        onEdit: _editSidebarAnnotation,
-                        onJump: _jumpToSidebarAnnotation,
-                        onDelete: _deleteSidebarAnnotation,
-                      ),
-                    ),
-                    if (capture != null)
-                      Positioned(
-                        left: 14,
-                        right: 14,
-                        bottom: 16,
-                        child: AnnotationToolbar(
-                          capture: capture,
-                          onHighlightPressed: () => unawaited(_saveHighlight(capture)),
-                          onNotePressed: () => unawaited(_openNoteEditor(capture)),
-                          onUnderlinePressed: () => unawaited(_saveUnderline(capture)),
-                          onRemovePressed: _dismissSelection,
+                isBookmarked: session.isCurrentPageBookmarked,
+                isLoading: session.isLoading,
+                isTypingAddress: _addressFocusNode.hasFocus && _addressSearchQuery.isNotEmpty,
+                tabCount: session.tabs.length,
+                onBackPressed: _goBack,
+                onForwardPressed: _goForward,
+                onRefreshPressed: _reloadCurrentPage,
+                onStopLoadingPressed: _stopLoadingCurrentPage,
+                onClearAddressPressed: _clearAddressInput,
+                onBookmarkPressed: _toggleBookmark,
+                onTabsPressed: () => _showTabs(context, session),
+                onMenuPressed: () => unawaited(_showBrowserMenu(context, session)),
+                onChanged: _handleAddressChanged,
+                onSubmitted: (_) => _loadFromAddressBar(),
+                onGoPressed: _loadFromAddressBar,
+              ),
+              Expanded(
+                child: EdgeSwipeNavigator(
+                  canGoBack: session.canGoBack,
+                  canGoForward: session.canGoForward,
+                  onBack: _goBack,
+                  onForward: _goForward,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: ColoredBox(
+                          color: CupertinoColors.black,
+                          child: webViewBuilder(context, _webViewController),
                         ),
                       ),
-                    if (_addressFocusNode.hasFocus)
-                      Positioned(
-                        left: 12,
-                        right: 12,
-                        top: 8,
-                        child: HistorySearchMatches(
-                          query: _addressSearchQuery,
-                          matches: historyMatches,
-                          currentMatch: session.currentUrl == null
-                              ? null
-                              : BrowserHistorySearchMatch(
-                                  url: session.currentUrl!,
-                                  title: session.title ?? session.currentUrl!.host,
-                                  description: null,
-                                  faviconUrl: null,
-                                  faviconFilePath: null,
-                                  score: 0,
-                                ),
-                          onMatchPressed: (match) => unawaited(_openHistorySearchMatch(match)),
-                          onCopyPressed: (match) => unawaited(_copyText(match.url.toString())),
-                          onSharePressed: (context, match) => unawaited(_shareUrl(context, match.url, match.title)),
-                          onPasteAndGoPressed: () => unawaited(_pasteAndGo()),
+                      Positioned.fill(
+                        child: AnnotationSidebarWidget(
+                          sourceUrl: session.currentUrl,
+                          onEdit: _editSidebarAnnotation,
+                          onJump: _jumpToSidebarAnnotation,
+                          onDelete: _deleteSidebarAnnotation,
                         ),
                       ),
-                    if (session.lastError != null)
-                      Positioned(left: 12, right: 12, top: 12, child: _BrowserErrorBanner(message: session.lastError!)),
-                  ],
+                      if (capture != null)
+                        Positioned(
+                          left: 14,
+                          right: 14,
+                          bottom: 16,
+                          child: AnnotationToolbar(
+                            capture: capture,
+                            onHighlightPressed: () => unawaited(_saveHighlight(capture)),
+                            onNotePressed: () => unawaited(_openNoteEditor(capture)),
+                            onUnderlinePressed: () => unawaited(_saveUnderline(capture)),
+                            onRemovePressed: _dismissSelection,
+                          ),
+                        ),
+                      if (_addressFocusNode.hasFocus)
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          top: 8,
+                          child: HistorySearchMatches(
+                            query: _addressSearchQuery,
+                            matches: historyMatches,
+                            currentMatch: session.currentUrl == null
+                                ? null
+                                : BrowserHistorySearchMatch(
+                                    url: session.currentUrl!,
+                                    title: session.title ?? session.currentUrl!.host,
+                                    description: null,
+                                    faviconUrl: null,
+                                    faviconFilePath: null,
+                                    score: 0,
+                                  ),
+                            onMatchPressed: (match) => unawaited(_openHistorySearchMatch(match)),
+                            onCopyPressed: (match) => unawaited(_copyText(match.url.toString())),
+                            onSharePressed: (context, match) => unawaited(_shareUrl(context, match.url, match.title)),
+                            onPasteAndGoPressed: () => unawaited(_pasteAndGo()),
+                          ),
+                        ),
+                      if (session.lastError != null)
+                        Positioned(
+                          left: 12,
+                          right: 12,
+                          top: 12,
+                          child: _BrowserErrorBanner(message: session.lastError!),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            if (session.isLoading) _BrowserProgressBar(progress: session.progress) else const SizedBox(height: 2),
-            _BrowserBottomActionBar(
-              isBookmarked: session.isCurrentPageBookmarked,
-              tabCount: session.tabs.length,
-              onBookmarkPressed: _toggleBookmark,
-              onTabsPressed: () => _showTabs(context, session),
-            ),
-            const MarkerTabBar(activeRoute: AppRoute.browser),
-          ],
+              if (session.isLoading) _BrowserProgressBar(progress: session.progress) else const SizedBox(height: 2),
+              _BrowserBottomActionBar(
+                isBookmarked: session.isCurrentPageBookmarked,
+                tabCount: session.tabs.length,
+                onBookmarkPressed: _toggleBookmark,
+                onTabsPressed: () => _showTabs(context, session),
+              ),
+              const MarkerTabBar(activeRoute: AppRoute.browser),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class BrowserRouteBackHandler extends StatelessWidget {
+  const BrowserRouteBackHandler({required this.canGoBack, required this.onBack, required this.child, super.key});
+
+  final bool canGoBack;
+  final Future<void> Function() onBack;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !canGoBack,
+    onPopInvokedWithResult: (didPop, result) {
+      if (didPop || !canGoBack) {
+        return;
+      }
+      unawaited(onBack());
+    },
+    child: child,
+  );
 }
 
 class _ActionSheetRow extends StatelessWidget {

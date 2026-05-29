@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:marker/app/app_tab_bar.dart';
+import 'package:marker/app/navigation.dart';
 import 'package:marker/app/routes.dart';
 import 'package:marker/core/widgets/funnotation.dart';
 import 'package:marker/features/bookmarks/data/bookmark_manager_repository.dart';
@@ -227,7 +228,7 @@ class _BookmarksContentState extends ConsumerState<_BookmarksContent> {
           funEnabled: funEnabled,
           canPop: folderId != null,
           isEditing: _isEditing,
-          onBackPressed: () => context.pop(),
+          onBackPressed: () => popOrGoNamed(context, AppRoute.bookmarks),
           onCreateFolder: () => _createFolder(context, ref),
           onExport: () => context.pushNamed(AppRoute.bookmarksExport.routeName),
           onInfo: contents.folder == null

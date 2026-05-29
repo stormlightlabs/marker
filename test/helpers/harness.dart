@@ -62,7 +62,7 @@ Widget markerTestApp({
 
 Future<void> pumpRouteTransition(WidgetTester tester) async {
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 320));
+  await tester.pump(const Duration(milliseconds: 600));
   await tester.pump();
   await tester.runAsync(() async {
     await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -359,9 +359,7 @@ class FakeBrowserWebViewController implements BrowserWebViewController {
   }
 
   @override
-  Future<void> runJavaScript(String javaScript) async {
-    injectedScripts.add(javaScript);
-  }
+  Future<void> runJavaScript(String javaScript) async => injectedScripts.add(javaScript);
 
   @override
   Future<Object?> runJavaScriptReturningResult(String javaScript) async {
@@ -405,17 +403,11 @@ class FakeBrowserWebViewController implements BrowserWebViewController {
   }
 
   @override
-  Future<void> setAdBlockRules(CompiledAdBlockRules? rules) async {
-    adBlockRules = rules;
-  }
+  Future<void> setAdBlockRules(CompiledAdBlockRules? rules) async => adBlockRules = rules;
 
-  void sendSelectionMessage(String message) {
-    javaScriptChannels['MarkerSelection']?.call(message);
-  }
+  void sendSelectionMessage(String message) => javaScriptChannels['MarkerSelection']?.call(message);
 
-  void sendLinkContextMessage(String message) {
-    javaScriptChannels['MarkerLinkContext']?.call(message);
-  }
+  void sendLinkContextMessage(String message) => javaScriptChannels['MarkerLinkContext']?.call(message);
 }
 
 class _StringAssetBundle extends CachingAssetBundle {
@@ -426,11 +418,7 @@ class _StringAssetBundle extends CachingAssetBundle {
 ''';
 
   @override
-  Future<ByteData> load(String key) {
-    if (key != ReaderWebViewBridge.bootstrapScriptAsset) {
-      return Future<ByteData>.error(FlutterError('Missing test asset: $key'));
-    }
-    final bytes = Uint8List.fromList(utf8.encode(_readerScript));
-    return SynchronousFuture<ByteData>(ByteData.view(bytes.buffer));
-  }
+  Future<ByteData> load(String key) => (key != ReaderWebViewBridge.bootstrapScriptAsset)
+      ? Future<ByteData>.error(FlutterError('Missing test asset: $key'))
+      : SynchronousFuture<ByteData>(ByteData.view(Uint8List.fromList(utf8.encode(_readerScript)).buffer));
 }
