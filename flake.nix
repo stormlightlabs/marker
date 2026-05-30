@@ -3,120 +3,132 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/4100e830e085863741bc69b156ec4ccd53ab5be0";
-    flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
     {
       self,
       nixpkgs,
-      flake-utils,
     }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          config = {
-            allowUnfree = true;
-            android_sdk.accept_license = true;
-          };
+    let
+      system = "x86_64-linux";
+      pkgs = import nixpkgs {
+        inherit system;
+        config = {
+          allowUnfree = true;
+          android_sdk.accept_license = true;
         };
+      };
 
-        lib = pkgs.lib;
-        jdk = pkgs.jdk17;
-        flutter = pkgs.flutter;
+      lib = pkgs.lib;
+      jdk = pkgs.jdk17;
+      flutter = pkgs.flutter;
 
-        # Android SDK composition with all versions required by AGP/Flutter.
-        # We pin exact versions rather than "latest" for reproducibility.
-        androidComposition = pkgs.androidenv.composeAndroidPackages {
-          cmdLineToolsVersion = "9.0";
-          platformToolsVersion = "36.0.2";
-          buildToolsVersions = [
-            "35.0.0"
-            "35.0.1"
-            "36.0.0"
-          ];
-          platformVersions = [
-            "36"
-            "35"
-            "34"
-          ];
-          includeSources = false;
-          includeSystemImages = false;
-          includeEmulator = false;
-          includeNDK = true;
-          ndkVersions = [ "28.2.13676358" ];
-          includeCmake = true;
-          cmakeVersions = [ "4.1.2" ];
-          useGoogleAPIs = false;
-          extraLicenses = [
-            "android-sdk-license"
-            "android-sdk-preview-license"
-          ];
-        };
+      # Derive version from pubspec.yaml so the derivation stays in sync.
+      pubspec = lib.importJSON (
+        pkgs.runCommand "pubspec-json" { nativeBuildInputs = [ pkgs.yq ]; } ''
+          yq --output-format=json '.' ${self}/pubspec.yaml > "$out"
+        ''
+      );
+      version = pubspec.version or "1.0.0";
 
-        androidSdk = androidComposition.androidsdk;
-        androidSdkRoot = "${androidSdk}/libexec/android-sdk";
+      # Android SDK composition.
+      # We include only the exact components the build needs to prevent AGP from
+      # attempting to auto-download anything into the read-only Nix store.
+      androidComposition = pkgs.androidenv.composeAndroidPackages {
+        cmdLineToolsVersion = "9.0";
+        platformToolsVersion = "36.0.2";
+        buildToolsVersions = [ "36.0.0" ];
+        platformVersions = [ "36" ];
+        includeSources = false;
+        includeSystemImages = false;
+        includeEmulator = false;
+        includeNDK = true;
+        ndkVersions = [ "28.2.13676358" ];
+        includeCmake = false;
+        useGoogleAPIs = false;
+        extraLicenses = [
+          "android-sdk-license"
+          "android-sdk-preview-license"
+        ];
+      };
 
-        # Filter source to exclude build artifacts, caches, and generated files
-        # that contain absolute paths or are not needed for the build.
-        src = lib.cleanSourceWith {
-          src = self;
-          filter =
-            name: type:
-            let
-              baseName = baseNameOf (toString name);
-              path = toString name;
-            in
-            !(
-              # Exclude build artifacts and caches
-              baseName == ".dart_tool"
-              || baseName == "build"
-              || baseName == ".android"
-              || baseName == ".gradle"
-              || baseName == ".pub-cache"
-              || baseName == "node_modules"
-              # Exclude generated directories in android/
-              || (type == "directory" && lib.hasPrefix "android/app/build" path)
-              || (type == "directory" && lib.hasPrefix "android/.gradle" path)
-              || (type == "directory" && lib.hasPrefix "android/build" path)
-              # Exclude IDE files
-              || baseName == ".idea"
-              || baseName == ".vscode"
-              # Exclude generated local.properties (we create our own)
-              || baseName == "local.properties"
-              # Exclude other platform build dirs
-              || baseName == "macos"
-              || baseName == "windows"
-              || baseName == "linux"
-              || baseName == "web"
-            );
-        };
+      androidSdk = androidComposition.androidsdk;
+      androidSdkRoot = "${androidSdk}/libexec/android-sdk";
 
-        # The APK is built as a Fixed-Output Derivation (FOD) because the
-        # Flutter and Gradle toolchains download dependencies from the network
-        # (pub.dev, Maven Central, Google repositories) during the build.
-        # The output hash pins the result, giving us reproducibility.
-        marker-android = pkgs.stdenv.mkDerivation {
-          pname = "marker-android";
-          version = "1.0.0";
-          inherit src;
+      # Filter source to exclude build artifacts, caches, generated files,
+      # platform-specific directories, and files that contain absolute paths.
+      src = lib.cleanSourceWith {
+        src = self;
+        filter =
+          name: type:
+          let
+            baseName = baseNameOf (toString name);
+          in
+          !(
+            # Version control
+            baseName == ".git"
+            # Dart/Flutter build artifacts and caches
+            || baseName == ".dart_tool"
+            || baseName == "build"
+            || baseName == ".android"
+            || baseName == ".gradle"
+            || baseName == ".pub-cache"
+            || baseName == ".flutter-plugins"
+            || baseName == ".flutter-plugins-dependencies"
+            # Node junk (this repo has a JS extension)
+            || baseName == "node_modules"
+            || baseName == "package.json"
+            || baseName == "pnpm-lock.yaml"
+            || baseName == "pnpm-workspace.yaml"
+            # IDE files
+            || baseName == ".idea"
+            || baseName == ".vscode"
+            # Generated Android files
+            || baseName == "local.properties"
+            || baseName == "GeneratedPluginRegistrant.java"
+            # Other platform build dirs (we only build Android)
+            || baseName == "ios"
+            || baseName == "macos"
+            || baseName == "windows"
+            || baseName == "linux"
+            || baseName == "web"
+            # Tests are not needed for the APK
+            || baseName == "test"
+            # Miscellaneous bloat
+            || baseName == ".metadata"
+            || baseName == "CHANGELOG.md"
+            || baseName == "README.md"
+          );
+      };
 
-          nativeBuildInputs = [
-            flutter
-            jdk
-            androidSdk
-            pkgs.git
-            pkgs.python3
-          ];
+      # The APK is built as a Fixed-Output Derivation (FOD) because the
+      # Flutter/Gradle toolchain fetches dependencies from the network
+      # (pub.dev, Maven Central, Google) during the build.  The output hash
+      # pins the result; when dependencies change the hash must be updated.
+      marker-android = pkgs.stdenv.mkDerivation {
+        pname = "marker-android";
+        inherit version src;
 
-          patchPhase = ''
-            runHook prePatch
+        nativeBuildInputs = [
+          flutter
+          jdk
+          androidSdk
+          pkgs.git
+          pkgs.python3
+          pkgs.zip
+        ];
 
-            # Patch pubspec.yaml with dependency overrides needed for the
-            # nixpkgs Flutter version (meta/test_api/matcher pin mismatch).
-            python3 <<PYEOF
+        # Prevent stdenv from trying to strip or patch the APK (it's a ZIP).
+        dontStrip = true;
+        dontPatchELF = true;
+
+        patchPhase = ''
+          runHook prePatch
+
+          # Patch pubspec.yaml with dependency overrides needed for the
+          # nixpkgs Flutter version (meta/test_api/matcher pin mismatch).
+          python3 <<PYEOF
           import sys
 
           with open("pubspec.yaml") as f:
@@ -146,139 +158,138 @@
               print("pubspec.yaml already patched")
           PYEOF
 
-            # Patch onReorderItem -> onReorder for Flutter <= 3.41.9 compatibility.
-            # The upstream project was written against a newer Flutter where the
-            # parameter was renamed; nixpkgs Flutter still uses the old name.
-            if grep -q "onReorderItem:" lib/features/bookmarks/presentation/bookmarks_screen.dart 2>/dev/null; then
-              sed -i 's/onReorderItem:/onReorder:/g' lib/features/bookmarks/presentation/bookmarks_screen.dart
-              echo "Patched onReorderItem -> onReorder"
-            fi
+          # Patch onReorderItem -> onReorder for Flutter <= 3.41.9 compatibility.
+          if grep -q "onReorderItem:" lib/features/bookmarks/presentation/bookmarks_screen.dart 2>/dev/null; then
+            sed -i 's/onReorderItem:/onReorder:/g' lib/features/bookmarks/presentation/bookmarks_screen.dart
+            echo "Patched onReorderItem -> onReorder"
+          fi
 
-            runHook postPatch
-          '';
-
-          buildPhase = ''
-            runHook preBuild
-
-            export HOME=$TMPDIR
-            export ANDROID_SDK_ROOT=${androidSdkRoot}
-            export ANDROID_HOME=$ANDROID_SDK_ROOT
-            export JAVA_HOME=${jdk.home}
-            export FLUTTER_ROOT=${flutter}
-
-            # Point Gradle to the Nix-provided aapt2 so it does not try to
-            # download its own copy from Maven.
-            AAPT2_PATH="$(ls -d "$ANDROID_SDK_ROOT/build-tools/"*/ | sort -V | tail -n1)aapt2"
-            export GRADLE_OPTS="-Dorg.gradle.project.android.aapt2FromMavenOverride=$AAPT2_PATH"
-
-            # Generate local.properties for the Android build.
-            mkdir -p android
-            cat > android/local.properties <<LOCALPROP
-            flutter.sdk=${flutter}
-            sdk.dir=$ANDROID_SDK_ROOT
-            ndk.dir=$ANDROID_SDK_ROOT/ndk/28.2.13676358
-            cmake.dir=$(echo "$ANDROID_SDK_ROOT/cmake/"*/ | head -n1)
-            LOCALPROP
-
-            # Fetch Dart dependencies and build the release APK.
-            flutter pub get
-            flutter build apk --release
-
-            runHook postBuild
-          '';
-
-          installPhase = ''
-            runHook preInstall
-            mkdir -p $out
-            cp build/app/outputs/flutter-apk/app-release.apk $out/marker.apk
-            runHook postInstall
-          '';
-
-          # FOD: the build downloads Dart and Maven dependencies, so we pin the
-          # output hash. When dependencies change, update this hash by running:
-          #   nix build .#default
-          # and copying the "got" hash from the error message.
-          outputHashMode = "recursive";
-          outputHashAlgo = "sha256";
-          outputHash = "sha256-lae9zbZvm/+KEHMMUSAn48P+pQagQTZj05ahjdM88Tw=";
-
-          meta = {
-            description = "Marker Android APK";
-            license = lib.licenses.mit;
-            platforms = lib.platforms.linux;
-          };
-        };
-
-        # Convenience script that copies the built APK into the current directory.
-        copyApkScript = pkgs.writeShellScriptBin "copy-marker-apk" ''
-          set -euo pipefail
-          OUTDIR="''${1:-$PWD/build/apk}"
-          mkdir -p "$OUTDIR"
-          cp ${marker-android}/marker.apk "$OUTDIR/marker.apk"
-          echo "Copied APK to: $OUTDIR/marker.apk"
+          runHook postPatch
         '';
 
-      in
-      {
-        packages = {
-          default = marker-android;
-          apk = marker-android;
+        buildPhase = ''
+          runHook preBuild
+
+          export HOME=$TMPDIR
+          export ANDROID_SDK_ROOT=${androidSdkRoot}
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          export JAVA_HOME=${jdk.home}
+          export FLUTTER_ROOT=${flutter}
+
+          # Point Gradle to the Nix-provided aapt2 so it does not try to
+          # download its own copy from Maven.
+          AAPT2_PATH="${androidSdkRoot}/build-tools/36.0.0/aapt2"
+          export GRADLE_OPTS="-Dorg.gradle.project.android.aapt2FromMavenOverride=$AAPT2_PATH"
+
+          # Generate local.properties for the Android build.
+          mkdir -p android
+          cat > android/local.properties <<LOCALPROP
+          flutter.sdk=${flutter}
+          sdk.dir=$ANDROID_SDK_ROOT
+          ndk.dir=$ANDROID_SDK_ROOT/ndk/28.2.13676358
+          LOCALPROP
+
+          # Build the release APK.  Flutter implicitly runs "pub get" first.
+          flutter build apk --release
+
+          # Normalise ZIP timestamps so the output hash is stable across
+          # rebuilds of the same source.
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          TMP_APK="$TMPDIR/app-release-normalised.apk"
+          mkdir -p "$TMPDIR/apk-contents"
+          cd "$TMPDIR/apk-contents"
+          unzip -q "$PWD/$APK"
+          find . -exec touch -d "@$SOURCE_DATE_EPOCH" {} +
+          zip -X -q -r "$TMP_APK" .
+          cd -
+          mv "$TMP_APK" "$APK"
+
+          runHook postBuild
+        '';
+
+        installPhase = ''
+          runHook preInstall
+          mkdir -p $out
+          cp build/app/outputs/flutter-apk/app-release.apk $out/marker.apk
+          runHook postInstall
+        '';
+
+        # FOD: the build downloads Dart and Maven dependencies, so we pin the
+        # output hash. When dependencies change, update this hash by running:
+        #   nix build .#default
+        # and copying the "got" hash from the error message.
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = lib.fakeSha256;
+
+        meta = {
+          description = "Marker Android APK";
+          license = lib.licenses.mit;
+          platforms = lib.platforms.linux;
         };
+      };
 
-        apps = {
-          default = {
-            type = "app";
-            program = "${copyApkScript}/bin/copy-marker-apk";
-          };
+      # Convenience script that copies the built APK into the current directory.
+      copyApkScript = pkgs.writeShellScriptBin "copy-marker-apk" ''
+        set -euo pipefail
+        OUTDIR="''${1:-$PWD/build/apk}"
+        mkdir -p "$OUTDIR"
+        cp ${marker-android}/marker.apk "$OUTDIR/marker.apk"
+        echo "Copied APK to: $OUTDIR/marker.apk"
+      '';
+
+    in
+    {
+      packages.${system} = {
+        default = marker-android;
+        apk = marker-android;
+      };
+
+      apps.${system} = {
+        default = {
+          type = "app";
+          program = "${copyApkScript}/bin/copy-marker-apk";
         };
+      };
 
-        devShells.default = pkgs.mkShell {
-          name = "marker-dev";
+      devShells.${system} = pkgs.mkShell {
+        name = "marker-dev";
 
-          buildInputs = [
-            jdk
-            flutter
-            androidSdk
-            pkgs.git
-            pkgs.dart
-            copyApkScript
-          ];
+        buildInputs = [
+          jdk
+          flutter
+          androidSdk
+          pkgs.git
+          copyApkScript
+        ];
 
-          shellHook = ''
-            export ANDROID_SDK_ROOT=${androidSdkRoot}
-            export ANDROID_HOME=$ANDROID_SDK_ROOT
-            export JAVA_HOME=${jdk.home}
-            export FLUTTER_ROOT=${flutter}
-            export PATH="${flutter}/bin:${jdk}/bin:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+        shellHook = ''
+          export ANDROID_SDK_ROOT=${androidSdkRoot}
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          export JAVA_HOME=${jdk.home}
+          export FLUTTER_ROOT=${flutter}
+          export PATH="${flutter}/bin:${jdk}/bin:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 
-            # Add cmake to PATH
-            CMAKE_DIR="$(echo "$ANDROID_SDK_ROOT/cmake/"*/bin 2>/dev/null | head -n1)"
-            if [ -d "$CMAKE_DIR" ]; then
-              export PATH="$CMAKE_DIR:$PATH"
-            fi
+          # Add NDK to PATH
+          NDK_DIR="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
+          if [ -d "$NDK_DIR" ]; then
+            export PATH="$NDK_DIR:$PATH"
+            export ANDROID_NDK_ROOT="$NDK_DIR"
+          fi
 
-            # Add NDK to PATH
-            NDK_DIR="$ANDROID_SDK_ROOT/ndk/28.2.13676358"
-            if [ -d "$NDK_DIR" ]; then
-              export PATH="$NDK_DIR:$PATH"
-              export ANDROID_NDK_ROOT="$NDK_DIR"
-            fi
+          # aapt2 override for Gradle
+          export GRADLE_OPTS="-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdkRoot}/build-tools/36.0.0/aapt2"
 
-            # aapt2 override for Gradle
-            AAPT2_PATH="$(ls -d "$ANDROID_SDK_ROOT/build-tools/"*/ | sort -V | tail -n1)aapt2"
-            export GRADLE_OPTS="-Dorg.gradle.project.android.aapt2FromMavenOverride=$AAPT2_PATH"
-
-            echo "Marker dev shell ready!"
-            echo "Flutter: $(flutter --version | head -n1)"
-            echo "Android SDK: $ANDROID_SDK_ROOT"
-            echo "Java: $JAVA_HOME"
-            echo ""
-            echo "Commands:"
-            echo "  nix build .#default        - Build the APK (hermetic, reproducible)"
-            echo "  nix run .#default          - Copy APK to build/apk/"
-            echo "  flutter build apk          - Build interactively (impure, for dev)"
-          '';
-        };
-      }
-    );
+          echo "Marker dev shell ready!"
+          echo "Flutter: $(cat ${flutter}/version)"
+          echo "Android SDK: $ANDROID_SDK_ROOT"
+          echo "Java: $JAVA_HOME"
+          echo ""
+          echo "Commands:"
+          echo "  nix build .#default        - Build the APK (hermetic, reproducible)"
+          echo "  nix run .#default          - Copy APK to build/apk/"
+          echo "  flutter build apk          - Build interactively (impure, for dev)"
+        '';
+      };
+    };
 }
