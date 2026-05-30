@@ -124,7 +124,6 @@
             jdk
             androidSdk
             pkgs.git
-            pkgs.python3
             pkgs.zip
             pkgs.unzip
           ];
@@ -135,45 +134,6 @@
 
         patchPhase = ''
           runHook prePatch
-
-          # Patch pubspec.yaml with dependency overrides needed for the
-          # nixpkgs Flutter version (meta/test_api/matcher pin mismatch).
-          python3 <<PYEOF
-          import sys
-
-          with open("pubspec.yaml") as f:
-              content = f.read()
-
-          if "nix-flutter-overrides" not in content:
-              lines = content.split('\n')
-              new_lines = []
-              in_overrides = False
-              added = False
-              for line in lines:
-                  if line.strip() == "dependency_overrides:":
-                      in_overrides = True
-                  if in_overrides and not added:
-                      if line.strip().startswith("code_forge:") or line.strip().startswith("flutter:"):
-                          new_lines.append("  meta: ^1.18.0  # nix-flutter-overrides")
-                          new_lines.append("  test_api: ^0.7.12  # nix-flutter-overrides")
-                          new_lines.append("  matcher: ^0.12.16+1  # nix-flutter-overrides")
-                          added = True
-                  new_lines.append(line)
-
-              with open("pubspec.yaml", "w") as f:
-                  f.write('\n'.join(new_lines))
-
-              print("Patched pubspec.yaml with Nix Flutter dependency overrides")
-          else:
-              print("pubspec.yaml already patched")
-          PYEOF
-
-          # Patch onReorderItem -> onReorder for Flutter <= 3.41.9 compatibility.
-          if grep -q "onReorderItem:" lib/features/bookmarks/presentation/bookmarks_screen.dart 2>/dev/null; then
-            sed -i 's/onReorderItem:/onReorder:/g' lib/features/bookmarks/presentation/bookmarks_screen.dart
-            echo "Patched onReorderItem -> onReorder"
-          fi
-
           runHook postPatch
         '';
 
