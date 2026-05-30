@@ -35,23 +35,32 @@
       # Android SDK composition.
       # We include only the exact components the build needs to prevent AGP from
       # attempting to auto-download anything into the read-only Nix store.
-      androidComposition = pkgs.androidenv.composeAndroidPackages {
-        cmdLineToolsVersion = "9.0";
-        platformToolsVersion = "36.0.2";
-        buildToolsVersions = [ "36.0.0" ];
-        platformVersions = [ "36" ];
-        includeSources = false;
-        includeSystemImages = false;
-        includeEmulator = false;
-        includeNDK = true;
-        ndkVersions = [ "28.2.13676358" ];
-        includeCmake = false;
-        useGoogleAPIs = false;
-        extraLicenses = [
-          "android-sdk-license"
-          "android-sdk-preview-license"
-        ];
-      };
+        androidComposition = pkgs.androidenv.composeAndroidPackages {
+          cmdLineToolsVersion = "9.0";
+          platformToolsVersion = "36.0.2";
+          buildToolsVersions = [
+            "35.0.0"
+            "35.0.1"
+            "36.0.0"
+          ];
+          platformVersions = [
+            "36"
+            "35"
+            "34"
+          ];
+          includeSources = false;
+          includeSystemImages = false;
+          includeEmulator = false;
+          includeNDK = true;
+          ndkVersions = [ "28.2.13676358" ];
+          includeCmake = true;
+          cmakeVersions = [ "3.22.1" ];
+          useGoogleAPIs = false;
+          extraLicenses = [
+            "android-sdk-license"
+            "android-sdk-preview-license"
+          ];
+        };
 
       androidSdk = androidComposition.androidsdk;
       androidSdkRoot = "${androidSdk}/libexec/android-sdk";
@@ -110,14 +119,15 @@
         pname = "marker-android";
         inherit version src;
 
-        nativeBuildInputs = [
-          flutter
-          jdk
-          androidSdk
-          pkgs.git
-          pkgs.python3
-          pkgs.zip
-        ];
+          nativeBuildInputs = [
+            flutter
+            jdk
+            androidSdk
+            pkgs.git
+            pkgs.python3
+            pkgs.zip
+            pkgs.unzip
+          ];
 
         # Prevent stdenv from trying to strip or patch the APK (it's a ZIP).
         dontStrip = true;
@@ -197,11 +207,9 @@
           APK="build/app/outputs/flutter-apk/app-release.apk"
           TMP_APK="$TMPDIR/app-release-normalised.apk"
           mkdir -p "$TMPDIR/apk-contents"
-          cd "$TMPDIR/apk-contents"
-          unzip -q "$PWD/$APK"
-          find . -exec touch -d "@$SOURCE_DATE_EPOCH" {} +
-          zip -X -q -r "$TMP_APK" .
-          cd -
+          unzip -q "$APK" -d "$TMPDIR/apk-contents"
+          find "$TMPDIR/apk-contents" -exec touch -d "@$SOURCE_DATE_EPOCH" {} +
+          (cd "$TMPDIR/apk-contents" && zip -X -q -r "$TMP_APK" .)
           mv "$TMP_APK" "$APK"
 
           runHook postBuild
@@ -220,7 +228,7 @@
         # and copying the "got" hash from the error message.
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
-        outputHash = lib.fakeSha256;
+        outputHash = "sha256-5UbFXA26pOPzKR00c2QRSjnGXycfysqBQEafDsmUDFs=";
 
         meta = {
           description = "Marker Android APK";
@@ -263,10 +271,11 @@
           copyApkScript
         ];
 
+        ANDROID_SDK_ROOT = androidSdkRoot;
+        JAVA_HOME = jdk.home;
+
         shellHook = ''
-          export ANDROID_SDK_ROOT=${androidSdkRoot}
           export ANDROID_HOME=$ANDROID_SDK_ROOT
-          export JAVA_HOME=${jdk.home}
           export FLUTTER_ROOT=${flutter}
           export PATH="${flutter}/bin:${jdk}/bin:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 
@@ -281,7 +290,7 @@
           export GRADLE_OPTS="-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidSdkRoot}/build-tools/36.0.0/aapt2"
 
           echo "Marker dev shell ready!"
-          echo "Flutter: $(cat ${flutter}/version)"
+          echo "Flutter: $(flutter --version | head -n1)"
           echo "Android SDK: $ANDROID_SDK_ROOT"
           echo "Java: $JAVA_HOME"
           echo ""
