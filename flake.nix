@@ -159,18 +159,11 @@
           ndk.dir=$ANDROID_SDK_ROOT/ndk/28.2.13676358
           LOCALPROP
 
-          # Build the release APK.  Flutter implicitly runs "pub get" first.
-          flutter build apk --release
-
-          # Normalise ZIP timestamps so the output hash is stable across
-          # rebuilds of the same source.
-          APK="build/app/outputs/flutter-apk/app-release.apk"
-          TMP_APK="$TMPDIR/app-release-normalised.apk"
-          mkdir -p "$TMPDIR/apk-contents"
-          unzip -q "$APK" -d "$TMPDIR/apk-contents"
-          find "$TMPDIR/apk-contents" -exec touch -d "@$SOURCE_DATE_EPOCH" {} +
-          (cd "$TMPDIR/apk-contents" && zip -X -q -r "$TMP_APK" .)
-          mv "$TMP_APK" "$APK"
+          # Build the debug APK.  Flutter implicitly runs "pub get" first.
+          # Debug builds are automatically signed with a debug keystore, so
+          # the resulting APK can be installed on an emulator or device
+          # without any extra signing step.
+          flutter build apk --debug
 
           runHook postBuild
         '';
@@ -178,7 +171,7 @@
         installPhase = ''
           runHook preInstall
           mkdir -p $out
-          cp build/app/outputs/flutter-apk/app-release.apk $out/marker.apk
+          cp build/app/outputs/flutter-apk/app-debug.apk $out/marker.apk
           runHook postInstall
         '';
 
@@ -188,7 +181,7 @@
         # and copying the "got" hash from the error message.
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
-        outputHash = "sha256-5UbFXA26pOPzKR00c2QRSjnGXycfysqBQEafDsmUDFs=";
+        outputHash = "sha256-pvUhx0eMO6KkfIewiHTMZB84eV9ru/GxGJ0OHWi3d4A=";
 
         meta = {
           description = "Marker Android APK";
