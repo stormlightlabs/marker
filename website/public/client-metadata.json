@@ -3,10 +3,7 @@
   "application_type": "native",
   "client_name": "Marker",
   "client_uri": "https://marker.stormlightlabs.org",
-  "redirect_uris": [
-    "https://marker.stormlightlabs.org/oauth/callback",
-    "http://127.0.0.1/oauth/callback"
-  ],
+  "redirect_uris": ["https://marker.stormlightlabs.org/oauth/callback", "http://127.0.0.1/oauth/callback"],
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "scope": "atproto transition:generic",

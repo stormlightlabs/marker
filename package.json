@@ -6,8 +6,7 @@
   "scripts": {
     "dev:website": "pnpm --filter marker-website dev",
     "build:website": "pnpm --filter marker-website build",
-    "format": "prettier --check \"website/**/*.{astro,css,html,js,json,jsx,md,mjs,ts,tsx}\" package.json pnpm-workspace.yaml .prettierrc",
-    "format:write": "prettier --write \"website/**/*.{astro,css,html,js,json,jsx,md,mjs,ts,tsx}\" package.json pnpm-workspace.yaml .prettierrc"
+    "format": "prettier --write \"website/**/*.{astro,css,html,js,json,jsx,md,mjs,ts,tsx}\" package.json pnpm-workspace.yaml .prettierrc"
   },
   "devDependencies": {
     "prettier": "^3.8.3",
