@@ -12,6 +12,7 @@ import 'package:marker/features/atproto/data/atproto_session_store.dart';
 import 'package:marker/features/atproto/data/atproto_sync_repository.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_pull_service.dart';
 import 'package:marker/features/atproto/data/semble_bookmark_push_service.dart';
+import 'package:marker/features/settings/data/settings_repository.dart';
 import 'package:poptart/poptart.dart';
 
 import '../../../helpers/harness.dart';
@@ -273,6 +274,62 @@ void main() {
     expect((await syncRepository.accounts()).single.did, 'did:plc:alice');
     expect((await database.select(database.bookmarks).get()).single.id, 'local-bookmark');
     expect(find.text('Connect a Bluesky or Atmosphere account'), findsOneWidget);
+  });
+
+  testWidgets('confirms before enabling annotation sync and selecting existing annotations', (tester) async {
+    final now = DateTime.utc(2026, 5, 26, 12);
+    await seedConnectedAccount();
+    await database
+        .into(database.pages)
+        .insert(PagesCompanion.insert(id: 'page-1', url: 'https://example.com', createdAt: now, lastVisitedAt: now));
+    await database.into(database.annotations).insert(
+      AnnotationsCompanion.insert(
+        id: 'annotation-1',
+        pageId: 'page-1',
+        motivation: 'highlighting',
+        createdAt: now,
+        modifiedAt: now,
+      ),
+    );
+
+    await tester.pumpWidget(
+      markerTestApp(
+        database: database,
+        additionalOverrides: [atprotoAuthRepositoryProvider.overrideWithValue(authRepository)],
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Settings'));
+    await pumpRouteTransition(tester);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Connected as @alice.bsky.social'));
+    await pumpRouteTransition(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Annotation sync'), findsOneWidget);
+    await tester.tap(find.byType(CupertinoSwitch).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sync annotations?'), findsOneWidget);
+    expect(find.textContaining('page URLs, selected text, notes, and highlight colors'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(await SettingsRepository(database).isAnnotationSyncEnabled(), isFalse);
+    expect(await syncRepository.activeSelections(accountDid: 'did:plc:alice'), isEmpty);
+
+    await tester.tap(find.byType(CupertinoSwitch).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enable annotation sync'));
+    await tester.pumpAndSettle();
+
+    expect(await SettingsRepository(database).isAnnotationSyncEnabled(), isTrue);
+    final selections = await syncRepository.activeSelections(accountDid: 'did:plc:alice');
+    expect(selections, hasLength(1));
+    expect(selections.single.localId, 'annotation-1');
+    expect(selections.single.collection, MarginSyncCollection.note.value);
   });
 
   testWidgets('imports bookmarks from the connected settings card and shows result summary', (tester) async {

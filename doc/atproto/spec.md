@@ -2,8 +2,6 @@
 
 Marker is a bookmarking and highlighting browser. The ATProto integration should make Marker data usable in the Semble/Cosmik data model while keeping local browsing fast, private by default, and available offline.
 
-UI requirements for OAuth connection, bookmark import, sync status, and diagnostics live in [ui.md](./ui.md).
-
 ## Goals
 
 - Sync bookmarks as Semble cards.
@@ -589,6 +587,207 @@ normalized source URL + exact quote + start/end + createdAt bucket
 ```
 
 Do not dedupe annotations aggressively. Duplicates are safer than accidentally merging two different reader notes.
+
+## UI requirements
+
+ATProto sync lives under Settings → Sync. The surface covers account connection, explicit sync selection, manual sync, status, diagnostics, and privacy copy.
+
+### UX principles
+
+- Treat ATProto sync as opt-in.
+- Account connection alone must not publish local bookmarks, folders, annotations, tags, notes, or collections.
+- Explain that selected bookmark sync writes Semble/Cosmik records to the user's ATProto repo.
+- Explain that selected annotation sync writes Margin records that can include page URLs, selected text, notes, tags, colors, and collection membership.
+- Keep browser history out of sync copy and controls.
+- Keep annotation sync separate from bookmark sync, with its own opt-in, status, and result copy under the ATProto Sync umbrella.
+- Default annotation sync to off until the user opts in.
+- Prefer recovery actions over raw protocol errors.
+- Never show tokens, refresh material, DPoP keys, OAuth pending context, raw session state, full selector JSON, note body text, or raw record JSON in standard UI or diagnostics.
+
+### Account connection
+
+Disconnected state shows `Sync` / `ATProto Sync`, the subtitle `Connect a Bluesky or Atmosphere account`, and a `Connect` action. The connect action opens a sheet with:
+
+- title: `Connect ATProto`;
+- copy stating that Bluesky or Atmosphere accounts can import Semble/Cosmik bookmarks;
+- privacy copy stating that connecting does not publish local data and browser history stays local;
+- optional handle input with placeholder `alice.bsky.social`;
+- helper text explaining that the user may leave the field blank and choose an account in the browser;
+- `Continue` and `Cancel` actions.
+
+On `Continue`, the app calls `AtprotoAuthRepository.startConnect(handle: ...)`, launches the OAuth authorization URL through `flutter_web_auth_2`, waits for the HTTPS callback, and passes the full callback URL to `AtprotoAuthRepository.completeConnect`. The production callback is:
+
+```text
+https://marker.stormlightlabs.org/oauth/callback
+```
+
+A development fallback may use:
+
+```text
+marker-dev://oauth-callback
+```
+
+Manual copy/paste OAuth callbacks should not be exposed in normal builds.
+
+The login controller represents `idle`, `startingOAuth`, `waitingForCallback`, `completingOAuth`, `connected`, and `failed(message)`. Failures stay in the connect sheet with retry/cancel available. User-facing messages should be plain language, for example:
+
+| Cause | User message |
+| --- | --- |
+| OAuth start failed | `Could not start sign in. Check your connection and try again.` |
+| Browser/auth session canceled | `Sign in was canceled.` |
+| Missing pending context | `Sign in expired. Start again.` |
+| State mismatch | `Sign in could not be verified. Start again.` |
+| Token exchange failed | `Could not finish sign in. Try again.` |
+| Secure storage unavailable | `Marker could not save the session securely on this device.` |
+
+After connection, offer an immediate import prompt: `Import bookmarks now?` with body copy explaining that Marker can pull Semble/Cosmik bookmarks and collections from the user's ATProto repo. Actions are `Import bookmarks` and `Not now`.
+
+### Connected settings
+
+Connected state shows:
+
+- title: `ATProto Sync` or `Sync`;
+- subtitle: `Connected as @handle` or `Connected as did:...`;
+- account DID;
+- handle, if known;
+- PDS endpoint, if known;
+- last bookmark import/sync time;
+- last error, if any;
+- `Sync now`;
+- `Disconnect`.
+
+Disconnect clears OAuth session material from secure storage, leaves local imported data intact, and may leave non-secret sync metadata for diagnostics. Confirmation copy:
+
+- title: `Disconnect ATProto?`;
+- body: `Marker will remove the saved sign-in session. Imported bookmarks stay on this device.`;
+- destructive action: `Disconnect`;
+- cancel: `Cancel`.
+
+### Sync controls and selection
+
+Settings should show what sync is allowed to manage. Existing local items stay private until explicitly selected. Controls include:
+
+- annotation sync opt-in;
+- automatic selection for new bookmarks/folders/memberships;
+- automatic selection for new annotations and curated annotation collections;
+- individual and bulk selection controls elsewhere in the app for bookmarks, bookmark folders, annotations, and annotation collections;
+- dependency feedback when selected memberships cannot sync until their parent bookmark/folder or annotation/collection is selected or mirrored.
+
+When importing remote records, ask whether to keep them linked to the source account for future sync or import as local-only so future edits stay private.
+
+### Manual sync
+
+When push exists, the main action is `Sync now` / `Sync bookmarks`, not `Import bookmarks`. It should push pending selected local changes, pull remote Semble/Cosmik records, verify remote deletes, and run enabled annotation sync domains while preserving separate bookmark and annotation summaries. Button states are:
+
+- idle: `Sync now` or `Sync bookmarks`;
+- running: `Syncing...` or `Syncing bookmarks...`;
+- disabled when disconnected or another sync is running.
+
+Bookmark result summaries separate push, pull, remote deletes, conflicts, malformed records, and no-op state. Example:
+
+```text
+Published 3 bookmark changes and 1 delete.
+Imported 2 bookmarks, 1 folder, and 3 folder links.
+Applied 2 remote deletes.
+Skipped 1 conflict and 0 malformed records.
+```
+
+For no changes:
+
+```text
+Bookmarks are up to date.
+```
+
+If a push fails, keep local data unchanged, leave outbox items queued, and offer `Retry sync` and `View sync issues` where appropriate. Record-level conflict resolution is later work.
+
+### Annotation sync UI
+
+Annotation sync is a separate card/section below bookmark sync. When connected, show:
+
+- title: `Annotations` or `Annotation sync`;
+- disabled subtitle: `Off. Sync highlights and notes with Margin.`;
+- enabled subtitle: `Syncing highlights and notes as Margin records.`;
+- toggle: `Sync annotations`;
+- when enabled: `Sync annotations now` and `View annotation sync issues` if conflicts, malformed records, or failed outbox items exist.
+
+Turning annotation sync on requires confirmation before publishing existing annotations. Copy:
+
+- title: `Sync annotations?`;
+- body: `Marker will import and publish Margin note records in your ATProto repo. Synced records can include page URLs, selected text, notes, and highlight colors.`;
+- primary action: `Enable annotation sync`;
+- secondary action: `Cancel`.
+
+After enabling, offer `Sync annotations now` and `Not now`. Annotation sync pushes pending local `at.margin.note`, `at.margin.collection`, and `at.margin.collectionItem` changes, then pulls remote records. Summary example:
+
+```text
+Published 3 annotation changes.
+Imported 2 Margin notes.
+Skipped 1 malformed record.
+```
+
+For no changes:
+
+```text
+Annotations are up to date.
+```
+
+Reader screens should avoid protocol labels beside every highlight. Add sync status only where users manage annotations: optional `Synced with Margin` / `Pending sync` in annotation detail, no per-row status unless there is an error, and delete confirmation copy stating that the synced Margin note will be deleted on the next sync when annotation sync is enabled.
+
+### Status and diagnostics
+
+Diagnostics live under ATProto Sync as an expandable section or screen. Show aggregate, non-secret state:
+
+- tracked collection name;
+- last successful sync time;
+- last error;
+- local changes pending;
+- last push timestamp;
+- last push error;
+- retry timestamp when backoff is active;
+- pending creates, updates, deletes;
+- failed attempts;
+- oldest pending change time;
+- selected counts, unselected local counts, and dependency-blocked counts;
+- delete sync status;
+- synced and deleted record counts.
+
+Tracked diagnostics include `network.cosmik.card`, `network.cosmik.collection`, `network.cosmik.collectionLink`, `network.cosmik.collectionLinkRemoval`, `at.margin.note`, `at.margin.collection`, and `at.margin.collectionItem`. Diagnostics export may include non-secret aggregate fields and short errors, but not OAuth/session material, DPoP material, raw records, selector JSON, note body text, or payload JSON.
+
+Use plain-language operation labels in normal UI:
+
+| Operation | Label |
+| --- | --- |
+| create | `New remote record` |
+| update | `Update remote record` |
+| delete | `Delete remote record` |
+
+Initial issue UI can stay aggregate-only:
+
+- `Malformed remote notes: N`;
+- `Local conflicts skipped: N`;
+- `Failed pushes: N`.
+
+### Privacy copy
+
+Use this copy in the connect sheet or connected detail panel, adjusted for explicit selection:
+
+```text
+Connecting an account does not publish local data. Marker only syncs items you choose to keep synced. Browser history stays local.
+```
+
+For bookmark publishing details:
+
+```text
+Selected bookmark sync writes Semble/Cosmik bookmark records to your ATProto repo. Browser history stays local. Annotation sync is separate and off by default.
+```
+
+For collections:
+
+```text
+Imported collections become Marker folders. Synced private collections use CLOSED access unless you choose otherwise later.
+```
+
+Deferred UI work includes rich-text facet editing, rights/license editing, content-warning/label editing, and generator metadata display unless users need those controls.
 
 ## Privacy defaults
 

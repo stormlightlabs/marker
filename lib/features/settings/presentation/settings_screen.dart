@@ -610,6 +610,10 @@ class _AtprotoSelectionControls extends ConsumerWidget {
       _AnnotationSyncOptInRow(
         enabled: annotationSyncEnabled,
         onChanged: (enabled) async {
+          if (enabled) {
+            final confirmed = await _confirmEnableAnnotationSync(context);
+            if (!confirmed) return;
+          }
           await ref.read(annotationSyncOptInServiceProvider).setEnabled(enabled);
           ref.invalidate(_annotationSyncEnabledProvider);
           _invalidateAtprotoSyncUi(ref, accountDid);
@@ -639,6 +643,26 @@ class _AtprotoSelectionControls extends ConsumerWidget {
       ),
     ],
   );
+}
+
+Future<bool> _confirmEnableAnnotationSync(BuildContext context) async {
+  final result = await showCupertinoDialog<bool>(
+    context: context,
+    builder: (dialogContext) => CupertinoAlertDialog(
+      title: const Text('Sync annotations?'),
+      content: const Text(
+        'Marker will import and publish Margin note records in your ATProto repo. Synced records can include page URLs, selected text, notes, and highlight colors.',
+      ),
+      actions: [
+        CupertinoDialogAction(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+        CupertinoDialogAction(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Enable annotation sync'),
+        ),
+      ],
+    ),
+  );
+  return result == true;
 }
 
 class _SyncOptionsHeader extends StatelessWidget {

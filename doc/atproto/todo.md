@@ -1,6 +1,6 @@
 # ATProto and Semble sync todo
 
-See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth, import, status, and diagnostics UI guidance.
+See [spec.md](./spec.md) for the data, sync, and UI design.
 
 ## Phase 1: local model alignment
 
@@ -137,6 +137,8 @@ See [spec.md](./spec.md) for the data/sync design and [ui.md](./ui.md) for OAuth
 ## Later work
 
 - [x] Add curated annotation collections backed by `at.margin.collection` and `at.margin.collectionItem`.
+- [x] Add confirmation before enabling annotation sync; enabling must not immediately publish existing annotations without an explicit confirmation.
+- [ ] Add record-level conflict resolution UI now that pull, push, and deletion paths report aggregate conflicts.
 - [ ] Add UI for imported/preserved Margin facets, rights, labels, and generator metadata only if users need to inspect or edit them.
 - [ ] Expand Markdown-to-facet generation beyond basic Markdown links if Margin clients need richer interop.
 - [ ] Add feeds from followed collections/users using `network.cosmik.follow`.
