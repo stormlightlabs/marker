@@ -1,8 +1,6 @@
 build/
 .dart_tool/
 node_modules/
-extension/dist/
-extension/node_modules/
 website/.astro/
 website/dist/
 website/node_modules/

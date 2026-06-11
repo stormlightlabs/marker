@@ -4,12 +4,10 @@
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "dev:extension": "pnpm --filter marker-extension dev",
-    "build:extension": "pnpm --filter marker-extension build",
     "dev:website": "pnpm --filter marker-website dev",
     "build:website": "pnpm --filter marker-website build",
-    "format": "prettier --check \"{extension,website}/**/*.{astro,css,html,js,json,jsx,md,mjs,ts,tsx}\" package.json pnpm-workspace.yaml .prettierrc",
-    "format:write": "prettier --write \"{extension,website}/**/*.{astro,css,html,js,json,jsx,md,mjs,ts,tsx}\" package.json pnpm-workspace.yaml .prettierrc"
+    "format": "prettier --check \"website/**/*.{astro,css,html,js,json,jsx,md,mjs,ts,tsx}\" package.json pnpm-workspace.yaml .prettierrc",
+    "format:write": "prettier --write \"website/**/*.{astro,css,html,js,json,jsx,md,mjs,ts,tsx}\" package.json pnpm-workspace.yaml .prettierrc"
   },
   "devDependencies": {
     "prettier": "^3.8.3",
